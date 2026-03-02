@@ -71,6 +71,22 @@ export const PAGE_BY_ID_QUERY = `
         }
         blockVersion
       }
+      layoutBlocks {
+        id type position order isActive
+        content settings style advanced
+        translations defaultLanguage
+        metadata { createdAt updatedAt createdBy version }
+        blockVersion
+      }
+      publishedLayoutBlocks {
+        id type position order isActive
+        content settings style advanced
+        translations defaultLanguage
+        metadata { createdAt updatedAt createdBy version }
+        blockVersion
+      }
+      layoutOverrides { position action blockId }
+      inheritsLayout
       createdAt
       updatedAt
     }
@@ -128,6 +144,22 @@ export const PAGE_BY_SLUG_QUERY = `
         }
         blockVersion
       }
+      layoutBlocks {
+        id type position order isActive
+        content settings style advanced
+        translations defaultLanguage
+        metadata { createdAt updatedAt createdBy version }
+        blockVersion
+      }
+      publishedLayoutBlocks {
+        id type position order isActive
+        content settings style advanced
+        translations defaultLanguage
+        metadata { createdAt updatedAt createdBy version }
+        blockVersion
+      }
+      layoutOverrides { position action blockId }
+      inheritsLayout
       createdAt
       updatedAt
     }
@@ -157,6 +189,7 @@ export const WORKSPACE_BLOCKS_QUERY = `
         helperText
         options
         group
+        itemSchema
       }
       defaultContent
       version
@@ -185,6 +218,7 @@ export const WORKSPACE_BLOCK_BY_TYPE_QUERY = `
         helperText
         options
         group
+        itemSchema
       }
       defaultContent
       version
@@ -202,8 +236,6 @@ export const SITE_CONFIG_QUERY = `
       enabledLanguages
       siteName
       enabledFeatures
-      header
-      footer
     }
   }
 `;
@@ -356,5 +388,22 @@ export const PUBLISH_PAGE_MUTATION = `
 export const REMOVE_PAGE_MUTATION = `
   mutation RemovePage($id: ID!) {
     removePage(id: $id)
+  }
+`;
+
+export const UPDATE_PAGE_LAYOUT_MUTATION = `
+  mutation UpdatePageLayout($input: UpdatePageLayoutInput!) {
+    updatePageLayout(input: $input) {
+      id
+      layoutBlocks {
+        id type position order isActive
+        content settings style advanced
+        translations defaultLanguage
+        metadata { createdAt updatedAt createdBy version }
+        blockVersion
+      }
+      layoutOverrides { position action blockId }
+      inheritsLayout
+    }
   }
 `;

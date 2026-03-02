@@ -11,6 +11,28 @@ export interface BlockData {
   blockVersion?: string;
 }
 
+export interface LayoutBlock {
+  id: string;
+  type: string;
+  position: string;
+  order: number;
+  isActive: boolean;
+  content?: Record<string, unknown>;
+  settings?: Record<string, unknown>;
+  style?: Record<string, unknown>;
+  advanced?: Record<string, unknown>;
+  translations?: Record<string, { status: string }>;
+  defaultLanguage?: string;
+  metadata?: Record<string, unknown>;
+  blockVersion?: string;
+}
+
+export interface LayoutOverride {
+  position: string;
+  action: string;
+  blockId?: string;
+}
+
 export interface Page {
   id: string;
   workspaceId: string;
@@ -26,6 +48,10 @@ export interface Page {
   published: boolean;
   publishedAt: string | null;
   hasUnpublishedChanges: boolean;
+  layoutBlocks: LayoutBlock[];
+  publishedLayoutBlocks: LayoutBlock[];
+  layoutOverrides: LayoutOverride[];
+  inheritsLayout: boolean;
   pageType: string;
   parentId: string | null;
   order: number;

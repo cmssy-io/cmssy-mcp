@@ -15,6 +15,7 @@ import {
   TOGGLE_PUBLISH_MUTATION,
   PUBLISH_PAGE_MUTATION,
   REMOVE_PAGE_MUTATION,
+  UPDATE_PAGE_LAYOUT_MUTATION,
 } from "./queries.js";
 import type {
   Page,
@@ -30,6 +31,42 @@ export function createServer(client: CmssyClient) {
     name: "cmssy",
     version: "0.1.0",
   });
+
+  // ─── Workspace Block Registry (cached) ──────────────────────
+
+  let workspaceBlocksCache: WorkspaceBlock[] | null = null;
+
+  async function getWorkspaceBlocks(): Promise<WorkspaceBlock[]> {
+    if (!workspaceBlocksCache) {
+      const data = await client.query<{ workspaceBlocks: WorkspaceBlock[] }>(
+        WORKSPACE_BLOCKS_QUERY,
+      );
+      workspaceBlocksCache = data.workspaceBlocks;
+    }
+    return workspaceBlocksCache;
+  }
+
+  async function findBlockDef(
+    blockType: string,
+  ): Promise<WorkspaceBlock | null> {
+    const blocks = await getWorkspaceBlocks();
+    return blocks.find((b) => b.blockType === blockType) ?? null;
+  }
+
+  async function validateBlockTypes(
+    types: string[],
+  ): Promise<{ valid: boolean; error?: string }> {
+    const wsBlocks = await getWorkspaceBlocks();
+    const available = wsBlocks.map((b) => b.blockType);
+    const invalid = types.filter((t) => !available.includes(t));
+    if (invalid.length > 0) {
+      return {
+        valid: false,
+        error: `Unknown block type(s): ${invalid.join(", ")}. Available: ${available.join(", ")}`,
+      };
+    }
+    return { valid: true };
+  }
 
   // ─── Read Tools ──────────────────────────────────────────────
 
@@ -154,12 +191,30 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "get_site_config",
-    "Get site configuration: languages, navigation, site name, enabled features",
+    "Get site configuration: languages, navigation, header, footer, site name, enabled features",
     {},
     async () => {
-      const data = await client.query<{ siteConfig: SiteConfig | null }>(
-        SITE_CONFIG_QUERY,
-      );
+      // Dynamically introspect header/footer types from the backend schema
+      const [headerSel, footerSel] = await Promise.all([
+        client.buildSelectionSet("SiteHeader"),
+        client.buildSelectionSet("SiteFooter"),
+      ]);
+
+      const query = `
+        query SiteConfig {
+          siteConfig {
+            id
+            defaultLanguage
+            enabledLanguages
+            siteName
+            enabledFeatures
+            ${headerSel ? `header { ${headerSel} }` : ""}
+            ${footerSel ? `footer { ${footerSel} }` : ""}
+          }
+        }
+      `;
+
+      const data = await client.query<{ siteConfig: SiteConfig | null }>(query);
       return {
         content: [
           {
@@ -279,38 +334,40 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_blocks",
-    "Set the full blocks array on a page. Replaces all existing blocks.",
+    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config.",
     {
       pageId: z.string().describe("Page ID"),
       blocks: z
         .array(
           z.object({
             id: z.string().describe("Unique block instance ID (UUID)"),
-            type: z.string().describe("Block type (e.g. 'hero', 'text-block')"),
-            content: z
-              .record(z.string(), z.unknown())
-              .optional()
-              .describe(
-                "Language-keyed content: { en: { title: '...' }, pl: { title: '...' } }",
-              ),
+            type: z
+              .string()
+              .describe("Block type (must exist in workspace blocks)"),
+            content: z.record(z.string(), z.unknown()).optional(),
             settings: z.record(z.string(), z.unknown()).optional(),
             style: z.record(z.string(), z.unknown()).optional(),
             advanced: z.record(z.string(), z.unknown()).optional(),
             translations: z
               .record(z.string(), z.object({ status: z.string() }))
-              .optional()
-              .describe(
-                "Translation status per language: { en: { status: 'completed' } }",
-              ),
+              .optional(),
             defaultLanguage: z.string().optional(),
             metadata: z.record(z.string(), z.unknown()).optional(),
             blockVersion: z.string().optional(),
           }),
         )
-        .describe("Full array of blocks to set on the page"),
+        .describe("Full array of content blocks to set on the page"),
     },
     async ({ pageId, blocks }) => {
-      // Fetch current page to preserve name/slug
+      // Validate all block types against workspace registry
+      const validation = await validateBlockTypes(blocks.map((b) => b.type));
+      if (!validation.valid) {
+        return {
+          content: [{ type: "text" as const, text: validation.error! }],
+          isError: true,
+        };
+      }
+
       const pageData = await client.query<{ pageById: Page | null }>(
         PAGE_BY_ID_QUERY,
         { id: pageId },
@@ -515,15 +572,91 @@ export function createServer(client: CmssyClient) {
     },
   );
 
+  // ─── Layout Tools ──────────────────────────────────────────
+
+  server.tool(
+    "update_page_layout",
+    "Update page-level layout settings: inheritance, overrides, or replace all layout blocks. Block types are validated against workspace config.",
+    {
+      pageId: z.string().describe("Page ID"),
+      layoutBlocks: z
+        .array(z.record(z.string(), z.unknown()))
+        .optional()
+        .describe(
+          "Full replacement array of layout blocks. Each must have 'type' (validated against workspace). Position, order, content etc. are passed through to the backend.",
+        ),
+      layoutOverrides: z
+        .array(
+          z.object({
+            position: z.string().describe("Layout position to override"),
+            action: z.string().describe("Override action"),
+            blockId: z.string().optional().describe("Replacement block ID"),
+          }),
+        )
+        .optional()
+        .describe("Layout overrides for inherited positions"),
+      inheritsLayout: z
+        .boolean()
+        .optional()
+        .describe("Whether this page inherits layout from parent"),
+    },
+    async ({ pageId, layoutBlocks, layoutOverrides, inheritsLayout }) => {
+      // Validate block types against workspace registry
+      if (layoutBlocks) {
+        const types = layoutBlocks
+          .map((b) => b.type as string | undefined)
+          .filter(Boolean) as string[];
+        const validation = await validateBlockTypes(types);
+        if (!validation.valid) {
+          return {
+            content: [{ type: "text" as const, text: validation.error! }],
+            isError: true,
+          };
+        }
+      }
+
+      const input: Record<string, unknown> = { pageId };
+      if (layoutBlocks !== undefined) input.layoutBlocks = layoutBlocks;
+      if (layoutOverrides !== undefined)
+        input.layoutOverrides = layoutOverrides;
+      if (inheritsLayout !== undefined) input.inheritsLayout = inheritsLayout;
+
+      const data = await client.query<{ updatePageLayout: Page | null }>(
+        UPDATE_PAGE_LAYOUT_MUTATION,
+        { input },
+      );
+
+      if (!data.updatePageLayout) {
+        return {
+          content: [
+            { type: "text" as const, text: "Page not found or update failed" },
+          ],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.updatePageLayout, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
   // ─── Block Helper Tools (read-modify-write) ─────────────────
 
   server.tool(
     "add_block_to_page",
-    "Add a block to a page at a specific position. Auto-generates UUID and translation status for all enabled languages.",
+    "Add a block to a page. Automatically detects layout vs content block from workspace config. Auto-generates UUID and translation status.",
     {
       pageId: z.string().describe("Page ID"),
       block: z.object({
-        type: z.string().describe("Block type (e.g. 'hero', 'text-block')"),
+        type: z
+          .string()
+          .describe("Block type (must exist in workspace blocks)"),
         content: z
           .record(z.string(), z.unknown())
           .describe(
@@ -535,9 +668,24 @@ export function createServer(client: CmssyClient) {
       position: z
         .number()
         .optional()
-        .describe("0-based position to insert at (default: end of page)"),
+        .describe("0-based position to insert at (default: end)"),
     },
     async ({ pageId, block, position }) => {
+      // Validate block type against workspace registry
+      const blockDef = await findBlockDef(block.type);
+      if (!blockDef) {
+        const available = await getWorkspaceBlocks();
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Block type '${block.type}' not found. Available: ${available.map((b) => b.blockType).join(", ")}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
       // Fetch current page
       const pageData = await client.query<{ pageById: Page | null }>(
         PAGE_BY_ID_QUERY,
@@ -568,53 +716,104 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      // Build new block
-      const newBlock: BlockInput = {
-        id: crypto.randomUUID(),
-        type: block.type,
-        content: block.content,
-        settings: block.settings,
-        style: block.style,
-        translations,
-        defaultLanguage,
-      };
+      const newBlockId = crypto.randomUUID();
+      const isLayout = blockDef.layoutPosition !== null;
 
-      // Insert at position
-      const blocks = [...pageData.pageById.blocks];
-      if (position !== undefined && position >= 0 && position < blocks.length) {
-        blocks.splice(position, 0, newBlock);
+      if (isLayout) {
+        // Layout block — add to layoutBlocks via updatePageLayout
+        const existingLayoutBlocks = pageData.pageById.layoutBlocks || [];
+        const layoutPosition = blockDef.layoutPosition!;
+
+        // Append after existing blocks in same position
+        const maxOrder = existingLayoutBlocks
+          .filter((b) => b.position === layoutPosition)
+          .reduce((max, b) => Math.max(max, b.order), -1);
+
+        const newLayoutBlock = {
+          id: newBlockId,
+          type: block.type,
+          position: layoutPosition,
+          order: maxOrder + 1,
+          isActive: true,
+          content: block.content,
+          settings: block.settings,
+          style: block.style,
+          translations,
+          defaultLanguage,
+        };
+
+        const layoutBlocks = [...existingLayoutBlocks, newLayoutBlock];
+        const data = await client.query<{ updatePageLayout: Page | null }>(
+          UPDATE_PAGE_LAYOUT_MUTATION,
+          { input: { pageId, layoutBlocks } },
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                { blockId: newBlockId, page: data.updatePageLayout },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
       } else {
-        blocks.push(newBlock);
-      }
+        // Content block — add to blocks via savePage
+        const newBlock: BlockInput = {
+          id: newBlockId,
+          type: block.type,
+          content: block.content,
+          settings: block.settings,
+          style: block.style,
+          translations,
+          defaultLanguage,
+        };
 
-      // Save
-      const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
-        input: {
-          id: pageId,
-          name: pageData.pageById.name,
-          slug: pageData.pageById.slug,
-          blocks,
-        },
-      });
+        const blocks = [...pageData.pageById.blocks];
+        if (
+          position !== undefined &&
+          position >= 0 &&
+          position < blocks.length
+        ) {
+          blocks.splice(position, 0, newBlock);
+        } else {
+          blocks.push(newBlock);
+        }
 
-      return {
-        content: [
+        const data = await client.query<{ savePage: Page }>(
+          SAVE_PAGE_MUTATION,
           {
-            type: "text" as const,
-            text: JSON.stringify(
-              { blockId: newBlock.id, page: data.savePage },
-              null,
-              2,
-            ),
+            input: {
+              id: pageId,
+              name: pageData.pageById.name,
+              slug: pageData.pageById.slug,
+              blocks,
+            },
           },
-        ],
-      };
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                { blockId: newBlockId, page: data.savePage },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      }
     },
   );
 
   server.tool(
     "update_block_content",
-    "Update a specific block's content on a page. Merges with existing content.",
+    "Update a specific block's content on a page. Merges with existing content. Works for both content and layout blocks.",
     {
       pageId: z.string().describe("Page ID"),
       blockId: z.string().describe("Block instance ID (UUID) to update"),
@@ -637,26 +836,35 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      const blockIndex = pageData.pageById.blocks.findIndex(
-        (b) => b.id === blockId,
-      );
-      if (blockIndex === -1) {
+      const page = pageData.pageById;
+
+      // Search in content blocks first, then layout blocks
+      const contentIdx = page.blocks.findIndex((b) => b.id === blockId);
+      const layoutIdx =
+        contentIdx === -1
+          ? (page.layoutBlocks || []).findIndex((b) => b.id === blockId)
+          : -1;
+
+      if (contentIdx === -1 && layoutIdx === -1) {
         return {
           content: [
             {
               type: "text" as const,
-              text: `Block '${blockId}' not found on page`,
+              text: `Block '${blockId}' not found on page (checked both content and layout blocks)`,
             },
           ],
           isError: true,
         };
       }
 
-      // Merge content
-      const blocks = [...pageData.pageById.blocks];
-      const existingBlock = { ...blocks[blockIndex] };
+      const isLayout = layoutIdx !== -1;
+      const targetArray = isLayout
+        ? [...(page.layoutBlocks || [])]
+        : [...page.blocks];
+      const targetIndex = isLayout ? layoutIdx : contentIdx;
 
-      // Deep merge content per language
+      // Merge content
+      const existingBlock = { ...targetArray[targetIndex] };
       const mergedContent = { ...(existingBlock.content ?? {}) };
       for (const [lang, langContent] of Object.entries(content)) {
         if (
@@ -691,38 +899,53 @@ export function createServer(client: CmssyClient) {
         }
       }
 
-      blocks[blockIndex] = existingBlock;
+      targetArray[targetIndex] = existingBlock;
 
-      // Save
-      const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
-        input: {
-          id: pageId,
-          name: pageData.pageById.name,
-          slug: pageData.pageById.slug,
-          blocks,
-        },
-      });
-
-      return {
-        content: [
+      if (isLayout) {
+        const data = await client.query<{ updatePageLayout: Page | null }>(
+          UPDATE_PAGE_LAYOUT_MUTATION,
+          { input: { pageId, layoutBlocks: targetArray } },
+        );
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(data.updatePageLayout, null, 2),
+            },
+          ],
+        };
+      } else {
+        const data = await client.query<{ savePage: Page }>(
+          SAVE_PAGE_MUTATION,
           {
-            type: "text" as const,
-            text: JSON.stringify(data.savePage, null, 2),
+            input: {
+              id: pageId,
+              name: page.name,
+              slug: page.slug,
+              blocks: targetArray,
+            },
           },
-        ],
-      };
+        );
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(data.savePage, null, 2),
+            },
+          ],
+        };
+      }
     },
   );
 
   server.tool(
     "remove_block_from_page",
-    "Remove a specific block from a page by its instance ID.",
+    "Remove a specific block from a page by its instance ID. Works for both content and layout blocks.",
     {
       pageId: z.string().describe("Page ID"),
       blockId: z.string().describe("Block instance ID (UUID) to remove"),
     },
     async ({ pageId, blockId }) => {
-      // Fetch current page
       const pageData = await client.query<{ pageById: Page | null }>(
         PAGE_BY_ID_QUERY,
         { id: pageId },
@@ -735,37 +958,59 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      const blocks = pageData.pageById.blocks.filter((b) => b.id !== blockId);
+      const page = pageData.pageById;
 
-      if (blocks.length === pageData.pageById.blocks.length) {
+      // Try content blocks first
+      const contentBlocks = page.blocks.filter((b) => b.id !== blockId);
+      if (contentBlocks.length < page.blocks.length) {
+        const data = await client.query<{ savePage: Page }>(
+          SAVE_PAGE_MUTATION,
+          {
+            input: {
+              id: pageId,
+              name: page.name,
+              slug: page.slug,
+              blocks: contentBlocks,
+            },
+          },
+        );
         return {
           content: [
             {
               type: "text" as const,
-              text: `Block '${blockId}' not found on page`,
+              text: JSON.stringify(data.savePage, null, 2),
             },
           ],
-          isError: true,
         };
       }
 
-      // Save
-      const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
-        input: {
-          id: pageId,
-          name: pageData.pageById.name,
-          slug: pageData.pageById.slug,
-          blocks,
-        },
-      });
+      // Try layout blocks
+      const layoutBlocks = (page.layoutBlocks || []).filter(
+        (b) => b.id !== blockId,
+      );
+      if (layoutBlocks.length < (page.layoutBlocks || []).length) {
+        const data = await client.query<{ updatePageLayout: Page | null }>(
+          UPDATE_PAGE_LAYOUT_MUTATION,
+          { input: { pageId, layoutBlocks } },
+        );
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(data.updatePageLayout, null, 2),
+            },
+          ],
+        };
+      }
 
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(data.savePage, null, 2),
+            text: `Block '${blockId}' not found on page (checked both content and layout blocks)`,
           },
         ],
+        isError: true,
       };
     },
   );
