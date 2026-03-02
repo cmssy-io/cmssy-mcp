@@ -13,6 +13,7 @@ import {
   SAVE_PAGE_MUTATION,
   UPDATE_PAGE_SETTINGS_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
+  PUBLISH_PAGE_MUTATION,
   REMOVE_PAGE_MUTATION,
 } from "./queries.js";
 import type {
@@ -396,10 +397,9 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "publish_page",
-    "Publish a page (toggles published state). Checks current state first.",
+    "Publish a page or re-publish with latest draft changes. Uses atomic publishPage mutation.",
     { pageId: z.string().describe("Page ID to publish") },
     async ({ pageId }) => {
-      // First check current state
       const pageData = await client.query<{ pageById: Page | null }>(
         PAGE_BY_ID_QUERY,
         { id: pageId },
@@ -412,23 +412,41 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      if (pageData.pageById.published) {
+      const page = pageData.pageById;
+
+      if (page.published && !page.hasUnpublishedChanges) {
         return {
           content: [
-            { type: "text" as const, text: "Page is already published" },
+            {
+              type: "text" as const,
+              text: "Page is already published with latest content. No changes to publish.",
+            },
           ],
         };
       }
 
-      const data = await client.query<{ togglePublish: Page }>(
-        TOGGLE_PUBLISH_MUTATION,
-        { id: pageId },
+      const blocks = (page.blocks || []).map((b) => ({
+        id: b.id,
+        type: b.type,
+        content: b.content,
+        settings: b.settings,
+        style: b.style,
+        advanced: b.advanced,
+        translations: b.translations,
+        defaultLanguage: b.defaultLanguage,
+        metadata: b.metadata,
+        blockVersion: b.blockVersion,
+      }));
+
+      const data = await client.query<{ publishPage: Page }>(
+        PUBLISH_PAGE_MUTATION,
+        { id: pageId, blocks },
       );
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(data.togglePublish, null, 2),
+            text: JSON.stringify(data.publishPage, null, 2),
           },
         ],
       };

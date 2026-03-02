@@ -325,6 +325,34 @@ export const TOGGLE_PUBLISH_MUTATION = `
   }
 `;
 
+export const PUBLISH_PAGE_MUTATION = `
+  mutation PublishPage($id: ID!, $blocks: [BlockDataInput!]!) {
+    publishPage(id: $id, blocks: $blocks) {
+      id
+      published
+      publishedAt
+      hasUnpublishedChanges
+      blocks {
+        id
+        type
+        content
+        settings
+        style
+        advanced
+        translations
+        defaultLanguage
+        metadata {
+          createdAt
+          updatedAt
+          createdBy
+          version
+        }
+        blockVersion
+      }
+    }
+  }
+`;
+
 export const REMOVE_PAGE_MUTATION = `
   mutation RemovePage($id: ID!) {
     removePage(id: $id)
