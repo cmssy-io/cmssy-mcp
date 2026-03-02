@@ -46,7 +46,12 @@ export const PAGE_BY_ID_QUERY = `
         advanced
         translations
         defaultLanguage
-        metadata
+        metadata {
+          createdAt
+          updatedAt
+          createdBy
+          version
+        }
         blockVersion
       }
       publishedBlocks {
@@ -58,7 +63,12 @@ export const PAGE_BY_ID_QUERY = `
         advanced
         translations
         defaultLanguage
-        metadata
+        metadata {
+          createdAt
+          updatedAt
+          createdBy
+          version
+        }
         blockVersion
       }
       createdAt
@@ -93,7 +103,12 @@ export const PAGE_BY_SLUG_QUERY = `
         advanced
         translations
         defaultLanguage
-        metadata
+        metadata {
+          createdAt
+          updatedAt
+          createdBy
+          version
+        }
         blockVersion
       }
       publishedBlocks {
@@ -105,7 +120,12 @@ export const PAGE_BY_SLUG_QUERY = `
         advanced
         translations
         defaultLanguage
-        metadata
+        metadata {
+          createdAt
+          updatedAt
+          createdBy
+          version
+        }
         blockVersion
       }
       createdAt
@@ -197,7 +217,18 @@ export const CURRENT_WORKSPACE_QUERY = `
       name
       slug
       plan
-      limits
+      limits {
+        maxPages
+        maxUsers
+        maxStorageMb
+        maxAiTokensMonth
+        maxWorkspacesOwned
+        canUseCustomDomain
+        canRemoveBranding
+        canUseCustomScripts
+        maxCustomBlocks
+        maxCustomBlocksStorageMb
+      }
     }
   }
 `;
@@ -251,7 +282,12 @@ export const SAVE_PAGE_MUTATION = `
         advanced
         translations
         defaultLanguage
-        metadata
+        metadata {
+          createdAt
+          updatedAt
+          createdBy
+          version
+        }
         blockVersion
       }
       createdAt
