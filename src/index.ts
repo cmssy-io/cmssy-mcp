@@ -44,10 +44,8 @@ function parseArgs(args: string[]): {
   }
 
   if (!apiUrl) {
-    console.error(
-      "Error: API URL required. Use --api-url <url> or set CMSSY_API_URL env var.",
-    );
-    process.exit(1);
+    apiUrl = "https://api.cmssy.io";
+    console.error(`No --api-url provided, defaulting to ${apiUrl}`);
   }
 
   return { token, workspaceId, apiUrl };
