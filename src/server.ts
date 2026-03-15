@@ -380,18 +380,25 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      // Merge: preserve existing block content/settings when not provided
+      // Merge: preserve existing block data when not provided in input
+      const isEmpty = (obj: unknown) =>
+        !obj ||
+        (typeof obj === "object" && Object.keys(obj as object).length === 0);
       const existingBlocks = pageData.pageById.blocks || [];
       const mergedBlocks = blocks.map((block) => {
         const existing = existingBlocks.find((b) => b.id === block.id);
         if (!existing) return block;
         return {
           ...block,
-          content: block.content ?? existing.content,
-          settings: block.settings ?? existing.settings,
+          content: isEmpty(block.content) ? existing.content : block.content,
+          settings: isEmpty(block.settings)
+            ? existing.settings
+            : block.settings,
           style: block.style ?? existing.style,
           advanced: block.advanced ?? existing.advanced,
-          translations: block.translations ?? existing.translations,
+          translations: isEmpty(block.translations)
+            ? existing.translations
+            : block.translations,
           defaultLanguage: block.defaultLanguage ?? existing.defaultLanguage,
           metadata: block.metadata ?? existing.metadata,
           blockVersion: block.blockVersion ?? existing.blockVersion,
