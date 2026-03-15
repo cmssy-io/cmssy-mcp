@@ -334,7 +334,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_blocks",
-    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config.",
+    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config. Blocks with matching IDs preserve their existing content/settings when not explicitly provided.",
     {
       pageId: z.string().describe("Page ID"),
       blocks: z
@@ -380,12 +380,30 @@ export function createServer(client: CmssyClient) {
         };
       }
 
+      // Merge: preserve existing block content/settings when not provided
+      const existingBlocks = pageData.pageById.blocks || [];
+      const mergedBlocks = blocks.map((block) => {
+        const existing = existingBlocks.find((b) => b.id === block.id);
+        if (!existing) return block;
+        return {
+          ...block,
+          content: block.content ?? existing.content,
+          settings: block.settings ?? existing.settings,
+          style: block.style ?? existing.style,
+          advanced: block.advanced ?? existing.advanced,
+          translations: block.translations ?? existing.translations,
+          defaultLanguage: block.defaultLanguage ?? existing.defaultLanguage,
+          metadata: block.metadata ?? existing.metadata,
+          blockVersion: block.blockVersion ?? existing.blockVersion,
+        };
+      });
+
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input: {
           id: pageId,
           name: pageData.pageById.name,
           slug: pageData.pageById.slug,
-          blocks,
+          blocks: mergedBlocks,
         },
       });
       return {
