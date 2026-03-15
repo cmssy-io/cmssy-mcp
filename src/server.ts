@@ -69,6 +69,11 @@ export function createServer(client: CmssyClient) {
     return { valid: true };
   }
 
+  /** Check if value is null, undefined, or empty object */
+  const isEmpty = (obj: unknown) =>
+    !obj ||
+    (typeof obj === "object" && Object.keys(obj as object).length === 0);
+
   /** Extract last slug segment - savePage expects relative slug, not fullSlug */
   function toRelativeSlug(slug: string): string {
     if (slug === "/") return "/";
@@ -388,9 +393,6 @@ export function createServer(client: CmssyClient) {
       }
 
       // Merge: preserve existing block data when not provided in input
-      const isEmpty = (obj: unknown) =>
-        !obj ||
-        (typeof obj === "object" && Object.keys(obj as object).length === 0);
       const existingBlocks = pageData.pageById.blocks || [];
       const mergedBlocks = blocks.map((block) => {
         const existing = existingBlocks.find((b) => b.id === block.id);
