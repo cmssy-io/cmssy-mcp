@@ -385,6 +385,21 @@ export const PUBLISH_PAGE_MUTATION = `
   }
 `;
 
+export const REVERT_TO_PUBLISHED_MUTATION = `
+  mutation RevertToPublished($id: ID!) {
+    revertToPublished(id: $id) {
+      id
+      name
+      slug
+      hasUnpublishedChanges
+      blocks {
+        id type content settings style advanced
+        translations defaultLanguage blockVersion
+      }
+    }
+  }
+`;
+
 export const REMOVE_PAGE_MUTATION = `
   mutation RemovePage($id: ID!) {
     removePage(id: $id)

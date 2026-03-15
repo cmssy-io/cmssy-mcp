@@ -14,6 +14,7 @@ import {
   UPDATE_PAGE_SETTINGS_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
   PUBLISH_PAGE_MUTATION,
+  REVERT_TO_PUBLISHED_MUTATION,
   REMOVE_PAGE_MUTATION,
   UPDATE_PAGE_LAYOUT_MUTATION,
 } from "./queries.js";
@@ -569,6 +570,37 @@ export function createServer(client: CmssyClient) {
           {
             type: "text" as const,
             text: JSON.stringify(data.togglePublish, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "revert_to_published",
+    "Discard all draft changes and revert a page to its last published version.",
+    { pageId: z.string().describe("Page ID to revert") },
+    async ({ pageId }) => {
+      const data = await client.query<{ revertToPublished: Page | null }>(
+        REVERT_TO_PUBLISHED_MUTATION,
+        { id: pageId },
+      );
+      if (!data.revertToPublished) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Failed to revert - page may not have a published version",
+            },
+          ],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.revertToPublished, null, 2),
           },
         ],
       };
