@@ -406,11 +406,18 @@ export function createServer(client: CmssyClient) {
         };
       });
 
+      // Extract last segment of slug - savePage expects relative slug without parent prefix
+      const pageSlug = pageData.pageById.slug;
+      const relativeSlug =
+        pageSlug === "/"
+          ? "/"
+          : "/" + pageSlug.split("/").filter(Boolean).pop();
+
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input: {
           id: pageId,
           name: pageData.pageById.name,
-          slug: pageData.pageById.slug,
+          slug: relativeSlug,
           blocks: mergedBlocks,
         },
       });
@@ -840,13 +847,20 @@ export function createServer(client: CmssyClient) {
           blocks.push(newBlock);
         }
 
+        // Extract last segment - savePage expects relative slug
+        const addBlockSlug = pageData.pageById.slug;
+        const addBlockRelativeSlug =
+          addBlockSlug === "/"
+            ? "/"
+            : "/" + addBlockSlug.split("/").filter(Boolean).pop();
+
         const data = await client.query<{ savePage: Page }>(
           SAVE_PAGE_MUTATION,
           {
             input: {
               id: pageId,
               name: pageData.pageById.name,
-              slug: pageData.pageById.slug,
+              slug: addBlockRelativeSlug,
               blocks,
             },
           },
