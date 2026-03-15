@@ -69,6 +69,11 @@ export function createServer(client: CmssyClient) {
     return { valid: true };
   }
 
+  /** Check if value is null, undefined, or empty object */
+  const isEmpty = (obj: unknown) =>
+    obj == null ||
+    (typeof obj === "object" && Object.keys(obj as object).length === 0);
+
   /** Extract last slug segment - savePage expects relative slug, not fullSlug */
   function toRelativeSlug(slug: string): string {
     if (slug === "/") return "/";
@@ -388,9 +393,6 @@ export function createServer(client: CmssyClient) {
       }
 
       // Merge: preserve existing block data when not provided in input
-      const isEmpty = (obj: unknown) =>
-        !obj ||
-        (typeof obj === "object" && Object.keys(obj as object).length === 0);
       const existingBlocks = pageData.pageById.blocks || [];
       const mergedBlocks = blocks.map((block) => {
         const existing = existingBlocks.find((b) => b.id === block.id);
@@ -679,8 +681,33 @@ export function createServer(client: CmssyClient) {
         }
       }
 
+      // Merge layout blocks: preserve existing content when not provided
+      let mergedLayoutBlocks = layoutBlocks;
+      if (layoutBlocks) {
+        const pageData = await client.query<{ pageById: Page | null }>(
+          PAGE_BY_ID_QUERY,
+          { id: pageId },
+        );
+        const existingLayoutBlocks = pageData.pageById?.layoutBlocks ?? [];
+        mergedLayoutBlocks = layoutBlocks.map((block) => {
+          const existing = existingLayoutBlocks.find((b) => b.id === block.id);
+          if (!existing) return block;
+          return {
+            ...block,
+            content: isEmpty(block.content) ? existing.content : block.content,
+            settings: isEmpty(block.settings)
+              ? existing.settings
+              : block.settings,
+            translations: isEmpty(block.translations)
+              ? existing.translations
+              : block.translations,
+          };
+        });
+      }
+
       const input: Record<string, unknown> = { pageId };
-      if (layoutBlocks !== undefined) input.layoutBlocks = layoutBlocks;
+      if (mergedLayoutBlocks !== undefined)
+        input.layoutBlocks = mergedLayoutBlocks;
       if (layoutOverrides !== undefined)
         input.layoutOverrides = layoutOverrides;
       if (inheritsLayout !== undefined) input.inheritsLayout = inheritsLayout;
