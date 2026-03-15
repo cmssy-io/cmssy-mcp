@@ -418,6 +418,7 @@ export function createServer(client: CmssyClient) {
           id: pageId,
           name: pageData.pageById.name,
           slug: relativeSlug,
+          parentId: pageData.pageById.parentId ?? undefined,
           blocks: mergedBlocks,
         },
       });
@@ -861,6 +862,7 @@ export function createServer(client: CmssyClient) {
               id: pageId,
               name: pageData.pageById.name,
               slug: addBlockRelativeSlug,
+              parentId: pageData.pageById.parentId ?? undefined,
               blocks,
             },
           },
