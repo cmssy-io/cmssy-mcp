@@ -410,6 +410,7 @@ export function createServer(client: CmssyClient) {
         input: {
           id: pageId,
           name: pageData.pageById.name,
+          slug: pageData.pageById.slug,
           blocks: mergedBlocks,
         },
       });
@@ -845,6 +846,7 @@ export function createServer(client: CmssyClient) {
             input: {
               id: pageId,
               name: pageData.pageById.name,
+              slug: pageData.pageById.slug,
               blocks,
             },
           },
