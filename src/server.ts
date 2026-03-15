@@ -71,7 +71,7 @@ export function createServer(client: CmssyClient) {
 
   /** Check if value is null, undefined, or empty object */
   const isEmpty = (obj: unknown) =>
-    !obj ||
+    obj == null ||
     (typeof obj === "object" && Object.keys(obj as object).length === 0);
 
   /** Extract last slug segment - savePage expects relative slug, not fullSlug */
@@ -688,23 +688,17 @@ export function createServer(client: CmssyClient) {
           PAGE_BY_ID_QUERY,
           { id: pageId },
         );
-        const existingLayoutBlocks =
-          (pageData.pageById as unknown as Record<string, unknown[]>)
-            ?.layoutBlocks ?? [];
+        const existingLayoutBlocks = pageData.pageById?.layoutBlocks ?? [];
         mergedLayoutBlocks = layoutBlocks.map((block) => {
-          const existing = existingLayoutBlocks.find(
-            (b: unknown) => (b as Record<string, unknown>).id === block.id,
-          ) as Record<string, unknown> | undefined;
+          const existing = existingLayoutBlocks.find((b) => b.id === block.id);
           if (!existing) return block;
           return {
             ...block,
-            content: isEmpty(block.content as Record<string, unknown>)
-              ? existing.content
-              : block.content,
-            settings: isEmpty(block.settings as Record<string, unknown>)
+            content: isEmpty(block.content) ? existing.content : block.content,
+            settings: isEmpty(block.settings)
               ? existing.settings
               : block.settings,
-            translations: isEmpty(block.translations as Record<string, unknown>)
+            translations: isEmpty(block.translations)
               ? existing.translations
               : block.translations,
           };
