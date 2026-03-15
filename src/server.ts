@@ -679,8 +679,39 @@ export function createServer(client: CmssyClient) {
         }
       }
 
+      // Merge layout blocks: preserve existing content when not provided
+      let mergedLayoutBlocks = layoutBlocks;
+      if (layoutBlocks) {
+        const pageData = await client.query<{ pageById: Page | null }>(
+          PAGE_BY_ID_QUERY,
+          { id: pageId },
+        );
+        const existingLayoutBlocks =
+          (pageData.pageById as unknown as Record<string, unknown[]>)
+            ?.layoutBlocks ?? [];
+        mergedLayoutBlocks = layoutBlocks.map((block) => {
+          const existing = existingLayoutBlocks.find(
+            (b: unknown) => (b as Record<string, unknown>).id === block.id,
+          ) as Record<string, unknown> | undefined;
+          if (!existing) return block;
+          return {
+            ...block,
+            content: isEmpty(block.content as Record<string, unknown>)
+              ? existing.content
+              : block.content,
+            settings: isEmpty(block.settings as Record<string, unknown>)
+              ? existing.settings
+              : block.settings,
+            translations: isEmpty(block.translations as Record<string, unknown>)
+              ? existing.translations
+              : block.translations,
+          };
+        });
+      }
+
       const input: Record<string, unknown> = { pageId };
-      if (layoutBlocks !== undefined) input.layoutBlocks = layoutBlocks;
+      if (mergedLayoutBlocks !== undefined)
+        input.layoutBlocks = mergedLayoutBlocks;
       if (layoutOverrides !== undefined)
         input.layoutOverrides = layoutOverrides;
       if (inheritsLayout !== undefined) input.inheritsLayout = inheritsLayout;
