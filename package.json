@@ -1,6 +1,6 @@
 {
   "name": "@cmssy/mcp-server",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "MCP server for Cmssy CMS — enables AI-driven page creation and management",
   "type": "module",
   "bin": {
