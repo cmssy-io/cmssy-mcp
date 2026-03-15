@@ -69,6 +69,12 @@ export function createServer(client: CmssyClient) {
     return { valid: true };
   }
 
+  /** Extract last slug segment - savePage expects relative slug, not fullSlug */
+  function toRelativeSlug(slug: string): string {
+    if (slug === "/") return "/";
+    return "/" + slug.split("/").filter(Boolean).pop();
+  }
+
   // ─── Read Tools ──────────────────────────────────────────────
 
   server.tool(
@@ -406,18 +412,11 @@ export function createServer(client: CmssyClient) {
         };
       });
 
-      // Extract last segment of slug - savePage expects relative slug without parent prefix
-      const pageSlug = pageData.pageById.slug;
-      const relativeSlug =
-        pageSlug === "/"
-          ? "/"
-          : "/" + pageSlug.split("/").filter(Boolean).pop();
-
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input: {
           id: pageId,
           name: pageData.pageById.name,
-          slug: relativeSlug,
+          slug: toRelativeSlug(pageData.pageById.slug),
           parentId: pageData.pageById.parentId ?? undefined,
           blocks: mergedBlocks,
         },
@@ -848,20 +847,13 @@ export function createServer(client: CmssyClient) {
           blocks.push(newBlock);
         }
 
-        // Extract last segment - savePage expects relative slug
-        const addBlockSlug = pageData.pageById.slug;
-        const addBlockRelativeSlug =
-          addBlockSlug === "/"
-            ? "/"
-            : "/" + addBlockSlug.split("/").filter(Boolean).pop();
-
         const data = await client.query<{ savePage: Page }>(
           SAVE_PAGE_MUTATION,
           {
             input: {
               id: pageId,
               name: pageData.pageById.name,
-              slug: addBlockRelativeSlug,
+              slug: toRelativeSlug(pageData.pageById.slug),
               parentId: pageData.pageById.parentId ?? undefined,
               blocks,
             },
