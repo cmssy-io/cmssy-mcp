@@ -14,6 +14,7 @@ import {
   UPDATE_PAGE_SETTINGS_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
   PUBLISH_PAGE_MUTATION,
+  REVERT_TO_PUBLISHED_MUTATION,
   REMOVE_PAGE_MUTATION,
   UPDATE_PAGE_LAYOUT_MUTATION,
 } from "./queries.js";
@@ -66,6 +67,12 @@ export function createServer(client: CmssyClient) {
       };
     }
     return { valid: true };
+  }
+
+  /** Extract last slug segment - savePage expects relative slug, not fullSlug */
+  function toRelativeSlug(slug: string): string {
+    if (slug === "/") return "/";
+    return "/" + slug.split("/").filter(Boolean).pop();
   }
 
   // ─── Read Tools ──────────────────────────────────────────────
@@ -380,18 +387,25 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      // Merge: preserve existing block content/settings when not provided
+      // Merge: preserve existing block data when not provided in input
+      const isEmpty = (obj: unknown) =>
+        !obj ||
+        (typeof obj === "object" && Object.keys(obj as object).length === 0);
       const existingBlocks = pageData.pageById.blocks || [];
       const mergedBlocks = blocks.map((block) => {
         const existing = existingBlocks.find((b) => b.id === block.id);
         if (!existing) return block;
         return {
           ...block,
-          content: block.content ?? existing.content,
-          settings: block.settings ?? existing.settings,
+          content: isEmpty(block.content) ? existing.content : block.content,
+          settings: isEmpty(block.settings)
+            ? existing.settings
+            : block.settings,
           style: block.style ?? existing.style,
           advanced: block.advanced ?? existing.advanced,
-          translations: block.translations ?? existing.translations,
+          translations: isEmpty(block.translations)
+            ? existing.translations
+            : block.translations,
           defaultLanguage: block.defaultLanguage ?? existing.defaultLanguage,
           metadata: block.metadata ?? existing.metadata,
           blockVersion: block.blockVersion ?? existing.blockVersion,
@@ -402,7 +416,8 @@ export function createServer(client: CmssyClient) {
         input: {
           id: pageId,
           name: pageData.pageById.name,
-          slug: pageData.pageById.slug,
+          slug: toRelativeSlug(pageData.pageById.slug),
+          parentId: pageData.pageById.parentId ?? undefined,
           blocks: mergedBlocks,
         },
       });
@@ -562,6 +577,37 @@ export function createServer(client: CmssyClient) {
           {
             type: "text" as const,
             text: JSON.stringify(data.togglePublish, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "revert_to_published",
+    "Discard all draft changes and revert a page to its last published version.",
+    { pageId: z.string().describe("Page ID to revert") },
+    async ({ pageId }) => {
+      const data = await client.query<{ revertToPublished: Page | null }>(
+        REVERT_TO_PUBLISHED_MUTATION,
+        { id: pageId },
+      );
+      if (!data.revertToPublished) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Failed to revert - page may not have a published version",
+            },
+          ],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.revertToPublished, null, 2),
           },
         ],
       };
@@ -807,7 +853,8 @@ export function createServer(client: CmssyClient) {
             input: {
               id: pageId,
               name: pageData.pageById.name,
-              slug: pageData.pageById.slug,
+              slug: toRelativeSlug(pageData.pageById.slug),
+              parentId: pageData.pageById.parentId ?? undefined,
               blocks,
             },
           },
