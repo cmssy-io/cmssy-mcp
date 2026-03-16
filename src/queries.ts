@@ -1,3 +1,7 @@
+import { blockFieldGraphQLSelection } from "@cmssy/types";
+
+const SCHEMA_FIELDS_FRAGMENT = blockFieldGraphQLSelection();
+
 // ─── Page Queries ────────────────────────────────────────────
 
 export const PAGES_QUERY = `
@@ -167,10 +171,6 @@ export const PAGE_BY_SLUG_QUERY = `
 `;
 
 // ─── Workspace Block Queries ─────────────────────────────────
-
-import { blockFieldGraphQLSelection } from "@cmssy/types";
-
-const SCHEMA_FIELDS_FRAGMENT = blockFieldGraphQLSelection();
 
 export const WORKSPACE_BLOCKS_QUERY = `
   query WorkspaceBlocks {
