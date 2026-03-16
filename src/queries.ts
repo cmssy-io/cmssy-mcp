@@ -168,6 +168,10 @@ export const PAGE_BY_SLUG_QUERY = `
 
 // ─── Workspace Block Queries ─────────────────────────────────
 
+import { blockFieldGraphQLSelection } from "@cmssy/types";
+
+const SCHEMA_FIELDS_FRAGMENT = blockFieldGraphQLSelection();
+
 export const WORKSPACE_BLOCKS_QUERY = `
   query WorkspaceBlocks {
     workspaceBlocks {
@@ -180,16 +184,7 @@ export const WORKSPACE_BLOCKS_QUERY = `
       layoutPosition
       interactive
       schemaFields {
-        key
-        type
-        label
-        defaultValue
-        placeholder
-        required
-        helperText
-        options
-        group
-        itemSchema
+        ${SCHEMA_FIELDS_FRAGMENT}
       }
       defaultContent
       version
@@ -209,16 +204,7 @@ export const WORKSPACE_BLOCK_BY_TYPE_QUERY = `
       layoutPosition
       interactive
       schemaFields {
-        key
-        type
-        label
-        defaultValue
-        placeholder
-        required
-        helperText
-        options
-        group
-        itemSchema
+        ${SCHEMA_FIELDS_FRAGMENT}
       }
       defaultContent
       version

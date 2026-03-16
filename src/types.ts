@@ -1,3 +1,5 @@
+import type { BlockFieldSchema } from "@cmssy/types";
+
 export interface BlockData {
   id: string;
   type: string;
@@ -27,6 +29,8 @@ export interface LayoutBlock {
   blockVersion?: string;
 }
 
+// LayoutOverride from @cmssy/types uses stricter types (LayoutPosition, LayoutOverrideAction).
+// MCP uses string since GraphQL returns strings. Keep local for compatibility.
 export interface LayoutOverride {
   position: string;
   action: string;
@@ -73,17 +77,8 @@ export interface WorkspaceBlock {
   version: string;
 }
 
-export interface SchemaField {
-  key: string;
-  type: string;
-  label: string;
-  defaultValue?: unknown;
-  placeholder?: string;
-  required?: boolean;
-  helperText?: string;
-  options?: unknown;
-  group?: string;
-}
+// SchemaField imported from @cmssy/types (single source of truth)
+export type SchemaField = BlockFieldSchema;
 
 export interface SiteConfig {
   id: string;
