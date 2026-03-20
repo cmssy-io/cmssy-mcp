@@ -33,16 +33,26 @@ export function createServer(client: CmssyClient) {
     version: "0.1.0",
   });
 
-  // ─── Workspace Block Registry (cached) ──────────────────────
+  // ─── Workspace Block Registry (cached with TTL) ──────────────
 
   let workspaceBlocksCache: WorkspaceBlock[] | null = null;
+  let cacheTimestamp = 0;
+  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-  async function getWorkspaceBlocks(): Promise<WorkspaceBlock[]> {
-    if (!workspaceBlocksCache) {
+  async function getWorkspaceBlocks(
+    forceRefresh = false,
+  ): Promise<WorkspaceBlock[]> {
+    const now = Date.now();
+    if (
+      !workspaceBlocksCache ||
+      forceRefresh ||
+      now - cacheTimestamp > CACHE_TTL_MS
+    ) {
       const data = await client.query<{ workspaceBlocks: WorkspaceBlock[] }>(
         WORKSPACE_BLOCKS_QUERY,
       );
       workspaceBlocksCache = data.workspaceBlocks;
+      cacheTimestamp = now;
     }
     return workspaceBlocksCache;
   }
@@ -50,16 +60,26 @@ export function createServer(client: CmssyClient) {
   async function findBlockDef(
     blockType: string,
   ): Promise<WorkspaceBlock | null> {
-    const blocks = await getWorkspaceBlocks();
+    let blocks = await getWorkspaceBlocks();
+    const found = blocks.find((b) => b.blockType === blockType);
+    if (found) return found;
+    // Cache miss - block may have been added recently, retry with fresh data
+    blocks = await getWorkspaceBlocks(true);
     return blocks.find((b) => b.blockType === blockType) ?? null;
   }
 
   async function validateBlockTypes(
     types: string[],
   ): Promise<{ valid: boolean; error?: string }> {
-    const wsBlocks = await getWorkspaceBlocks();
-    const available = wsBlocks.map((b) => b.blockType);
-    const invalid = types.filter((t) => !available.includes(t));
+    let wsBlocks = await getWorkspaceBlocks();
+    let available = wsBlocks.map((b) => b.blockType);
+    let invalid = types.filter((t) => !available.includes(t));
+    // Retry with fresh cache if unknown types found
+    if (invalid.length > 0) {
+      wsBlocks = await getWorkspaceBlocks(true);
+      available = wsBlocks.map((b) => b.blockType);
+      invalid = types.filter((t) => !available.includes(t));
+    }
     if (invalid.length > 0) {
       return {
         valid: false,
