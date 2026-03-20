@@ -1033,7 +1033,7 @@ export function createServer(client: CmssyClient) {
             input: {
               id: pageId,
               name: page.name,
-              slug: page.slug,
+              slug: toRelativeSlug(page.slug),
               blocks: targetArray,
             },
           },
@@ -1081,7 +1081,7 @@ export function createServer(client: CmssyClient) {
             input: {
               id: pageId,
               name: page.name,
-              slug: page.slug,
+              slug: toRelativeSlug(page.slug),
               blocks: contentBlocks,
             },
           },
