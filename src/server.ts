@@ -4,7 +4,6 @@ import { CmssyClient } from "./graphql-client.js";
 import {
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
-  PAGE_BY_SLUG_QUERY,
   WORKSPACE_BLOCKS_QUERY,
   WORKSPACE_BLOCK_BY_TYPE_QUERY,
   SITE_CONFIG_QUERY,
@@ -143,20 +142,10 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      let page: Page | null;
-      if (id) {
-        const data = await client.query<{ page: Page | null }>(
-          PAGE_BY_ID_QUERY,
-          { pageId: id },
-        );
-        page = data.page;
-      } else {
-        const data = await client.query<{ page: Page | null }>(
-          PAGE_BY_SLUG_QUERY,
-          { slug },
-        );
-        page = data.page;
-      }
+      const data = await client.query<{ page: Page | null }>(PAGE_BY_ID_QUERY, {
+        pageId: id || slug,
+      });
+      const page = data.page;
 
       if (!page) {
         return {
