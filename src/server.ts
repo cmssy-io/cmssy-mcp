@@ -104,10 +104,17 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "list_pages",
-    "List all pages in the workspace with hierarchy info (id, name, slug, published, parentId, pageType)",
-    {},
-    async () => {
-      const data = await client.query<{ pages: Page[] }>(PAGES_QUERY);
+    "List pages in the workspace. Optionally filter by search query (matches name, slug, displayName).",
+    {
+      search: z
+        .string()
+        .optional()
+        .describe("Search query to filter pages by name, slug, or displayName"),
+    },
+    async ({ search }) => {
+      const data = await client.query<{ pages: Page[] }>(PAGES_QUERY, {
+        search: search || undefined,
+      });
       return {
         content: [
           { type: "text" as const, text: JSON.stringify(data.pages, null, 2) },
@@ -138,11 +145,11 @@ export function createServer(client: CmssyClient) {
 
       let page: Page | null;
       if (id) {
-        const data = await client.query<{ pageById: Page | null }>(
+        const data = await client.query<{ page: Page | null }>(
           PAGE_BY_ID_QUERY,
-          { id },
+          { pageId: id },
         );
-        page = data.pageById;
+        page = data.page;
       } else {
         const data = await client.query<{ page: Page | null }>(
           PAGE_BY_SLUG_QUERY,
@@ -400,12 +407,12 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
@@ -413,7 +420,7 @@ export function createServer(client: CmssyClient) {
       }
 
       // Merge: preserve existing block data when not provided in input
-      const existingBlocks = pageData.pageById.blocks || [];
+      const existingBlocks = pageData.page.blocks || [];
       const mergedBlocks = blocks.map((block) => {
         const existing = existingBlocks.find((b) => b.id === block.id);
         if (!existing) return block;
@@ -437,9 +444,9 @@ export function createServer(client: CmssyClient) {
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input: {
           id: pageId,
-          name: pageData.pageById.name,
-          slug: toRelativeSlug(pageData.pageById.slug),
-          parentId: pageData.pageById.parentId ?? undefined,
+          name: pageData.page.name,
+          slug: toRelativeSlug(pageData.page.slug),
+          parentId: pageData.page.parentId ?? undefined,
           blocks: mergedBlocks,
         },
       });
@@ -512,19 +519,19 @@ export function createServer(client: CmssyClient) {
     "Publish a page or re-publish with latest draft changes. Uses atomic publishPage mutation.",
     { pageId: z.string().describe("Page ID to publish") },
     async ({ pageId }) => {
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
         };
       }
 
-      const page = pageData.pageById;
+      const page = pageData.page;
 
       if (page.published && !page.hasUnpublishedChanges) {
         return {
@@ -570,19 +577,19 @@ export function createServer(client: CmssyClient) {
     "Unpublish a published page (toggles published state off).",
     { pageId: z.string().describe("Page ID to unpublish") },
     async ({ pageId }) => {
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
         };
       }
 
-      if (!pageData.pageById.published) {
+      if (!pageData.page.published) {
         return {
           content: [
             { type: "text" as const, text: "Page is already unpublished" },
@@ -704,11 +711,11 @@ export function createServer(client: CmssyClient) {
       // Merge layout blocks: preserve existing content when not provided
       let mergedLayoutBlocks = layoutBlocks;
       if (layoutBlocks) {
-        const pageData = await client.query<{ pageById: Page | null }>(
+        const pageData = await client.query<{ page: Page | null }>(
           PAGE_BY_ID_QUERY,
-          { id: pageId },
+          { pageId },
         );
-        const existingLayoutBlocks = pageData.pageById?.layoutBlocks ?? [];
+        const existingLayoutBlocks = pageData.page?.layoutBlocks ?? [];
         mergedLayoutBlocks = layoutBlocks.map((block) => {
           const existing = existingLayoutBlocks.find((b) => b.id === block.id);
           if (!existing) return block;
@@ -798,12 +805,12 @@ export function createServer(client: CmssyClient) {
       }
 
       // Fetch current page
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
@@ -832,7 +839,7 @@ export function createServer(client: CmssyClient) {
 
       if (isLayout) {
         // Layout block — add to layoutBlocks via updatePageLayout
-        const existingLayoutBlocks = pageData.pageById.layoutBlocks || [];
+        const existingLayoutBlocks = pageData.page.layoutBlocks || [];
         const layoutPosition = blockDef.layoutPosition!;
 
         // Append after existing blocks in same position
@@ -883,7 +890,7 @@ export function createServer(client: CmssyClient) {
           defaultLanguage,
         };
 
-        const blocks = [...pageData.pageById.blocks];
+        const blocks = [...pageData.page.blocks];
         if (
           position !== undefined &&
           position >= 0 &&
@@ -899,9 +906,9 @@ export function createServer(client: CmssyClient) {
           {
             input: {
               id: pageId,
-              name: pageData.pageById.name,
-              slug: toRelativeSlug(pageData.pageById.slug),
-              parentId: pageData.pageById.parentId ?? undefined,
+              name: pageData.page.name,
+              slug: toRelativeSlug(pageData.page.slug),
+              parentId: pageData.page.parentId ?? undefined,
               blocks,
             },
           },
@@ -936,19 +943,19 @@ export function createServer(client: CmssyClient) {
     },
     async ({ pageId, blockId, content, settings }) => {
       // Fetch current page
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
         };
       }
 
-      const page = pageData.pageById;
+      const page = pageData.page;
 
       // Search in content blocks first, then layout blocks
       const contentIdx = page.blocks.findIndex((b) => b.id === blockId);
@@ -1058,19 +1065,19 @@ export function createServer(client: CmssyClient) {
       blockId: z.string().describe("Block instance ID (UUID) to remove"),
     },
     async ({ pageId, blockId }) => {
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
         };
       }
 
-      const page = pageData.pageById;
+      const page = pageData.page;
 
       // Try content blocks first
       const contentBlocks = page.blocks.filter((b) => b.id !== blockId);

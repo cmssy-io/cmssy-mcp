@@ -5,8 +5,8 @@ const SCHEMA_FIELDS_FRAGMENT = blockFieldGraphQLSelection();
 // ─── Page Queries ────────────────────────────────────────────
 
 export const PAGES_QUERY = `
-  query Pages {
-    pages {
+  query Pages($search: String) {
+    pages(search: $search) {
       id
       name
       slug
@@ -25,8 +25,8 @@ export const PAGES_QUERY = `
 `;
 
 export const PAGE_BY_ID_QUERY = `
-  query PageById($id: ID!) {
-    pageById(id: $id) {
+  query PageById($pageId: ID!) {
+    page(pageId: $pageId) {
       id
       name
       slug
@@ -98,8 +98,8 @@ export const PAGE_BY_ID_QUERY = `
 `;
 
 export const PAGE_BY_SLUG_QUERY = `
-  query Page($slug: String!) {
-    page(slug: $slug) {
+  query PageBySlug($slug: ID!) {
+    page(pageId: $slug) {
       id
       name
       slug
