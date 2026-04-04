@@ -1,6 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { CmssyClient } from "./graphql-client.js";
+
+/**
+ * Preprocess helper: parse JSON string to object if needed.
+ * MCP clients may serialize complex nested objects as JSON strings
+ * instead of passing them as objects. This ensures they're parsed.
+ */
+const jsonPreprocess = (val: unknown) =>
+  typeof val === "string" ? JSON.parse(val) : val;
 import {
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
@@ -316,17 +324,17 @@ export function createServer(client: CmssyClient) {
         .default("page")
         .describe("Page type (default: 'page')"),
       displayName: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe(
           "Multilingual display name, e.g. { en: 'About', pl: 'O nas' }",
         ),
       seoTitle: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO title"),
       seoDescription: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO description"),
     },
@@ -365,26 +373,29 @@ export function createServer(client: CmssyClient) {
     "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config. Blocks with matching IDs preserve their existing content/settings when not explicitly provided.",
     {
       pageId: z.string().describe("Page ID"),
-      blocks: z
-        .array(
-          z.object({
-            id: z.string().describe("Unique block instance ID (UUID)"),
-            type: z
-              .string()
-              .describe("Block type (must exist in workspace blocks)"),
-            content: z.record(z.string(), z.unknown()).optional(),
-            settings: z.record(z.string(), z.unknown()).optional(),
-            style: z.record(z.string(), z.unknown()).optional(),
-            advanced: z.record(z.string(), z.unknown()).optional(),
-            translations: z
-              .record(z.string(), z.object({ status: z.string() }))
-              .optional(),
-            defaultLanguage: z.string().optional(),
-            metadata: z.record(z.string(), z.unknown()).optional(),
-            blockVersion: z.string().optional(),
-          }),
-        )
-        .describe("Full array of content blocks to set on the page"),
+      blocks: z.preprocess(
+        jsonPreprocess,
+        z
+          .array(
+            z.object({
+              id: z.string().describe("Unique block instance ID (UUID)"),
+              type: z
+                .string()
+                .describe("Block type (must exist in workspace blocks)"),
+              content: z.record(z.string(), z.unknown()).optional(),
+              settings: z.record(z.string(), z.unknown()).optional(),
+              style: z.record(z.string(), z.unknown()).optional(),
+              advanced: z.record(z.string(), z.unknown()).optional(),
+              translations: z
+                .record(z.string(), z.object({ status: z.string() }))
+                .optional(),
+              defaultLanguage: z.string().optional(),
+              metadata: z.record(z.string(), z.unknown()).optional(),
+              blockVersion: z.string().optional(),
+            }),
+          )
+          .describe("Full array of content blocks to set on the page"),
+      ),
     },
     async ({ pageId, blocks }) => {
       // Validate all block types against workspace registry
@@ -458,15 +469,15 @@ export function createServer(client: CmssyClient) {
       name: z.string().optional().describe("Internal page name"),
       slug: z.string().optional().describe("URL slug"),
       displayName: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual display name"),
       seoTitle: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO title"),
       seoDescription: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO description"),
       seoKeywords: z.array(z.string()).optional().describe("SEO keywords"),
@@ -760,18 +771,21 @@ export function createServer(client: CmssyClient) {
     "Add a block to a page. Automatically detects layout vs content block from workspace config. Auto-generates UUID and translation status.",
     {
       pageId: z.string().describe("Page ID"),
-      block: z.object({
-        type: z
-          .string()
-          .describe("Block type (must exist in workspace blocks)"),
-        content: z
-          .record(z.string(), z.unknown())
-          .describe(
-            "Language-keyed content: { en: { title: '...' }, pl: { title: '...' } }",
-          ),
-        settings: z.record(z.string(), z.unknown()).optional(),
-        style: z.record(z.string(), z.unknown()).optional(),
-      }),
+      block: z.preprocess(
+        jsonPreprocess,
+        z.object({
+          type: z
+            .string()
+            .describe("Block type (must exist in workspace blocks)"),
+          content: z
+            .record(z.string(), z.unknown())
+            .describe(
+              "Language-keyed content: { en: { title: '...' }, pl: { title: '...' } }",
+            ),
+          settings: z.record(z.string(), z.unknown()).optional(),
+          style: z.record(z.string(), z.unknown()).optional(),
+        }),
+      ),
       position: z
         .number()
         .optional()
