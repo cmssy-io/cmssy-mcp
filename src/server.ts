@@ -24,6 +24,15 @@ import {
   REVERT_TO_PUBLISHED_MUTATION,
   REMOVE_PAGE_MUTATION,
   UPDATE_PAGE_LAYOUT_MUTATION,
+  FORMS_QUERY,
+  FORM_BY_ID_QUERY,
+  FORM_SUBMISSIONS_QUERY,
+  FORM_SUBMISSION_BY_ID_QUERY,
+  CREATE_FORM_MUTATION,
+  UPDATE_FORM_MUTATION,
+  DELETE_FORM_MUTATION,
+  UPDATE_FORM_SUBMISSION_STATUS_MUTATION,
+  DELETE_FORM_SUBMISSION_MUTATION,
 } from "./queries.js";
 import type {
   Page,
@@ -1135,6 +1144,450 @@ export function createServer(client: CmssyClient) {
           },
         ],
         isError: true,
+      };
+    },
+  );
+
+  // ─── Form Tools ──────────────────────────────────────────────
+
+  server.tool(
+    "list_forms",
+    "List forms in the workspace with optional status filter and pagination.",
+    {
+      status: z
+        .enum(["draft", "published", "archived"])
+        .optional()
+        .describe("Filter by form status"),
+      skip: z
+        .number()
+        .optional()
+        .default(0)
+        .describe("Number of items to skip"),
+      limit: z
+        .number()
+        .optional()
+        .default(50)
+        .describe("Max items to return (default 50)"),
+    },
+    async ({ status, skip, limit }) => {
+      const data = await client.query<{
+        forms: { forms: unknown[]; total: number; hasMore: boolean };
+      }>(FORMS_QUERY, {
+        status: status || undefined,
+        skip,
+        limit,
+      });
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(data.forms, null, 2) },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_form",
+    "Get full form details including fields, settings, and i18n content.",
+    {
+      formId: z.string().describe("Form ID"),
+    },
+    async ({ formId }) => {
+      const data = await client.query<{ form: unknown | null }>(
+        FORM_BY_ID_QUERY,
+        { formId },
+      );
+      if (!data.form) {
+        return {
+          content: [{ type: "text" as const, text: "Form not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(data.form, null, 2) },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_form",
+    "Create a new form with fields and settings. Returns the created form.",
+    {
+      name: z.string().describe("Form name"),
+      slug: z.string().describe("URL-friendly slug (must be unique)"),
+      description: z.string().optional().describe("Form description"),
+      fields: z
+        .preprocess(
+          jsonPreprocess,
+          z.array(
+            z.object({
+              id: z.string().describe("Unique field ID"),
+              name: z.string().describe("Field name (used as form data key)"),
+              fieldType: z
+                .enum([
+                  "text",
+                  "email",
+                  "password",
+                  "textarea",
+                  "number",
+                  "phone",
+                  "url",
+                  "date",
+                  "datetime",
+                  "select",
+                  "multiselect",
+                  "checkbox",
+                  "radio",
+                  "file",
+                  "hidden",
+                ])
+                .optional()
+                .default("text"),
+              label: z
+                .record(z.string(), z.unknown())
+                .optional()
+                .describe("i18n labels: { en: 'Name', pl: 'Imię' }"),
+              placeholder: z.record(z.string(), z.unknown()).optional(),
+              helpText: z.record(z.string(), z.unknown()).optional(),
+              defaultValue: z.string().optional(),
+              validation: z
+                .object({
+                  required: z.boolean().optional(),
+                  minLength: z.number().optional(),
+                  maxLength: z.number().optional(),
+                  minValue: z.number().optional(),
+                  maxValue: z.number().optional(),
+                  pattern: z.string().optional(),
+                  customMessage: z.string().optional(),
+                })
+                .optional(),
+              options: z
+                .array(
+                  z.object({
+                    value: z.string(),
+                    label: z.record(z.string(), z.unknown()).optional(),
+                    disabled: z.boolean().optional(),
+                  }),
+                )
+                .optional(),
+              width: z
+                .enum(["full", "half", "third"])
+                .optional()
+                .default("full"),
+              order: z.number().optional().default(0),
+              showIf: z.record(z.string(), z.unknown()).optional(),
+            }),
+          ),
+        )
+        .optional()
+        .describe("Form field definitions"),
+      settings: z
+        .preprocess(
+          jsonPreprocess,
+          z.object({
+            actionType: z
+              .enum(["login", "register", "newsletter", "contact", "custom"])
+              .optional()
+              .default("contact"),
+            webhookUrl: z.string().optional(),
+            emailRecipients: z.array(z.string()).optional(),
+            newsletterListId: z.string().optional(),
+            submitButtonLabel: z.record(z.string(), z.unknown()).optional(),
+            successMessage: z.record(z.string(), z.unknown()).optional(),
+            errorMessage: z.record(z.string(), z.unknown()).optional(),
+            redirectUrl: z.string().optional(),
+            enableCaptcha: z.boolean().optional(),
+            requireLogin: z.boolean().optional(),
+            saveSubmissions: z.boolean().optional(),
+            sendEmailNotification: z.boolean().optional(),
+            emailConfigurationId: z.string().optional(),
+          }),
+        )
+        .optional()
+        .describe("Form settings (action type, notifications, etc.)"),
+    },
+    async ({ name, slug, description, fields, settings }) => {
+      const input: Record<string, unknown> = { name, slug };
+      if (description) input.description = description;
+      if (fields) input.fields = fields;
+      if (settings) input.settings = settings;
+
+      const data = await client.query<{ createForm: unknown }>(
+        CREATE_FORM_MUTATION,
+        { input },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.createForm, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "update_form",
+    "Update an existing form's name, slug, status, fields, or settings.",
+    {
+      formId: z.string().describe("Form ID to update"),
+      name: z.string().optional().describe("New form name"),
+      slug: z.string().optional().describe("New slug"),
+      description: z.string().optional().describe("New description"),
+      status: z
+        .enum(["draft", "published", "archived"])
+        .optional()
+        .describe("New status"),
+      fields: z
+        .preprocess(
+          jsonPreprocess,
+          z.array(
+            z.object({
+              id: z.string(),
+              name: z.string(),
+              fieldType: z
+                .enum([
+                  "text",
+                  "email",
+                  "password",
+                  "textarea",
+                  "number",
+                  "phone",
+                  "url",
+                  "date",
+                  "datetime",
+                  "select",
+                  "multiselect",
+                  "checkbox",
+                  "radio",
+                  "file",
+                  "hidden",
+                ])
+                .optional(),
+              label: z.record(z.string(), z.unknown()).optional(),
+              placeholder: z.record(z.string(), z.unknown()).optional(),
+              helpText: z.record(z.string(), z.unknown()).optional(),
+              defaultValue: z.string().optional(),
+              validation: z
+                .object({
+                  required: z.boolean().optional(),
+                  minLength: z.number().optional(),
+                  maxLength: z.number().optional(),
+                  minValue: z.number().optional(),
+                  maxValue: z.number().optional(),
+                  pattern: z.string().optional(),
+                  customMessage: z.string().optional(),
+                })
+                .optional(),
+              options: z
+                .array(
+                  z.object({
+                    value: z.string(),
+                    label: z.record(z.string(), z.unknown()).optional(),
+                    disabled: z.boolean().optional(),
+                  }),
+                )
+                .optional(),
+              width: z.enum(["full", "half", "third"]).optional(),
+              order: z.number().optional(),
+              showIf: z.record(z.string(), z.unknown()).optional(),
+            }),
+          ),
+        )
+        .optional()
+        .describe("Replacement fields array"),
+      settings: z
+        .preprocess(
+          jsonPreprocess,
+          z.object({
+            actionType: z
+              .enum(["login", "register", "newsletter", "contact", "custom"])
+              .optional(),
+            webhookUrl: z.string().optional(),
+            emailRecipients: z.array(z.string()).optional(),
+            newsletterListId: z.string().optional(),
+            submitButtonLabel: z.record(z.string(), z.unknown()).optional(),
+            successMessage: z.record(z.string(), z.unknown()).optional(),
+            errorMessage: z.record(z.string(), z.unknown()).optional(),
+            redirectUrl: z.string().optional(),
+            enableCaptcha: z.boolean().optional(),
+            requireLogin: z.boolean().optional(),
+            saveSubmissions: z.boolean().optional(),
+            sendEmailNotification: z.boolean().optional(),
+            emailConfigurationId: z.string().optional(),
+          }),
+        )
+        .optional()
+        .describe("Updated settings"),
+    },
+    async ({ formId, name, slug, description, status, fields, settings }) => {
+      const input: Record<string, unknown> = {};
+      if (name !== undefined) input.name = name;
+      if (slug !== undefined) input.slug = slug;
+      if (description !== undefined) input.description = description;
+      if (status !== undefined) input.status = status;
+      if (fields !== undefined) input.fields = fields;
+      if (settings !== undefined) input.settings = settings;
+
+      const data = await client.query<{ updateForm: unknown | null }>(
+        UPDATE_FORM_MUTATION,
+        { formId, input },
+      );
+      if (!data.updateForm) {
+        return {
+          content: [
+            { type: "text" as const, text: "Form not found or update failed" },
+          ],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.updateForm, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "delete_form",
+    "Permanently delete a form and all its submissions.",
+    {
+      formId: z.string().describe("Form ID to delete"),
+    },
+    async ({ formId }) => {
+      const data = await client.query<{ deleteForm: boolean }>(
+        DELETE_FORM_MUTATION,
+        { formId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.deleteForm
+              ? "Form deleted successfully"
+              : "Failed to delete form",
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "list_form_submissions",
+    "List form submissions with optional filters and pagination.",
+    {
+      formId: z.string().optional().describe("Filter by form ID"),
+      status: z
+        .enum(["pending", "processed", "spam", "archived"])
+        .optional()
+        .describe("Filter by submission status"),
+      skip: z.number().optional().default(0),
+      limit: z.number().optional().default(50),
+    },
+    async ({ formId, status, skip, limit }) => {
+      const data = await client.query<{
+        formSubmissions: {
+          submissions: unknown[];
+          total: number;
+          hasMore: boolean;
+        };
+      }>(FORM_SUBMISSIONS_QUERY, {
+        formId: formId || undefined,
+        status: status || undefined,
+        skip,
+        limit,
+      });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.formSubmissions, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_form_submission",
+    "Get a specific form submission by ID.",
+    {
+      submissionId: z.string().describe("Submission ID"),
+    },
+    async ({ submissionId }) => {
+      const data = await client.query<{ formSubmission: unknown | null }>(
+        FORM_SUBMISSION_BY_ID_QUERY,
+        { submissionId },
+      );
+      if (!data.formSubmission) {
+        return {
+          content: [{ type: "text" as const, text: "Submission not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.formSubmission, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "update_form_submission_status",
+    "Update a form submission's status (pending, processed, spam, archived).",
+    {
+      submissionId: z.string().describe("Submission ID"),
+      status: z
+        .enum(["pending", "processed", "spam", "archived"])
+        .describe("New status"),
+    },
+    async ({ submissionId, status }) => {
+      const data = await client.query<{
+        updateFormSubmissionStatus: boolean;
+      }>(UPDATE_FORM_SUBMISSION_STATUS_MUTATION, { submissionId, status });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.updateFormSubmissionStatus
+              ? "Submission status updated"
+              : "Failed to update submission status",
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "delete_form_submission",
+    "Permanently delete a form submission.",
+    {
+      submissionId: z.string().describe("Submission ID to delete"),
+    },
+    async ({ submissionId }) => {
+      const data = await client.query<{ deleteFormSubmission: boolean }>(
+        DELETE_FORM_SUBMISSION_MUTATION,
+        { submissionId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.deleteFormSubmission
+              ? "Submission deleted successfully"
+              : "Failed to delete submission",
+          },
+        ],
       };
     },
   );
