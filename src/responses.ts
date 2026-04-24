@@ -125,14 +125,20 @@ export function recordMinimal(record: RecordLike): RecordMinimal {
 }
 
 // Tiny wrapper so call sites stay one-liners instead of repeating
-// `JSON.stringify(mode === "full" ? data : minimal(data), null, 2)`.
+// `JSON.stringify(mode === "full" ? data : minimal(data), ...)`.
+// Minimal mode emits compact JSON - the whole point is keeping the ack
+// small, and pretty-print whitespace was eating ~25-40% of the payload.
+// Full mode keeps pretty-print for human-readable debugging.
 export function jsonText<T>(
   mode: ResponseMode,
   full: T,
   toMinimal: (full: T) => unknown,
 ): { content: Array<{ type: "text"; text: string }> } {
-  const value = mode === "full" ? full : toMinimal(full);
+  const text =
+    mode === "full"
+      ? JSON.stringify(full, null, 2)
+      : JSON.stringify(toMinimal(full));
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
+    content: [{ type: "text" as const, text }],
   };
 }

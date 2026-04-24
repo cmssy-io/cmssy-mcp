@@ -45,7 +45,7 @@ Instead of CLI args, you can set:
 
 ## Response shape (write tools)
 
-As of 0.6.0, every write tool accepts an optional `response` arg:
+As of 0.6.0, most write tools accept an optional `response` arg:
 
 - `response: "minimal"` (default) - returns a small ack (~200 bytes):
   `{id, slug, hasUnpublishedChanges, updatedAt}` for page tools,
@@ -58,6 +58,16 @@ As of 0.6.0, every write tool accepts an optional `response` arg:
 Use `"full"` only if you need the post-write state inline; otherwise issue a
 follow-up `get_page`/`get_form`/`get_model`/`get_record`. This keeps agent
 context windows from being eaten by echoed content.
+
+Tools that accept `response`: `create_page`, `update_page_blocks`,
+`update_page_settings`, `publish_page`, `unpublish_page`, `revert_to_published`,
+`update_page_layout`, `add_block_to_page`, `update_block_content`,
+`remove_block_from_page`, `create_form`, `update_form`, `create_model`,
+`update_model`, `create_record`, `update_record`.
+
+`patch_block_content` and the various `delete_*` / status-only tools
+(`update_form_submission_status`, `import_records`, `create_model_from_template`)
+already returned a compact ack and don't take `response`.
 
 ## Available Tools
 
