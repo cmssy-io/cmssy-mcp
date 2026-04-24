@@ -455,3 +455,207 @@ export const DELETE_FORM_SUBMISSION_MUTATION = `
     deleteFormSubmission(submissionId: $submissionId)
   }
 `;
+
+// ─── Model Queries ───────────────────────────────────────────
+
+// PropertyField is self-recursive (fields/itemFields are JSON on the wire
+// to avoid infinite schema recursion). Keep this in sync with page-type.ts
+// resolver's PropertyField object type.
+const PROPERTY_FIELD_FRAGMENT = `
+  key
+  label
+  type
+  required
+  description
+  defaultValue
+  options
+  fields
+  itemType
+  itemFields
+  relationTo
+  relationType
+  acceptedTypes
+  multiple
+  schemaProperty
+  minLength
+  maxLength
+  minValue
+  maxValue
+  pattern
+`;
+
+const MODEL_DEFINITION_FRAGMENT = `
+  id
+  workspaceId
+  name
+  slug
+  description
+  icon
+  color
+  displayField
+  defaultSort { field direction }
+  fields { ${PROPERTY_FIELD_FRAGMENT} }
+  statusField {
+    enabled
+    values
+    defaultValue
+    transitions { from to }
+  }
+  createdAt
+  updatedAt
+  createdBy
+  recordCount
+`;
+
+const MODEL_RECORD_FRAGMENT = `
+  id
+  workspaceId
+  modelId
+  data
+  status
+  createdAt
+  updatedAt
+  createdBy
+  updatedBy
+`;
+
+export const MODEL_DEFINITIONS_QUERY = `
+  query ModelDefinitions {
+    modelDefinitions {
+      ${MODEL_DEFINITION_FRAGMENT}
+    }
+  }
+`;
+
+export const MODEL_DEFINITION_BY_ID_QUERY = `
+  query ModelDefinition($id: ID!) {
+    modelDefinition(id: $id) {
+      ${MODEL_DEFINITION_FRAGMENT}
+    }
+  }
+`;
+
+export const MODEL_RECORDS_QUERY = `
+  query ModelRecords(
+    $modelId: ID!
+    $filter: JSON
+    $limit: Int
+    $offset: Int
+    $sort: String
+    $populate: [String!]
+  ) {
+    modelRecords(
+      modelId: $modelId
+      filter: $filter
+      limit: $limit
+      offset: $offset
+      sort: $sort
+      populate: $populate
+    ) {
+      items { ${MODEL_RECORD_FRAGMENT} }
+      total
+      hasMore
+    }
+  }
+`;
+
+export const MODEL_RECORD_BY_ID_QUERY = `
+  query ModelRecord($id: ID!) {
+    modelRecord(id: $id) {
+      ${MODEL_RECORD_FRAGMENT}
+    }
+  }
+`;
+
+export const MODEL_TEMPLATES_QUERY = `
+  query ModelTemplates {
+    modelTemplates {
+      id
+      name
+      description
+      icon
+      category
+      models {
+        name
+        slug
+        description
+        icon
+        fieldCount
+        hasStatus
+      }
+    }
+  }
+`;
+
+// ─── Model Mutations ─────────────────────────────────────────
+
+export const CREATE_MODEL_DEFINITION_MUTATION = `
+  mutation CreateModelDefinition($input: CreateModelDefinitionInput!) {
+    createModelDefinition(input: $input) {
+      ${MODEL_DEFINITION_FRAGMENT}
+    }
+  }
+`;
+
+export const UPDATE_MODEL_DEFINITION_MUTATION = `
+  mutation UpdateModelDefinition($input: UpdateModelDefinitionInput!) {
+    updateModelDefinition(input: $input) {
+      ${MODEL_DEFINITION_FRAGMENT}
+    }
+  }
+`;
+
+export const DELETE_MODEL_DEFINITION_MUTATION = `
+  mutation DeleteModelDefinition($id: ID!) {
+    deleteModelDefinition(id: $id)
+  }
+`;
+
+export const CREATE_MODEL_RECORD_MUTATION = `
+  mutation CreateModelRecord($input: CreateModelRecordInput!) {
+    createModelRecord(input: $input) {
+      ${MODEL_RECORD_FRAGMENT}
+    }
+  }
+`;
+
+export const UPDATE_MODEL_RECORD_MUTATION = `
+  mutation UpdateModelRecord($input: UpdateModelRecordInput!) {
+    updateModelRecord(input: $input) {
+      ${MODEL_RECORD_FRAGMENT}
+    }
+  }
+`;
+
+export const UPDATE_MODEL_RECORD_STATUS_MUTATION = `
+  mutation UpdateModelRecordStatus($input: UpdateModelRecordStatusInput!) {
+    updateModelRecordStatus(input: $input) {
+      ${MODEL_RECORD_FRAGMENT}
+    }
+  }
+`;
+
+export const DELETE_MODEL_RECORD_MUTATION = `
+  mutation DeleteModelRecord($id: ID!) {
+    deleteModelRecord(id: $id)
+  }
+`;
+
+export const IMPORT_MODEL_RECORDS_MUTATION = `
+  mutation ImportModelRecords($input: ImportModelRecordsInput!) {
+    importModelRecords(input: $input) {
+      importedCount
+      errors { row message }
+    }
+  }
+`;
+
+export const INSTALL_MODEL_TEMPLATE_MUTATION = `
+  mutation InstallModelTemplate($templateId: String!) {
+    installModelTemplate(templateId: $templateId) {
+      templateId
+      installedCount
+      skippedSlugs
+    }
+  }
+`;

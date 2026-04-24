@@ -109,6 +109,31 @@ Requires `@cmssy/cli`-registered workspace with `PAGES_EDIT` permission.
 Default `fieldPath` is `"content"` (the HTML body on docs-article); override
 if patching a different string field.
 
+### Model Tools (Custom Data Models)
+
+AI agents can define ModelDefinitions and CRUD their records. Schema/fields
+follow `PropertyField` from `@cmssy/types`; records are validated against the
+model on every write.
+
+| Tool                         | Description                                                          |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `list_models`                | List all ModelDefinitions in the workspace                           |
+| `get_model`                  | Get a model by id (ObjectId) or slug                                 |
+| `create_model`               | Create a model (name, slug, fields, optional statusField)            |
+| `update_model`               | Update any field of a model (fields change triggers schema migrate)  |
+| `delete_model`               | Delete a model — **cascades to all its records**                     |
+| `list_records`               | List records with filter (JSON), sort, pagination, optional populate |
+| `get_record`                 | Get a record by id                                                   |
+| `create_record`              | Create a record; `data` keyed by model field keys                    |
+| `update_record`              | Update a record's data and/or transition its status                  |
+| `delete_record`              | Delete a record                                                      |
+| `import_records`             | Bulk import up to 1000 records; returns `{ importedCount, errors }`  |
+| `list_model_templates`       | List available templates (E-commerce, Blog, etc.)                    |
+| `create_model_from_template` | Install a template; returns `{ installedCount, skippedSlugs }`       |
+
+Requires workspace permissions `MODELS_VIEW` (read) / `MODELS_CREATE` /
+`MODELS_EDIT` / `MODELS_DELETE` depending on the operation.
+
 ## Resources
 
 | URI                 | Description                  |
