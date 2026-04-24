@@ -6,9 +6,17 @@ import { CmssyClient } from "./graphql-client.js";
  * Preprocess helper: parse JSON string to object if needed.
  * MCP clients may serialize complex nested objects as JSON strings
  * instead of passing them as objects. This ensures they're parsed.
+ * Malformed JSON is passed through so Zod produces a validation error
+ * instead of crashing the handler.
  */
-const jsonPreprocess = (val: unknown) =>
-  typeof val === "string" ? JSON.parse(val) : val;
+const jsonPreprocess = (val: unknown) => {
+  if (typeof val !== "string") return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return val;
+  }
+};
 import {
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
