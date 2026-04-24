@@ -241,30 +241,17 @@ export const SAVE_PAGE_MUTATION = `
   }
 `;
 
+// Minimal selection set on purpose - patch_block_content exists to avoid
+// round-tripping multi-KB HTML content, so we only confirm the mutation
+// landed (id, draft state, timestamp) instead of pulling every block's
+// content back. Callers who need the full page can fetch it with
+// PAGE_BY_ID_QUERY afterwards.
 export const PATCH_BLOCK_CONTENT_MUTATION = `
   mutation PatchBlockContent($input: PatchBlockContentInput!) {
     patchBlockContent(input: $input) {
       id
-      name
       slug
       hasUnpublishedChanges
-      blocks {
-        id
-        type
-        content
-        settings
-        style
-        advanced
-        translations
-        defaultLanguage
-        metadata {
-          createdAt
-          updatedAt
-          createdBy
-          version
-        }
-        blockVersion
-      }
       updatedAt
     }
   }

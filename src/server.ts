@@ -1118,70 +1118,77 @@ export function createServer(client: CmssyClient) {
         .describe(
           "Field inside content[locale] to patch (default: 'content', the HTML body of docs-article blocks). Must resolve to a string.",
         ),
-      operations: z
-        .array(
-          // Discriminated on `op` so clients can't pass e.g. `insert_before`
-          // with a `startMarker` - the backend would reject, but it's
-          // cleaner (and cheaper) to fail at MCP boundary.
-          z
-            .discriminatedUnion("op", [
-              z
-                .object({
-                  op: z
-                    .literal("insert_before")
-                    .describe("Insert html immediately before `marker`"),
-                  marker: z
-                    .string()
-                    .describe(
-                      "Unique anchor substring. Must match exactly one location in the field (zero or multiple → error).",
-                    ),
-                  html: z.string().describe("HTML fragment to insert"),
-                })
-                .strict(),
-              z
-                .object({
-                  op: z
-                    .literal("insert_after")
-                    .describe("Insert html immediately after `marker`"),
-                  marker: z
-                    .string()
-                    .describe(
-                      "Unique anchor substring. Must match exactly one location in the field (zero or multiple → error).",
-                    ),
-                  html: z.string().describe("HTML fragment to insert"),
-                })
-                .strict(),
-              z
-                .object({
-                  op: z
-                    .literal("replace_section")
-                    .describe(
-                      "Replace everything from startMarker (inclusive) up to endMarker (exclusive)",
-                    ),
-                  startMarker: z
-                    .string()
-                    .describe(
-                      "Inclusive lower bound. Must match exactly one location.",
-                    ),
-                  endMarker: z
-                    .string()
-                    .describe(
-                      "Exclusive upper bound. Must appear exactly once after startMarker.",
-                    ),
-                  html: z
-                    .string()
-                    .describe("HTML fragment to replace the section with"),
-                })
-                .strict(),
-            ])
-            .describe(
-              "A single patch op. Ops apply in order; any failure aborts the whole patch (no half-applied state).",
-            ),
-        )
-        .min(1)
-        .describe(
-          "Ordered list of patch operations. Apply smallest first - each op must still find its markers in the string after previous ops have applied.",
-        ),
+      // `jsonPreprocess` matches the other tools in this file that accept
+      // complex inputs - MCP clients sometimes JSON-serialize nested
+      // arrays/objects instead of passing raw JSON. Without the preprocess
+      // those clients fail validation before the handler ever runs.
+      operations: z.preprocess(
+        jsonPreprocess,
+        z
+          .array(
+            // Discriminated on `op` so clients can't pass e.g. `insert_before`
+            // with a `startMarker` - the backend would reject, but it's
+            // cleaner (and cheaper) to fail at MCP boundary.
+            z
+              .discriminatedUnion("op", [
+                z
+                  .object({
+                    op: z
+                      .literal("insert_before")
+                      .describe("Insert html immediately before `marker`"),
+                    marker: z
+                      .string()
+                      .describe(
+                        "Unique anchor substring. Must match exactly one location in the field (zero or multiple → error).",
+                      ),
+                    html: z.string().describe("HTML fragment to insert"),
+                  })
+                  .strict(),
+                z
+                  .object({
+                    op: z
+                      .literal("insert_after")
+                      .describe("Insert html immediately after `marker`"),
+                    marker: z
+                      .string()
+                      .describe(
+                        "Unique anchor substring. Must match exactly one location in the field (zero or multiple → error).",
+                      ),
+                    html: z.string().describe("HTML fragment to insert"),
+                  })
+                  .strict(),
+                z
+                  .object({
+                    op: z
+                      .literal("replace_section")
+                      .describe(
+                        "Replace everything from startMarker (inclusive) up to endMarker (exclusive)",
+                      ),
+                    startMarker: z
+                      .string()
+                      .describe(
+                        "Inclusive lower bound. Must match exactly one location.",
+                      ),
+                    endMarker: z
+                      .string()
+                      .describe(
+                        "Exclusive upper bound. Must appear exactly once after startMarker.",
+                      ),
+                    html: z
+                      .string()
+                      .describe("HTML fragment to replace the section with"),
+                  })
+                  .strict(),
+              ])
+              .describe(
+                "A single patch op. Ops apply in order; any failure aborts the whole patch (no half-applied state).",
+              ),
+          )
+          .min(1)
+          .describe(
+            "Ordered list of patch operations. Apply smallest first - each op must still find its markers in the string after previous ops have applied.",
+          ),
+      ),
     },
     async ({ pageId, blockId, locale, fieldPath, operations }) => {
       // discriminatedUnion narrows each op so only the relevant marker
@@ -1201,18 +1208,26 @@ export function createServer(client: CmssyClient) {
         }
       });
 
-      const data = await client.query<{ patchBlockContent: Page | null }>(
-        PATCH_BLOCK_CONTENT_MUTATION,
-        {
-          input: {
-            pageId,
-            blockId,
-            locale,
-            ...(fieldPath ? { fieldPath } : {}),
-            operations: operationsInput,
-          },
+      // Narrow shape matches the minimal selection set in
+      // PATCH_BLOCK_CONTENT_MUTATION - we don't round-trip block content.
+      interface PatchResult {
+        id: string;
+        slug: string;
+        hasUnpublishedChanges: boolean;
+        updatedAt: string;
+      }
+
+      const data = await client.query<{
+        patchBlockContent: PatchResult | null;
+      }>(PATCH_BLOCK_CONTENT_MUTATION, {
+        input: {
+          pageId,
+          blockId,
+          locale,
+          ...(fieldPath ? { fieldPath } : {}),
+          operations: operationsInput,
         },
-      );
+      });
 
       if (!data.patchBlockContent) {
         return {
