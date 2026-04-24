@@ -43,6 +43,22 @@ Instead of CLI args, you can set:
 - `CMSSY_WORKSPACE_ID` — Workspace ID
 - `CMSSY_API_URL` — API URL (required, e.g. `https://api.your-cmssy.com`)
 
+## Response shape (write tools)
+
+As of 0.6.0, every write tool accepts an optional `response` arg:
+
+- `response: "minimal"` (default) - returns a small ack (~200 bytes):
+  `{id, slug, hasUnpublishedChanges, updatedAt}` for page tools,
+  `{pageId, blockId, hasUnpublishedChanges, updatedAt}` for block tools,
+  `{id, slug, status, updatedAt}` for form tools,
+  `{id, slug, updatedAt}` for model tools,
+  `{id, status, updatedAt}` for record tools.
+- `response: "full"` - returns the entire mutated resource (pre-0.6 behavior).
+
+Use `"full"` only if you need the post-write state inline; otherwise issue a
+follow-up `get_page`/`get_form`/`get_model`/`get_record`. This keeps agent
+context windows from being eaten by echoed content.
+
 ## Available Tools
 
 ### Read Tools
