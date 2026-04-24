@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { mediaTypeValues } from "@cmssy/types";
 import { CmssyClient } from "./graphql-client.js";
 
 // Read our own version from package.json so the MCP handshake
@@ -60,6 +61,21 @@ import {
   DELETE_FORM_MUTATION,
   UPDATE_FORM_SUBMISSION_STATUS_MUTATION,
   DELETE_FORM_SUBMISSION_MUTATION,
+  MODEL_DEFINITIONS_QUERY,
+  MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
+  MODEL_DEFINITION_BY_ID_QUERY,
+  MODEL_RECORDS_QUERY,
+  MODEL_RECORD_BY_ID_QUERY,
+  MODEL_TEMPLATES_QUERY,
+  CREATE_MODEL_DEFINITION_MUTATION,
+  UPDATE_MODEL_DEFINITION_MUTATION,
+  DELETE_MODEL_DEFINITION_MUTATION,
+  CREATE_MODEL_RECORD_MUTATION,
+  UPDATE_MODEL_RECORD_MUTATION,
+  UPDATE_MODEL_RECORD_STATUS_MUTATION,
+  DELETE_MODEL_RECORD_MUTATION,
+  IMPORT_MODEL_RECORDS_MUTATION,
+  INSTALL_MODEL_TEMPLATE_MUTATION,
 } from "./queries.js";
 import type {
   Page,
@@ -1761,6 +1777,670 @@ export function createServer(client: CmssyClient) {
             text: data.deleteFormSubmission
               ? "Submission deleted successfully"
               : "Failed to delete submission",
+          },
+        ],
+      };
+    },
+  );
+
+  // ─── Model Tools (Custom Data Models) ────────────────────────
+
+  const propertyFieldTypes = [
+    "string",
+    "richtext",
+    "number",
+    "boolean",
+    "date",
+    "datetime",
+    "email",
+    "url",
+    "media",
+    "relation",
+    "select",
+    "multiselect",
+    "object",
+    "list",
+  ] as const;
+
+  const relationTypes = ["hasOne", "hasMany", "manyToMany"] as const;
+
+  type PropertyFieldInput = {
+    key: string;
+    label: string;
+    type: (typeof propertyFieldTypes)[number];
+    required?: boolean;
+    description?: string;
+    defaultValue?: string;
+    options?: string[];
+    fields?: PropertyFieldInput[];
+    itemType?: (typeof propertyFieldTypes)[number];
+    itemFields?: PropertyFieldInput[];
+    relationTo?: string;
+    relationType?: (typeof relationTypes)[number];
+    acceptedTypes?: (typeof mediaTypeValues)[number][];
+    multiple?: boolean;
+    schemaProperty?: string;
+    minLength?: number;
+    maxLength?: number;
+    minValue?: number;
+    maxValue?: number;
+    pattern?: string;
+  };
+
+  const propertyFieldSchema: z.ZodType<PropertyFieldInput> = z.lazy(() =>
+    z.object({
+      key: z.string().describe("Field key (identifier in record data)"),
+      label: z.string().describe("Human-readable field label"),
+      type: z
+        .enum(propertyFieldTypes)
+        .describe("Field type — controls validation + UI"),
+      required: z.boolean().optional(),
+      description: z.string().optional(),
+      defaultValue: z.string().optional(),
+      options: z
+        .array(z.string())
+        .optional()
+        .describe("For select/multiselect: allowed values"),
+      fields: z
+        .array(propertyFieldSchema)
+        .optional()
+        .describe("For type=object: nested fields"),
+      itemType: z
+        .enum(propertyFieldTypes)
+        .optional()
+        .describe("For type=list: item type"),
+      itemFields: z
+        .array(propertyFieldSchema)
+        .optional()
+        .describe("For type=list of objects: nested field defs"),
+      relationTo: z
+        .string()
+        .optional()
+        .describe("For type=relation: target model slug"),
+      relationType: z.enum(relationTypes).optional(),
+      acceptedTypes: z
+        .array(z.enum(mediaTypeValues))
+        .optional()
+        .describe("For type=media: allowed media kinds (empty = all)"),
+      multiple: z
+        .boolean()
+        .optional()
+        .describe("For type=media: true = gallery, false = single"),
+      schemaProperty: z.string().optional(),
+      minLength: z.number().int().optional(),
+      maxLength: z.number().int().optional(),
+      minValue: z.number().optional(),
+      maxValue: z.number().optional(),
+      pattern: z.string().optional(),
+    }),
+  );
+
+  const statusFieldSchema = z.object({
+    enabled: z.boolean().optional(),
+    values: z
+      .array(z.string())
+      .optional()
+      .describe("Allowed status values (e.g. ['draft','active'])"),
+    defaultValue: z.string().optional(),
+    transitions: z
+      .array(
+        z.object({
+          from: z.string(),
+          to: z.array(z.string()),
+        }),
+      )
+      .optional()
+      .describe("Allowed transitions: from one state to a set of states"),
+  });
+
+  const defaultSortSchema = z.object({
+    field: z.string(),
+    direction: z.enum(["asc", "desc"]),
+  });
+
+  const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
+
+  // Match backend: apps/backend/src/models/model-definition.ts
+  const SLUG_RE = /^[a-z][a-z0-9-]*$/;
+  const SLUG_MSG =
+    "Slug must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens";
+
+  server.tool(
+    "list_models",
+    "List all Custom Data Models (ModelDefinition) in the workspace.",
+    {},
+    async () => {
+      const data = await client.query<{ modelDefinitions: unknown[] }>(
+        MODEL_DEFINITIONS_QUERY,
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.modelDefinitions, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_model",
+    "Get a ModelDefinition by id (24-hex ObjectId) or by slug. Returns full definition including fields, statusField, and defaultSort.",
+    {
+      idOrSlug: z.string().describe("Model id (ObjectId) or slug"),
+    },
+    async ({ idOrSlug }) => {
+      if (OBJECT_ID_RE.test(idOrSlug)) {
+        const data = await client.query<{ modelDefinition: unknown | null }>(
+          MODEL_DEFINITION_BY_ID_QUERY,
+          { id: idOrSlug },
+        );
+        if (data.modelDefinition) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(data.modelDefinition, null, 2),
+              },
+            ],
+          };
+        }
+      }
+
+      // Fallback: resolve slug → id via a lightweight list (id + slug only),
+      // then fetch the full definition for that single model. Avoids
+      // pulling every model's fields when only one is needed.
+      const index = await client.query<{
+        modelDefinitions: Array<{ id: string; slug: string }>;
+      }>(MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY);
+      const match = index.modelDefinitions.find((m) => m.slug === idOrSlug);
+      if (!match) {
+        return {
+          content: [
+            { type: "text" as const, text: `Model '${idOrSlug}' not found` },
+          ],
+          isError: true,
+        };
+      }
+      const full = await client.query<{ modelDefinition: unknown | null }>(
+        MODEL_DEFINITION_BY_ID_QUERY,
+        { id: match.id },
+      );
+      if (!full.modelDefinition) {
+        return {
+          content: [
+            { type: "text" as const, text: `Model '${idOrSlug}' not found` },
+          ],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(full.modelDefinition, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_model",
+    "Create a new Custom Data Model (ModelDefinition). Returns the created model.",
+    {
+      name: z.string().describe("Display name"),
+      slug: z
+        .string()
+        .trim()
+        .regex(SLUG_RE, SLUG_MSG)
+        .describe("URL-safe slug, lowercase (regex: ^[a-z][a-z0-9-]*$)"),
+      description: z.string().optional(),
+      icon: z
+        .string()
+        .optional()
+        .describe("Lucide icon name, defaults to 'database'"),
+      color: z.string().optional(),
+      displayField: z
+        .string()
+        .optional()
+        .describe("Field key used as the record's display label in UI"),
+      defaultSort: z.preprocess(jsonPreprocess, defaultSortSchema).optional(),
+      fields: z
+        .preprocess(jsonPreprocess, z.array(propertyFieldSchema))
+        .optional()
+        .describe("Field definitions. Validates record data on write."),
+      statusField: z
+        .preprocess(jsonPreprocess, statusFieldSchema)
+        .optional()
+        .describe("Enable record lifecycle states with allowed transitions"),
+    },
+    async ({
+      name,
+      slug,
+      description,
+      icon,
+      color,
+      displayField,
+      defaultSort,
+      fields,
+      statusField,
+    }) => {
+      const input: Record<string, unknown> = { name, slug };
+      if (description !== undefined) input.description = description;
+      if (icon !== undefined) input.icon = icon;
+      if (color !== undefined) input.color = color;
+      if (displayField !== undefined) input.displayField = displayField;
+      if (defaultSort !== undefined) input.defaultSort = defaultSort;
+      if (fields !== undefined) input.fields = fields;
+      if (statusField !== undefined) input.statusField = statusField;
+
+      const data = await client.query<{ createModelDefinition: unknown }>(
+        CREATE_MODEL_DEFINITION_MUTATION,
+        { input },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.createModelDefinition, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "update_model",
+    "Update any field of an existing ModelDefinition. Changing 'fields' migrates the schema - existing records are re-validated on next write.",
+    {
+      id: z.string().describe("Model id (ObjectId) to update"),
+      name: z.string().optional(),
+      slug: z.string().trim().regex(SLUG_RE, SLUG_MSG).optional(),
+      description: z.string().optional(),
+      icon: z.string().optional(),
+      color: z.string().optional(),
+      displayField: z.string().optional(),
+      defaultSort: z.preprocess(jsonPreprocess, defaultSortSchema).optional(),
+      fields: z
+        .preprocess(jsonPreprocess, z.array(propertyFieldSchema))
+        .optional(),
+      statusField: z.preprocess(jsonPreprocess, statusFieldSchema).optional(),
+    },
+    async (args) => {
+      const input: Record<string, unknown> = { id: args.id };
+      for (const key of [
+        "name",
+        "slug",
+        "description",
+        "icon",
+        "color",
+        "displayField",
+        "defaultSort",
+        "fields",
+        "statusField",
+      ] as const) {
+        if (args[key] !== undefined) input[key] = args[key];
+      }
+
+      const data = await client.query<{
+        updateModelDefinition: unknown | null;
+      }>(UPDATE_MODEL_DEFINITION_MUTATION, { input });
+      if (!data.updateModelDefinition) {
+        return {
+          content: [{ type: "text" as const, text: "Model not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.updateModelDefinition, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "delete_model",
+    "Delete a ModelDefinition. WARNING: cascades - ALL records of this model are deleted.",
+    {
+      id: z.string().describe("Model id (ObjectId) to delete"),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ deleteModelDefinition: boolean }>(
+        DELETE_MODEL_DEFINITION_MUTATION,
+        { id },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.deleteModelDefinition
+              ? "Model deleted (records cascaded)"
+              : "Failed to delete model",
+          },
+        ],
+        isError: !data.deleteModelDefinition,
+      };
+    },
+  );
+
+  server.tool(
+    "list_records",
+    "List records of a model with filter, sort, and pagination. Filter is a MongoDB-style plain object. Sort is a string (e.g. '-createdAt' for desc). Populate loads relations by field key.",
+    {
+      modelId: z.string().describe("Target model id (ObjectId)"),
+      filter: z
+        .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
+        .optional()
+        .describe("Plain object filter, e.g. {status: 'active'}"),
+      limit: z.number().int().optional().default(50),
+      offset: z.number().int().optional().default(0),
+      sort: z
+        .string()
+        .optional()
+        .describe("Sort expression, e.g. 'createdAt' or '-updatedAt'"),
+      populate: z
+        .array(z.string())
+        .optional()
+        .describe("Field keys of type=relation to populate"),
+    },
+    async ({ modelId, filter, limit, offset, sort, populate }) => {
+      const data = await client.query<{
+        modelRecords: { items: unknown[]; total: number; hasMore: boolean };
+      }>(MODEL_RECORDS_QUERY, {
+        modelId,
+        filter,
+        limit,
+        offset,
+        sort,
+        populate,
+      });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.modelRecords, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_record",
+    "Get a single record by id.",
+    {
+      id: z.string().describe("Record id (ObjectId)"),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ modelRecord: unknown | null }>(
+        MODEL_RECORD_BY_ID_QUERY,
+        { id },
+      );
+      if (!data.modelRecord) {
+        return {
+          content: [{ type: "text" as const, text: "Record not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.modelRecord, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_record",
+    "Create a new record in a model. Data keys must match field keys of the model; backend validates against the ModelDefinition.",
+    {
+      modelId: z.string().describe("Target model id (ObjectId)"),
+      data: z
+        .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
+        .describe("Record data keyed by model field keys"),
+    },
+    async ({ modelId, data: recordData }) => {
+      const result = await client.query<{ createModelRecord: unknown }>(
+        CREATE_MODEL_RECORD_MUTATION,
+        { input: { modelId, data: recordData } },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(result.createModelRecord, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "update_record",
+    "Update a record. Pass 'data' for a full data replace. Pass 'status' to transition the record's status (validated against statusField.transitions). At least one of data/status is required.",
+    {
+      id: z.string().describe("Record id (ObjectId)"),
+      data: z
+        .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
+        .optional()
+        .describe("New data (full replace)"),
+      status: z
+        .string()
+        .optional()
+        .describe("New status value (must be allowed by model.statusField)"),
+    },
+    async ({ id, data: recordData, status }) => {
+      if (recordData === undefined && status === undefined) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide 'data' and/or 'status' to update",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      let dataResult: unknown = null;
+      let statusResult: unknown = null;
+
+      if (recordData !== undefined) {
+        const res = await client.query<{ updateModelRecord: unknown | null }>(
+          UPDATE_MODEL_RECORD_MUTATION,
+          { input: { id, data: recordData } },
+        );
+        dataResult = res.updateModelRecord;
+        if (!dataResult) {
+          return {
+            content: [{ type: "text" as const, text: "Record not found" }],
+            isError: true,
+          };
+        }
+      }
+
+      if (status !== undefined) {
+        // Data update (if any) already committed. Wrap status call so a
+        // failed transition reports partial-success clearly instead of
+        // hiding the completed data write behind a bare throw.
+        try {
+          const res = await client.query<{
+            updateModelRecordStatus: unknown | null;
+          }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
+            input: { id, status },
+          });
+          statusResult = res.updateModelRecordStatus;
+          if (!statusResult) {
+            if (dataResult) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        partialSuccess: true,
+                        message:
+                          "Data updated, but record not found when applying status.",
+                        dataResult,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            return {
+              content: [{ type: "text" as const, text: "Record not found" }],
+              isError: true,
+            };
+          }
+        } catch (error) {
+          if (dataResult) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      partialSuccess: true,
+                      message:
+                        "Data updated, but status transition failed. Retry status only.",
+                      dataResult,
+                      statusError:
+                        error instanceof Error ? error.message : String(error),
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+          throw error;
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(statusResult ?? dataResult, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "delete_record",
+    "Delete a record permanently.",
+    {
+      id: z.string().describe("Record id (ObjectId) to delete"),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ deleteModelRecord: boolean }>(
+        DELETE_MODEL_RECORD_MUTATION,
+        { id },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.deleteModelRecord
+              ? "Record deleted"
+              : "Failed to delete record",
+          },
+        ],
+        isError: !data.deleteModelRecord,
+      };
+    },
+  );
+
+  server.tool(
+    "import_records",
+    "Bulk import records into a model. Accepts up to 1000 rows as plain objects. Returns { importedCount, errors[{row, message}] } - same shape as CSV/XLSX import.",
+    {
+      modelId: z.string().describe("Target model id (ObjectId)"),
+      rows: z
+        .preprocess(
+          jsonPreprocess,
+          z
+            .array(z.record(z.string(), z.unknown()))
+            .min(1, "Provide at least 1 row")
+            .max(1000, "Maximum 1000 rows per import"),
+        )
+        .describe("Array of plain objects keyed by model field keys"),
+    },
+    async ({ modelId, rows }) => {
+      const data = await client.query<{
+        importModelRecords: {
+          importedCount: number;
+          errors: Array<{ row: number; message: string }>;
+        };
+      }>(IMPORT_MODEL_RECORDS_MUTATION, { input: { modelId, rows } });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.importModelRecords, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "list_model_templates",
+    "List available model templates (E-commerce, Blog, etc.). Each template installs one or more ModelDefinitions.",
+    {},
+    async () => {
+      const data = await client.query<{ modelTemplates: unknown[] }>(
+        MODEL_TEMPLATES_QUERY,
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.modelTemplates, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_model_from_template",
+    "Install a model template into the workspace. Creates all models defined by the template; skips any whose slug already exists. Returns { templateId, installedCount, skippedSlugs }.",
+    {
+      templateId: z
+        .string()
+        .describe("Template id (from list_model_templates)"),
+    },
+    async ({ templateId }) => {
+      const data = await client.query<{
+        installModelTemplate: {
+          templateId: string;
+          installedCount: number;
+          skippedSlugs: string[];
+        };
+      }>(INSTALL_MODEL_TEMPLATE_MUTATION, { templateId });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.installModelTemplate, null, 2),
           },
         ],
       };
