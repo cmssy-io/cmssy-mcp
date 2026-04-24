@@ -85,6 +85,15 @@ import type {
   MediaAsset,
   BlockInput,
 } from "./types.js";
+import {
+  responseModeSchema,
+  pageMinimal,
+  pageBlockMinimal,
+  formMinimal,
+  modelMinimal,
+  recordMinimal,
+  jsonText,
+} from "./responses.js";
 
 export function createServer(client: CmssyClient) {
   const server = new McpServer({
@@ -362,7 +371,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "create_page",
-    "Create a new page. Returns the created page with its ID.",
+    "Create a new page. Returns a minimal ack by default; pass response='full' to receive the entire created page.",
     {
       name: z.string().describe("Internal page name"),
       slug: z.string().describe("URL slug (e.g. 'about', 'features')"),
@@ -389,6 +398,7 @@ export function createServer(client: CmssyClient) {
         .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO description"),
+      response: responseModeSchema,
     },
     async ({
       name,
@@ -398,6 +408,7 @@ export function createServer(client: CmssyClient) {
       displayName,
       seoTitle,
       seoDescription,
+      response,
     }) => {
       const input: Record<string, unknown> = { name, slug };
       if (parentId) input.parentId = parentId;
@@ -409,14 +420,7 @@ export function createServer(client: CmssyClient) {
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input,
       });
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.savePage, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.savePage, pageMinimal);
     },
   );
 
