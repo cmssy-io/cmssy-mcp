@@ -1,6 +1,24 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { CmssyClient } from "./graphql-client.js";
+
+// Read our own version from package.json so the MCP handshake
+// advertises what the user actually installed, instead of drifting
+// whenever we bump the package.
+const PACKAGE_VERSION = (() => {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pkg = JSON.parse(
+      readFileSync(resolve(here, "../package.json"), "utf8"),
+    );
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+})();
 
 /**
  * Preprocess helper: parse JSON string to object if needed.
@@ -55,7 +73,7 @@ import type {
 export function createServer(client: CmssyClient) {
   const server = new McpServer({
     name: "cmssy",
-    version: "0.1.0",
+    version: PACKAGE_VERSION,
   });
 
   // ─── Workspace Block Registry (cached with TTL) ──────────────
@@ -1081,7 +1099,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "patch_block_content",
-    "Apply surgical HTML edits (insert_before/insert_after/replace_section) to a block's localized content string (e.g. a docs-article HTML body) without re-sending the full content. Use this for small edits where you have a unique anchor substring in the existing HTML - it's ~10x cheaper in tokens than update_block_content and rejects any op whose marker is missing or ambiguous. For REPLACE_SECTION: startMarker is inclusive, endMarker is exclusive.",
+    "Apply surgical HTML edits (insert_before/insert_after/replace_section) to a block's localized content string (e.g. a docs-article HTML body) without re-sending the full content. Use this for small edits where you have a unique anchor substring in the existing HTML - it's ~10x cheaper in tokens than update_block_content and rejects any op whose marker is missing or ambiguous. For replace_section: startMarker is inclusive, endMarker is exclusive.",
     {
       pageId: z.string().describe("Page ID"),
       blockId: z
@@ -1102,33 +1120,60 @@ export function createServer(client: CmssyClient) {
         ),
       operations: z
         .array(
+          // Discriminated on `op` so clients can't pass e.g. `insert_before`
+          // with a `startMarker` - the backend would reject, but it's
+          // cleaner (and cheaper) to fail at MCP boundary.
           z
-            .object({
-              op: z
-                .enum(["insert_before", "insert_after", "replace_section"])
-                .describe("Patch operation type"),
-              marker: z
-                .string()
-                .optional()
-                .describe(
-                  "Required for insert_before / insert_after. Must match exactly one location in the field (zero or multiple → error).",
-                ),
-              startMarker: z
-                .string()
-                .optional()
-                .describe(
-                  "Required for replace_section. Inclusive lower bound; must match exactly one location.",
-                ),
-              endMarker: z
-                .string()
-                .optional()
-                .describe(
-                  "Required for replace_section. Exclusive upper bound; must appear after startMarker.",
-                ),
-              html: z
-                .string()
-                .describe("HTML fragment to insert or replace with"),
-            })
+            .discriminatedUnion("op", [
+              z
+                .object({
+                  op: z
+                    .literal("insert_before")
+                    .describe("Insert html immediately before `marker`"),
+                  marker: z
+                    .string()
+                    .describe(
+                      "Unique anchor substring. Must match exactly one location in the field (zero or multiple → error).",
+                    ),
+                  html: z.string().describe("HTML fragment to insert"),
+                })
+                .strict(),
+              z
+                .object({
+                  op: z
+                    .literal("insert_after")
+                    .describe("Insert html immediately after `marker`"),
+                  marker: z
+                    .string()
+                    .describe(
+                      "Unique anchor substring. Must match exactly one location in the field (zero or multiple → error).",
+                    ),
+                  html: z.string().describe("HTML fragment to insert"),
+                })
+                .strict(),
+              z
+                .object({
+                  op: z
+                    .literal("replace_section")
+                    .describe(
+                      "Replace everything from startMarker (inclusive) up to endMarker (exclusive)",
+                    ),
+                  startMarker: z
+                    .string()
+                    .describe(
+                      "Inclusive lower bound. Must match exactly one location.",
+                    ),
+                  endMarker: z
+                    .string()
+                    .describe(
+                      "Exclusive upper bound. Must appear exactly once after startMarker.",
+                    ),
+                  html: z
+                    .string()
+                    .describe("HTML fragment to replace the section with"),
+                })
+                .strict(),
+            ])
             .describe(
               "A single patch op. Ops apply in order; any failure aborts the whole patch (no half-applied state).",
             ),
@@ -1139,19 +1184,21 @@ export function createServer(client: CmssyClient) {
         ),
     },
     async ({ pageId, blockId, locale, fieldPath, operations }) => {
+      // discriminatedUnion narrows each op so only the relevant marker
+      // fields are present - pass them through directly.
       const operationsInput = operations.map((op) => {
-        const normalized: {
-          op: string;
-          html: string;
-          marker?: string;
-          startMarker?: string;
-          endMarker?: string;
-        } = { op: op.op, html: op.html };
-        if (op.marker !== undefined) normalized.marker = op.marker;
-        if (op.startMarker !== undefined)
-          normalized.startMarker = op.startMarker;
-        if (op.endMarker !== undefined) normalized.endMarker = op.endMarker;
-        return normalized;
+        switch (op.op) {
+          case "insert_before":
+          case "insert_after":
+            return { op: op.op, marker: op.marker, html: op.html };
+          case "replace_section":
+            return {
+              op: op.op,
+              startMarker: op.startMarker,
+              endMarker: op.endMarker,
+              html: op.html,
+            };
+        }
       });
 
       const data = await client.query<{ patchBlockContent: Page | null }>(
@@ -1169,7 +1216,12 @@ export function createServer(client: CmssyClient) {
 
       if (!data.patchBlockContent) {
         return {
-          content: [{ type: "text" as const, text: "Page not found" }],
+          content: [
+            {
+              type: "text" as const,
+              text: "Page not found or patch failed",
+            },
+          ],
           isError: true,
         };
       }
