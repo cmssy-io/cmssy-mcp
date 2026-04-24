@@ -75,8 +75,39 @@ Instead of CLI args, you can set:
 | ------------------------ | --------------------------------------------------------------- |
 | `add_block_to_page`      | Insert a block at position (auto-generates UUID + translations) |
 | `update_block_content`   | Merge content into an existing block                            |
+| `patch_block_content`    | Surgical HTML patch (insert/replace around unique markers)      |
 | `remove_block_from_page` | Remove a block by ID                                            |
 | `update_page_layout`     | Update layout blocks and overrides                              |
+
+#### `patch_block_content`
+
+For small edits on long HTML content strings (e.g. a `docs-article` body),
+`patch_block_content` is ~10x cheaper in tokens than `update_block_content`
+and catches marker mistakes before anything writes to the DB.
+
+```jsonc
+{
+  "pageId": "...",
+  "blockId": "...",
+  "locale": "en",
+  "operations": [
+    {
+      "op": "insert_before",
+      "marker": "<h2>Environment Variables</h2>",
+      "html": "<hr><h2>cmssy skills install</h2><p>...</p>",
+    },
+  ],
+}
+```
+
+Three ops: `insert_before`, `insert_after`, `replace_section`. Every
+marker must match **exactly once** - 0 or 2+ matches error out with the
+actual count (no silent half-applied state). For `replace_section`,
+`startMarker` is inclusive and `endMarker` is exclusive.
+
+Requires `@cmssy/cli`-registered workspace with `PAGES_EDIT` permission.
+Default `fieldPath` is `"content"` (the HTML body on docs-article); override
+if patching a different string field.
 
 ## Resources
 

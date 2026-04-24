@@ -26,6 +26,7 @@ import {
   CURRENT_WORKSPACE_QUERY,
   MEDIA_ASSETS_QUERY,
   SAVE_PAGE_MUTATION,
+  PATCH_BLOCK_CONTENT_MUTATION,
   UPDATE_PAGE_SETTINGS_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
   PUBLISH_PAGE_MUTATION,
@@ -1075,6 +1076,112 @@ export function createServer(client: CmssyClient) {
           ],
         };
       }
+    },
+  );
+
+  server.tool(
+    "patch_block_content",
+    "Apply surgical HTML edits (insert_before/insert_after/replace_section) to a block's localized content string (e.g. a docs-article HTML body) without re-sending the full content. Use this for small edits where you have a unique anchor substring in the existing HTML - it's ~10x cheaper in tokens than update_block_content and rejects any op whose marker is missing or ambiguous. For REPLACE_SECTION: startMarker is inclusive, endMarker is exclusive.",
+    {
+      pageId: z.string().describe("Page ID"),
+      blockId: z
+        .string()
+        .describe(
+          "Block instance ID (UUID) on the page. Layout blocks (header/footer) aren't supported - use update_block_content for those.",
+        ),
+      locale: z
+        .string()
+        .describe(
+          "Language code matching the workspace's enabledLanguages (e.g. 'en', 'pl', 'zh'). Check get_site_config first if unsure.",
+        ),
+      fieldPath: z
+        .string()
+        .optional()
+        .describe(
+          "Field inside content[locale] to patch (default: 'content', the HTML body of docs-article blocks). Must resolve to a string.",
+        ),
+      operations: z
+        .array(
+          z
+            .object({
+              op: z
+                .enum(["insert_before", "insert_after", "replace_section"])
+                .describe("Patch operation type"),
+              marker: z
+                .string()
+                .optional()
+                .describe(
+                  "Required for insert_before / insert_after. Must match exactly one location in the field (zero or multiple → error).",
+                ),
+              startMarker: z
+                .string()
+                .optional()
+                .describe(
+                  "Required for replace_section. Inclusive lower bound; must match exactly one location.",
+                ),
+              endMarker: z
+                .string()
+                .optional()
+                .describe(
+                  "Required for replace_section. Exclusive upper bound; must appear after startMarker.",
+                ),
+              html: z
+                .string()
+                .describe("HTML fragment to insert or replace with"),
+            })
+            .describe(
+              "A single patch op. Ops apply in order; any failure aborts the whole patch (no half-applied state).",
+            ),
+        )
+        .min(1)
+        .describe(
+          "Ordered list of patch operations. Apply smallest first - each op must still find its markers in the string after previous ops have applied.",
+        ),
+    },
+    async ({ pageId, blockId, locale, fieldPath, operations }) => {
+      const operationsInput = operations.map((op) => {
+        const normalized: {
+          op: string;
+          html: string;
+          marker?: string;
+          startMarker?: string;
+          endMarker?: string;
+        } = { op: op.op, html: op.html };
+        if (op.marker !== undefined) normalized.marker = op.marker;
+        if (op.startMarker !== undefined)
+          normalized.startMarker = op.startMarker;
+        if (op.endMarker !== undefined) normalized.endMarker = op.endMarker;
+        return normalized;
+      });
+
+      const data = await client.query<{ patchBlockContent: Page | null }>(
+        PATCH_BLOCK_CONTENT_MUTATION,
+        {
+          input: {
+            pageId,
+            blockId,
+            locale,
+            ...(fieldPath ? { fieldPath } : {}),
+            operations: operationsInput,
+          },
+        },
+      );
+
+      if (!data.patchBlockContent) {
+        return {
+          content: [{ type: "text" as const, text: "Page not found" }],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.patchBlockContent, null, 2),
+          },
+        ],
+      };
     },
   );
 

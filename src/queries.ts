@@ -241,6 +241,35 @@ export const SAVE_PAGE_MUTATION = `
   }
 `;
 
+export const PATCH_BLOCK_CONTENT_MUTATION = `
+  mutation PatchBlockContent($input: PatchBlockContentInput!) {
+    patchBlockContent(input: $input) {
+      id
+      name
+      slug
+      hasUnpublishedChanges
+      blocks {
+        id
+        type
+        content
+        settings
+        style
+        advanced
+        translations
+        defaultLanguage
+        metadata {
+          createdAt
+          updatedAt
+          createdBy
+          version
+        }
+        blockVersion
+      }
+      updatedAt
+    }
+  }
+`;
+
 export const UPDATE_PAGE_SETTINGS_MUTATION = `
   mutation UpdatePageSettings($input: UpdatePageSettingsInput!) {
     updatePageSettings(input: $input) {
