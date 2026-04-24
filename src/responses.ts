@@ -9,7 +9,7 @@ export const responseModeSchema = z
   .optional()
   .default("minimal")
   .describe(
-    "Response shape. 'minimal' (default) returns a small ack (~200 bytes). 'full' returns the full pre-0.6 mutation response.",
+    "Response shape. 'minimal' (default) returns a small ack (~200 bytes). 'full' returns the full mutation response.",
   );
 
 export type ResponseMode = "minimal" | "full";
