@@ -1193,21 +1193,6 @@ export function createServer(client: CmssyClient) {
     async ({ pageId, blockId, locale, fieldPath, operations }) => {
       // discriminatedUnion narrows each op so only the relevant marker
       // fields are present - pass them through directly.
-      const operationsInput = operations.map((op) => {
-        switch (op.op) {
-          case "insert_before":
-          case "insert_after":
-            return { op: op.op, marker: op.marker, html: op.html };
-          case "replace_section":
-            return {
-              op: op.op,
-              startMarker: op.startMarker,
-              endMarker: op.endMarker,
-              html: op.html,
-            };
-        }
-      });
-
       // Narrow shape matches the minimal selection set in
       // PATCH_BLOCK_CONTENT_MUTATION - we don't round-trip block content.
       interface PatchResult {
@@ -1217,6 +1202,14 @@ export function createServer(client: CmssyClient) {
         updatedAt: string;
       }
 
+      // Zod's discriminatedUnion + .strict() already shapes each op
+      // exactly like the backend's PatchOperationInput (insert_*: op,
+      // marker, html; replace_section: op, startMarker, endMarker, html).
+      // Pass the array straight through - a manual map here is both
+      // redundant AND unsafe (a switch without an exhaustiveness check
+      // could return undefined on an unexpected op, which would then
+      // serialize as null in the mutation variables and blow up server-side
+      // with a hard-to-trace error).
       const data = await client.query<{
         patchBlockContent: PatchResult | null;
       }>(PATCH_BLOCK_CONTENT_MUTATION, {
@@ -1225,7 +1218,7 @@ export function createServer(client: CmssyClient) {
           blockId,
           locale,
           ...(fieldPath ? { fieldPath } : {}),
-          operations: operationsInput,
+          operations,
         },
       });
 
