@@ -371,7 +371,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "create_page",
-    "Create a new page. Returns a minimal ack by default; pass response='full' to receive the entire created page.",
+    "Create a new page. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
     {
       name: z.string().describe("Internal page name"),
       slug: z.string().describe("URL slug (e.g. 'about', 'features')"),

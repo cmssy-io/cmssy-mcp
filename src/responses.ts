@@ -9,7 +9,7 @@ export const responseModeSchema = z
   .optional()
   .default("minimal")
   .describe(
-    "Response shape. 'minimal' (default) returns a small ack (~200 bytes). 'full' returns the entire mutated resource (pre-0.6 behavior).",
+    "Response shape. 'minimal' (default) returns a small ack (~200 bytes). 'full' returns the full pre-0.6 mutation response.",
   );
 
 export type ResponseMode = "minimal" | "full";
@@ -39,10 +39,12 @@ export function pageMinimal(
   if (page.hasUnpublishedChanges != null)
     out.hasUnpublishedChanges = page.hasUnpublishedChanges;
   if (page.updatedAt != null) out.updatedAt = page.updatedAt;
-  // Caller-supplied `published` wins over whatever the mutation echoed —
-  // matters for unpublish_page where the toggle result lags semantically.
+  // `published` is only emitted when the caller explicitly requests it —
+  // i.e. publish_page / unpublish_page. Other mutations (savePage etc.)
+  // may echo `published` as part of their selection set, but including it
+  // in the minimal ack would make the shape depend on which mutation
+  // served the request. Keeping it opt-in keeps the minimal schema stable.
   if (extras?.published !== undefined) out.published = extras.published;
-  else if (page.published != null) out.published = page.published;
   return out;
 }
 
