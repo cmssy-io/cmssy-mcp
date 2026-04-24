@@ -1899,6 +1899,11 @@ export function createServer(client: CmssyClient) {
 
   const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
 
+  // Match backend: apps/backend/src/models/model-definition.ts
+  const SLUG_RE = /^[a-z][a-z0-9-]*$/;
+  const SLUG_MSG =
+    "Slug must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens";
+
   server.tool(
     "list_models",
     "List all Custom Data Models (ModelDefinition) in the workspace.",
@@ -1970,6 +1975,8 @@ export function createServer(client: CmssyClient) {
       name: z.string().describe("Display name"),
       slug: z
         .string()
+        .trim()
+        .regex(SLUG_RE, SLUG_MSG)
         .describe("URL-safe slug, lowercase (regex: ^[a-z][a-z0-9-]*$)"),
       description: z.string().optional(),
       icon: z
@@ -2032,7 +2039,7 @@ export function createServer(client: CmssyClient) {
     {
       id: z.string().describe("Model id (ObjectId) to update"),
       name: z.string().optional(),
-      slug: z.string().optional(),
+      slug: z.string().trim().regex(SLUG_RE, SLUG_MSG).optional(),
       description: z.string().optional(),
       icon: z.string().optional(),
       color: z.string().optional(),
@@ -2244,17 +2251,66 @@ export function createServer(client: CmssyClient) {
       }
 
       if (status !== undefined) {
-        const res = await client.query<{
-          updateModelRecordStatus: unknown | null;
-        }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
-          input: { id, status },
-        });
-        statusResult = res.updateModelRecordStatus;
-        if (!statusResult) {
-          return {
-            content: [{ type: "text" as const, text: "Record not found" }],
-            isError: true,
-          };
+        // Data update (if any) already committed. Wrap status call so a
+        // failed transition reports partial-success clearly instead of
+        // hiding the completed data write behind a bare throw.
+        try {
+          const res = await client.query<{
+            updateModelRecordStatus: unknown | null;
+          }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
+            input: { id, status },
+          });
+          statusResult = res.updateModelRecordStatus;
+          if (!statusResult) {
+            if (dataResult) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      {
+                        partialSuccess: true,
+                        message:
+                          "Data updated, but record not found when applying status.",
+                        dataResult,
+                      },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            return {
+              content: [{ type: "text" as const, text: "Record not found" }],
+              isError: true,
+            };
+          }
+        } catch (error) {
+          if (dataResult) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      partialSuccess: true,
+                      message:
+                        "Data updated, but status transition failed. Retry status only.",
+                      dataResult,
+                      statusError:
+                        error instanceof Error ? error.message : String(error),
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+          throw error;
         }
       }
 
