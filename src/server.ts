@@ -85,6 +85,15 @@ import type {
   MediaAsset,
   BlockInput,
 } from "./types.js";
+import {
+  responseModeSchema,
+  pageMinimal,
+  pageBlockMinimal,
+  formMinimal,
+  modelMinimal,
+  recordMinimal,
+  jsonText,
+} from "./responses.js";
 
 export function createServer(client: CmssyClient) {
   const server = new McpServer({
@@ -362,7 +371,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "create_page",
-    "Create a new page. Returns the created page with its ID.",
+    "Create a new page. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
     {
       name: z.string().describe("Internal page name"),
       slug: z.string().describe("URL slug (e.g. 'about', 'features')"),
@@ -389,6 +398,7 @@ export function createServer(client: CmssyClient) {
         .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO description"),
+      response: responseModeSchema,
     },
     async ({
       name,
@@ -398,6 +408,7 @@ export function createServer(client: CmssyClient) {
       displayName,
       seoTitle,
       seoDescription,
+      response,
     }) => {
       const input: Record<string, unknown> = { name, slug };
       if (parentId) input.parentId = parentId;
@@ -409,20 +420,13 @@ export function createServer(client: CmssyClient) {
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input,
       });
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.savePage, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.savePage, pageMinimal);
     },
   );
 
   server.tool(
     "update_page_blocks",
-    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config. Blocks with matching IDs preserve their existing content/settings when not explicitly provided.",
+    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config. Blocks with matching IDs preserve their existing content/settings when not explicitly provided. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
     {
       pageId: z.string().describe("Page ID"),
       blocks: z.preprocess(
@@ -448,8 +452,9 @@ export function createServer(client: CmssyClient) {
           )
           .describe("Full array of content blocks to set on the page"),
       ),
+      response: responseModeSchema,
     },
-    async ({ pageId, blocks }) => {
+    async ({ pageId, blocks, response }) => {
       // Validate all block types against workspace registry
       const validation = await validateBlockTypes(blocks.map((b) => b.type));
       if (!validation.valid) {
@@ -502,20 +507,13 @@ export function createServer(client: CmssyClient) {
           blocks: mergedBlocks,
         },
       });
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.savePage, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.savePage, pageMinimal);
     },
   );
 
   server.tool(
     "update_page_settings",
-    "Update page metadata: name, slug, display name, SEO fields",
+    "Update page metadata: name, slug, display name, SEO fields. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
     {
       id: z.string().describe("Page ID"),
       name: z.string().optional().describe("Internal page name"),
@@ -533,6 +531,7 @@ export function createServer(client: CmssyClient) {
         .optional()
         .describe("Multilingual SEO description"),
       seoKeywords: z.array(z.string()).optional().describe("SEO keywords"),
+      response: responseModeSchema,
     },
     async ({
       id,
@@ -542,6 +541,7 @@ export function createServer(client: CmssyClient) {
       seoTitle,
       seoDescription,
       seoKeywords,
+      response,
     }) => {
       const input: Record<string, unknown> = { id };
       if (name !== undefined) input.name = name;
@@ -555,22 +555,18 @@ export function createServer(client: CmssyClient) {
         UPDATE_PAGE_SETTINGS_MUTATION,
         { input },
       );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.updatePageSettings, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.updatePageSettings, pageMinimal);
     },
   );
 
   server.tool(
     "publish_page",
-    "Publish a page or re-publish with latest draft changes. Uses atomic publishPage mutation.",
-    { pageId: z.string().describe("Page ID to publish") },
-    async ({ pageId }) => {
+    "Publish a page or re-publish with latest draft changes. Uses atomic publishPage mutation. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    {
+      pageId: z.string().describe("Page ID to publish"),
+      response: responseModeSchema,
+    },
+    async ({ pageId, response }) => {
       const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
         { pageId },
@@ -613,22 +609,20 @@ export function createServer(client: CmssyClient) {
         PUBLISH_PAGE_MUTATION,
         { id: pageId, blocks },
       );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.publishPage, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.publishPage, (p) =>
+        pageMinimal(p, { published: true }),
+      );
     },
   );
 
   server.tool(
     "unpublish_page",
-    "Unpublish a published page (toggles published state off).",
-    { pageId: z.string().describe("Page ID to unpublish") },
-    async ({ pageId }) => {
+    "Unpublish a published page (toggles published state off). Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    {
+      pageId: z.string().describe("Page ID to unpublish"),
+      response: responseModeSchema,
+    },
+    async ({ pageId, response }) => {
       const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
         { pageId },
@@ -653,22 +647,20 @@ export function createServer(client: CmssyClient) {
         TOGGLE_PUBLISH_MUTATION,
         { id: pageId },
       );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.togglePublish, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.togglePublish, (p) =>
+        pageMinimal(p, { published: false }),
+      );
     },
   );
 
   server.tool(
     "revert_to_published",
-    "Discard all draft changes and revert a page to its last published version.",
-    { pageId: z.string().describe("Page ID to revert") },
-    async ({ pageId }) => {
+    "Discard all draft changes and revert a page to its last published version. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    {
+      pageId: z.string().describe("Page ID to revert"),
+      response: responseModeSchema,
+    },
+    async ({ pageId, response }) => {
       const data = await client.query<{ revertToPublished: Page | null }>(
         REVERT_TO_PUBLISHED_MUTATION,
         { id: pageId },
@@ -684,14 +676,7 @@ export function createServer(client: CmssyClient) {
           isError: true,
         };
       }
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.revertToPublished, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.revertToPublished, pageMinimal);
     },
   );
 
@@ -721,7 +706,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_layout",
-    "Update page-level layout settings: inheritance, overrides, or replace all layout blocks. Block types are validated against workspace config.",
+    "Update page-level layout settings: inheritance, overrides, or replace all layout blocks. Block types are validated against workspace config. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
     {
       pageId: z.string().describe("Page ID"),
       layoutBlocks: z
@@ -744,8 +729,15 @@ export function createServer(client: CmssyClient) {
         .boolean()
         .optional()
         .describe("Whether this page inherits layout from parent"),
+      response: responseModeSchema,
     },
-    async ({ pageId, layoutBlocks, layoutOverrides, inheritsLayout }) => {
+    async ({
+      pageId,
+      layoutBlocks,
+      layoutOverrides,
+      inheritsLayout,
+      response,
+    }) => {
       // Validate block types against workspace registry
       if (layoutBlocks) {
         const types = layoutBlocks
@@ -805,14 +797,7 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.updatePageLayout, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.updatePageLayout, pageMinimal);
     },
   );
 
@@ -820,7 +805,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "add_block_to_page",
-    "Add a block to a page. Automatically detects layout vs content block from workspace config. Auto-generates UUID and translation status.",
+    "Add a block to a page. Automatically detects layout vs content block from workspace config. Auto-generates UUID and translation status. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full pre-0.6 response.",
     {
       pageId: z.string().describe("Page ID"),
       block: z.preprocess(
@@ -842,8 +827,9 @@ export function createServer(client: CmssyClient) {
         .number()
         .optional()
         .describe("0-based position to insert at (default: end)"),
+      response: responseModeSchema,
     },
-    async ({ pageId, block, position }) => {
+    async ({ pageId, block, position, response }) => {
       // Validate block type against workspace registry
       const blockDef = await findBlockDef(block.type);
       if (!blockDef) {
@@ -921,18 +907,23 @@ export function createServer(client: CmssyClient) {
           { input: { pageId, layoutBlocks } },
         );
 
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                { blockId: newBlockId, page: data.updatePageLayout },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
+        if (!data.updatePageLayout) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Failed to update layout while adding block to page '${pageId}'`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        return jsonText(
+          response,
+          { blockId: newBlockId, page: data.updatePageLayout },
+          () => pageBlockMinimal(data.updatePageLayout!, newBlockId),
+        );
       } else {
         // Content block — add to blocks via savePage
         const newBlock: BlockInput = {
@@ -969,25 +960,18 @@ export function createServer(client: CmssyClient) {
           },
         );
 
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(
-                { blockId: newBlockId, page: data.savePage },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
+        return jsonText(
+          response,
+          { blockId: newBlockId, page: data.savePage },
+          () => pageBlockMinimal(data.savePage, newBlockId),
+        );
       }
     },
   );
 
   server.tool(
     "update_block_content",
-    "Update a specific block's content on a page. Merges with existing content. Works for both content and layout blocks.",
+    "Update a specific block's content on a page. Merges with existing content. Works for both content and layout blocks. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full pre-0.6 response.",
     {
       pageId: z.string().describe("Page ID"),
       blockId: z.string().describe("Block instance ID (UUID) to update"),
@@ -995,8 +979,9 @@ export function createServer(client: CmssyClient) {
         .record(z.string(), z.unknown())
         .describe("Content to merge: { en: { title: 'New Title' } }"),
       settings: z.record(z.string(), z.unknown()).optional(),
+      response: responseModeSchema,
     },
-    async ({ pageId, blockId, content, settings }) => {
+    async ({ pageId, blockId, content, settings, response }) => {
       // Fetch current page
       const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
@@ -1080,14 +1065,20 @@ export function createServer(client: CmssyClient) {
           UPDATE_PAGE_LAYOUT_MUTATION,
           { input: { pageId, layoutBlocks: targetArray } },
         );
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(data.updatePageLayout, null, 2),
-            },
-          ],
-        };
+        if (!data.updatePageLayout) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Failed to update layout while editing block '${blockId}' on page '${pageId}'`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        return jsonText(response, data.updatePageLayout, (p) =>
+          pageBlockMinimal(p, blockId),
+        );
       } else {
         const data = await client.query<{ savePage: Page }>(
           SAVE_PAGE_MUTATION,
@@ -1101,14 +1092,9 @@ export function createServer(client: CmssyClient) {
             },
           },
         );
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(data.savePage, null, 2),
-            },
-          ],
-        };
+        return jsonText(response, data.savePage, (p) =>
+          pageBlockMinimal(p, blockId),
+        );
       }
     },
   );
@@ -1263,12 +1249,13 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "remove_block_from_page",
-    "Remove a specific block from a page by its instance ID. Works for both content and layout blocks.",
+    "Remove a specific block from a page by its instance ID. Works for both content and layout blocks. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full pre-0.6 response.",
     {
       pageId: z.string().describe("Page ID"),
       blockId: z.string().describe("Block instance ID (UUID) to remove"),
+      response: responseModeSchema,
     },
-    async ({ pageId, blockId }) => {
+    async ({ pageId, blockId, response }) => {
       const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
         { pageId },
@@ -1298,14 +1285,9 @@ export function createServer(client: CmssyClient) {
             },
           },
         );
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(data.savePage, null, 2),
-            },
-          ],
-        };
+        return jsonText(response, data.savePage, (p) =>
+          pageBlockMinimal(p, blockId),
+        );
       }
 
       // Try layout blocks
@@ -1317,14 +1299,20 @@ export function createServer(client: CmssyClient) {
           UPDATE_PAGE_LAYOUT_MUTATION,
           { input: { pageId, layoutBlocks } },
         );
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify(data.updatePageLayout, null, 2),
-            },
-          ],
-        };
+        if (!data.updatePageLayout) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Failed to update layout while removing block '${blockId}' from page '${pageId}'`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        return jsonText(response, data.updatePageLayout, (p) =>
+          pageBlockMinimal(p, blockId),
+        );
       }
 
       return {
@@ -1403,7 +1391,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "create_form",
-    "Create a new form with fields and settings. Returns the created form.",
+    "Create a new form with fields and settings. Returns a minimal ack by default; pass response='full' for the full form.",
     {
       name: z.string().describe("Form name"),
       slug: z.string().describe("URL-friendly slug (must be unique)"),
@@ -1497,31 +1485,29 @@ export function createServer(client: CmssyClient) {
         )
         .optional()
         .describe("Form settings (action type, notifications, etc.)"),
+      response: responseModeSchema,
     },
-    async ({ name, slug, description, fields, settings }) => {
+    async ({ name, slug, description, fields, settings, response }) => {
       const input: Record<string, unknown> = { name, slug };
       if (description) input.description = description;
       if (fields) input.fields = fields;
       if (settings) input.settings = settings;
 
-      const data = await client.query<{ createForm: unknown }>(
-        CREATE_FORM_MUTATION,
-        { input },
-      );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.createForm, null, 2),
-          },
-        ],
-      };
+      const data = await client.query<{
+        createForm: {
+          id: string;
+          slug?: string | null;
+          status?: string | null;
+          updatedAt?: string | null;
+        };
+      }>(CREATE_FORM_MUTATION, { input });
+      return jsonText(response, data.createForm, formMinimal);
     },
   );
 
   server.tool(
     "update_form",
-    "Update an existing form's name, slug, status, fields, or settings.",
+    "Update an existing form's name, slug, status, fields, or settings. Returns a minimal ack by default; pass response='full' for the full form.",
     {
       formId: z.string().describe("Form ID to update"),
       name: z.string().optional().describe("New form name"),
@@ -1612,8 +1598,18 @@ export function createServer(client: CmssyClient) {
         )
         .optional()
         .describe("Updated settings"),
+      response: responseModeSchema,
     },
-    async ({ formId, name, slug, description, status, fields, settings }) => {
+    async ({
+      formId,
+      name,
+      slug,
+      description,
+      status,
+      fields,
+      settings,
+      response,
+    }) => {
       const input: Record<string, unknown> = {};
       if (name !== undefined) input.name = name;
       if (slug !== undefined) input.slug = slug;
@@ -1622,10 +1618,14 @@ export function createServer(client: CmssyClient) {
       if (fields !== undefined) input.fields = fields;
       if (settings !== undefined) input.settings = settings;
 
-      const data = await client.query<{ updateForm: unknown | null }>(
-        UPDATE_FORM_MUTATION,
-        { formId, input },
-      );
+      const data = await client.query<{
+        updateForm: {
+          id: string;
+          slug?: string | null;
+          status?: string | null;
+          updatedAt?: string | null;
+        } | null;
+      }>(UPDATE_FORM_MUTATION, { formId, input });
       if (!data.updateForm) {
         return {
           content: [
@@ -1634,14 +1634,7 @@ export function createServer(client: CmssyClient) {
           isError: true,
         };
       }
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.updateForm, null, 2),
-          },
-        ],
-      };
+      return jsonText(response, data.updateForm, formMinimal);
     },
   );
 
@@ -1988,7 +1981,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "create_model",
-    "Create a new Custom Data Model (ModelDefinition). Returns the created model.",
+    "Create a new Custom Data Model (ModelDefinition). Returns a minimal ack by default; pass response='full' for the full model.",
     {
       name: z.string().describe("Display name"),
       slug: z
@@ -2015,6 +2008,7 @@ export function createServer(client: CmssyClient) {
         .preprocess(jsonPreprocess, statusFieldSchema)
         .optional()
         .describe("Enable record lifecycle states with allowed transitions"),
+      response: responseModeSchema,
     },
     async ({
       name,
@@ -2026,6 +2020,7 @@ export function createServer(client: CmssyClient) {
       defaultSort,
       fields,
       statusField,
+      response,
     }) => {
       const input: Record<string, unknown> = { name, slug };
       if (description !== undefined) input.description = description;
@@ -2036,24 +2031,20 @@ export function createServer(client: CmssyClient) {
       if (fields !== undefined) input.fields = fields;
       if (statusField !== undefined) input.statusField = statusField;
 
-      const data = await client.query<{ createModelDefinition: unknown }>(
-        CREATE_MODEL_DEFINITION_MUTATION,
-        { input },
-      );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.createModelDefinition, null, 2),
-          },
-        ],
-      };
+      const data = await client.query<{
+        createModelDefinition: {
+          id: string;
+          slug?: string | null;
+          updatedAt?: string | null;
+        };
+      }>(CREATE_MODEL_DEFINITION_MUTATION, { input });
+      return jsonText(response, data.createModelDefinition, modelMinimal);
     },
   );
 
   server.tool(
     "update_model",
-    "Update any field of an existing ModelDefinition. Changing 'fields' migrates the schema - existing records are re-validated on next write.",
+    "Update any field of an existing ModelDefinition. Changing 'fields' migrates the schema - existing records are re-validated on next write. Returns a minimal ack by default; pass response='full' for the full model.",
     {
       id: z.string().describe("Model id (ObjectId) to update"),
       name: z.string().optional(),
@@ -2067,6 +2058,7 @@ export function createServer(client: CmssyClient) {
         .preprocess(jsonPreprocess, z.array(propertyFieldSchema))
         .optional(),
       statusField: z.preprocess(jsonPreprocess, statusFieldSchema).optional(),
+      response: responseModeSchema,
     },
     async (args) => {
       const input: Record<string, unknown> = { id: args.id };
@@ -2085,7 +2077,11 @@ export function createServer(client: CmssyClient) {
       }
 
       const data = await client.query<{
-        updateModelDefinition: unknown | null;
+        updateModelDefinition: {
+          id: string;
+          slug?: string | null;
+          updatedAt?: string | null;
+        } | null;
       }>(UPDATE_MODEL_DEFINITION_MUTATION, { input });
       if (!data.updateModelDefinition) {
         return {
@@ -2093,14 +2089,7 @@ export function createServer(client: CmssyClient) {
           isError: true,
         };
       }
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.updateModelDefinition, null, 2),
-          },
-        ],
-      };
+      return jsonText(args.response, data.updateModelDefinition, modelMinimal);
     },
   );
 
@@ -2201,32 +2190,31 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "create_record",
-    "Create a new record in a model. Data keys must match field keys of the model; backend validates against the ModelDefinition.",
+    "Create a new record in a model. Data keys must match field keys of the model; backend validates against the ModelDefinition. Returns a minimal ack by default; pass response='full' for the full record.",
     {
       modelId: z.string().describe("Target model id (ObjectId)"),
       data: z
         .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
         .describe("Record data keyed by model field keys"),
+      response: responseModeSchema,
     },
-    async ({ modelId, data: recordData }) => {
-      const result = await client.query<{ createModelRecord: unknown }>(
-        CREATE_MODEL_RECORD_MUTATION,
-        { input: { modelId, data: recordData } },
-      );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(result.createModelRecord, null, 2),
-          },
-        ],
-      };
+    async ({ modelId, data: recordData, response }) => {
+      const result = await client.query<{
+        createModelRecord: {
+          id: string;
+          status?: string | null;
+          updatedAt?: string | null;
+        };
+      }>(CREATE_MODEL_RECORD_MUTATION, {
+        input: { modelId, data: recordData },
+      });
+      return jsonText(response, result.createModelRecord, recordMinimal);
     },
   );
 
   server.tool(
     "update_record",
-    "Update a record. Pass 'data' for a full data replace. Pass 'status' to transition the record's status (validated against statusField.transitions). At least one of data/status is required.",
+    "Update a record. Pass 'data' for a full data replace. Pass 'status' to transition the record's status (validated against statusField.transitions). At least one of data/status is required. Returns a minimal ack by default; pass response='full' for the full record.",
     {
       id: z.string().describe("Record id (ObjectId)"),
       data: z
@@ -2237,8 +2225,9 @@ export function createServer(client: CmssyClient) {
         .string()
         .optional()
         .describe("New status value (must be allowed by model.statusField)"),
+      response: responseModeSchema,
     },
-    async ({ id, data: recordData, status }) => {
+    async ({ id, data: recordData, status, response }) => {
       if (recordData === undefined && status === undefined) {
         return {
           content: [
@@ -2251,14 +2240,20 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      let dataResult: unknown = null;
-      let statusResult: unknown = null;
+      type RecordResult = {
+        id: string;
+        status?: string | null;
+        updatedAt?: string | null;
+      };
+      let dataResult: RecordResult | null = null;
+      let statusResult: RecordResult | null = null;
 
       if (recordData !== undefined) {
-        const res = await client.query<{ updateModelRecord: unknown | null }>(
-          UPDATE_MODEL_RECORD_MUTATION,
-          { input: { id, data: recordData } },
-        );
+        const res = await client.query<{
+          updateModelRecord: RecordResult | null;
+        }>(UPDATE_MODEL_RECORD_MUTATION, {
+          input: { id, data: recordData },
+        });
         dataResult = res.updateModelRecord;
         if (!dataResult) {
           return {
@@ -2274,7 +2269,7 @@ export function createServer(client: CmssyClient) {
         // hiding the completed data write behind a bare throw.
         try {
           const res = await client.query<{
-            updateModelRecordStatus: unknown | null;
+            updateModelRecordStatus: RecordResult | null;
           }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
             input: { id, status },
           });
@@ -2332,14 +2327,8 @@ export function createServer(client: CmssyClient) {
         }
       }
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(statusResult ?? dataResult, null, 2),
-          },
-        ],
-      };
+      const finalResult = (statusResult ?? dataResult) as RecordResult;
+      return jsonText(response, finalResult, recordMinimal);
     },
   );
 
