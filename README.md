@@ -53,7 +53,7 @@ As of 0.6.0, most write tools accept an optional `response` arg:
   `{id, slug, status, updatedAt}` for form tools,
   `{id, slug, updatedAt}` for model tools,
   `{id, status, updatedAt}` for record tools.
-- `response: "full"` - returns the entire mutated resource (pre-0.6 behavior).
+- `response: "full"` - returns the full mutation response (pre-0.6 behavior).
 
 Use `"full"` only if you need the post-write state inline; otherwise issue a
 follow-up `get_page`/`get_form`/`get_model`/`get_record`. This keeps agent

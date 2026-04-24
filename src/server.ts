@@ -371,7 +371,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "create_page",
-    "Create a new page. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    "Create a new page. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       name: z.string().describe("Internal page name"),
       slug: z.string().describe("URL slug (e.g. 'about', 'features')"),
@@ -426,7 +426,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_blocks",
-    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config. Blocks with matching IDs preserve their existing content/settings when not explicitly provided. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config. Blocks with matching IDs preserve their existing content/settings when not explicitly provided. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID"),
       blocks: z.preprocess(
@@ -513,7 +513,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_settings",
-    "Update page metadata: name, slug, display name, SEO fields. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    "Update page metadata: name, slug, display name, SEO fields. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       id: z.string().describe("Page ID"),
       name: z.string().optional().describe("Internal page name"),
@@ -561,7 +561,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "publish_page",
-    "Publish a page or re-publish with latest draft changes. Uses atomic publishPage mutation. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    "Publish a page or re-publish with latest draft changes. Uses atomic publishPage mutation. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID to publish"),
       response: responseModeSchema,
@@ -617,7 +617,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "unpublish_page",
-    "Unpublish a published page (toggles published state off). Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    "Unpublish a published page (toggles published state off). Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID to unpublish"),
       response: responseModeSchema,
@@ -655,7 +655,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "revert_to_published",
-    "Discard all draft changes and revert a page to its last published version. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    "Discard all draft changes and revert a page to its last published version. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID to revert"),
       response: responseModeSchema,
@@ -706,7 +706,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_layout",
-    "Update page-level layout settings: inheritance, overrides, or replace all layout blocks. Block types are validated against workspace config. Returns a minimal ack by default; pass response='full' for the full pre-0.6 response.",
+    "Update page-level layout settings: inheritance, overrides, or replace all layout blocks. Block types are validated against workspace config. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID"),
       layoutBlocks: z
@@ -805,7 +805,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "add_block_to_page",
-    "Add a block to a page. Automatically detects layout vs content block from workspace config. Auto-generates UUID and translation status. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full pre-0.6 response.",
+    "Add a block to a page. Automatically detects layout vs content block from workspace config. Auto-generates UUID and translation status. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID"),
       block: z.preprocess(
@@ -971,7 +971,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_block_content",
-    "Update a specific block's content on a page. Merges with existing content. Works for both content and layout blocks. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full pre-0.6 response.",
+    "Update a specific block's content on a page. Merges with existing content. Works for both content and layout blocks. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID"),
       blockId: z.string().describe("Block instance ID (UUID) to update"),
@@ -1236,11 +1236,13 @@ export function createServer(client: CmssyClient) {
         };
       }
 
+      // Compact JSON: patch_block_content is ack-only (no pretty-print
+      // needed), matching the compact shape used by minimal-mode returns.
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(data.patchBlockContent, null, 2),
+            text: JSON.stringify(data.patchBlockContent),
           },
         ],
       };
@@ -1249,7 +1251,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "remove_block_from_page",
-    "Remove a specific block from a page by its instance ID. Works for both content and layout blocks. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full pre-0.6 response.",
+    "Remove a specific block from a page by its instance ID. Works for both content and layout blocks. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID"),
       blockId: z.string().describe("Block instance ID (UUID) to remove"),

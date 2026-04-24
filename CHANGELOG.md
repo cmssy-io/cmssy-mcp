@@ -11,7 +11,7 @@
   `{pageId, blockId, hasUnpublishedChanges, updatedAt}` for block-on-page
   tools; `{id, slug, status, updatedAt}` for forms; `{id, slug, updatedAt}`
   for models; `{id, status, updatedAt}` for records. Pass `response: "full"`
-  to restore the pre-0.6 behavior of returning the entire mutated resource.
+  to restore the pre-0.6 behavior of returning the full mutation response.
 
   Rationale: multi-kB response echo after every mutation was burning agent
   context windows on content the agent just wrote. A single docs page touched
