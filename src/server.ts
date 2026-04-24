@@ -1,6 +1,24 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { CmssyClient } from "./graphql-client.js";
+
+// Read our own version from package.json so the MCP handshake
+// advertises what the user actually installed, instead of drifting
+// whenever we bump the package.
+const PACKAGE_VERSION = (() => {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pkg = JSON.parse(
+      readFileSync(resolve(here, "../package.json"), "utf8"),
+    );
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+})();
 
 /**
  * Preprocess helper: parse JSON string to object if needed.
@@ -26,6 +44,7 @@ import {
   CURRENT_WORKSPACE_QUERY,
   MEDIA_ASSETS_QUERY,
   SAVE_PAGE_MUTATION,
+  PATCH_BLOCK_CONTENT_MUTATION,
   UPDATE_PAGE_SETTINGS_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
   PUBLISH_PAGE_MUTATION,
@@ -54,7 +73,7 @@ import type {
 export function createServer(client: CmssyClient) {
   const server = new McpServer({
     name: "cmssy",
-    version: "0.1.0",
+    version: PACKAGE_VERSION,
   });
 
   // ─── Workspace Block Registry (cached with TTL) ──────────────
@@ -1075,6 +1094,161 @@ export function createServer(client: CmssyClient) {
           ],
         };
       }
+    },
+  );
+
+  server.tool(
+    "patch_block_content",
+    "Apply surgical HTML edits (insert_before/insert_after/replace_section) to a block's localized content string (e.g. a docs-article HTML body) without re-sending the full content. Use this for small edits where you have a unique anchor substring in the existing HTML - it's ~10x cheaper in tokens than update_block_content and rejects any op whose marker is missing or ambiguous. For replace_section: startMarker is inclusive, endMarker is exclusive.",
+    {
+      pageId: z.string().describe("Page ID"),
+      blockId: z
+        .string()
+        .describe(
+          "Block instance ID (UUID) on the page. Layout blocks (header/footer) aren't supported - use update_block_content for those.",
+        ),
+      locale: z
+        .string()
+        .describe(
+          "Language code matching the workspace's enabledLanguages (e.g. 'en', 'pl', 'zh'). Check get_site_config first if unsure.",
+        ),
+      fieldPath: z
+        .string()
+        .optional()
+        .describe(
+          "Field inside content[locale] to patch (default: 'content', the HTML body of docs-article blocks). Must resolve to a string.",
+        ),
+      // `jsonPreprocess` matches the other tools in this file that accept
+      // complex inputs - MCP clients sometimes JSON-serialize nested
+      // arrays/objects instead of passing raw JSON. Without the preprocess
+      // those clients fail validation before the handler ever runs.
+      operations: z.preprocess(
+        jsonPreprocess,
+        z
+          .array(
+            // Discriminated on `op` so clients can't pass e.g. `insert_before`
+            // with a `startMarker` - the backend would reject, but it's
+            // cleaner (and cheaper) to fail at MCP boundary.
+            z
+              .discriminatedUnion("op", [
+                z
+                  .object({
+                    op: z
+                      .literal("insert_before")
+                      .describe("Insert html immediately before `marker`"),
+                    marker: z
+                      .string()
+                      .describe(
+                        "Unique anchor substring. Must match exactly one location in the field (zero or multiple → error).",
+                      ),
+                    html: z.string().describe("HTML fragment to insert"),
+                  })
+                  .strict(),
+                z
+                  .object({
+                    op: z
+                      .literal("insert_after")
+                      .describe("Insert html immediately after `marker`"),
+                    marker: z
+                      .string()
+                      .describe(
+                        "Unique anchor substring. Must match exactly one location in the field (zero or multiple → error).",
+                      ),
+                    html: z.string().describe("HTML fragment to insert"),
+                  })
+                  .strict(),
+                z
+                  .object({
+                    op: z
+                      .literal("replace_section")
+                      .describe(
+                        "Replace everything from startMarker (inclusive) up to endMarker (exclusive)",
+                      ),
+                    startMarker: z
+                      .string()
+                      .describe(
+                        "Inclusive lower bound. Must match exactly one location.",
+                      ),
+                    endMarker: z
+                      .string()
+                      .describe(
+                        "Exclusive upper bound. Must appear exactly once after startMarker.",
+                      ),
+                    html: z
+                      .string()
+                      .describe("HTML fragment to replace the section with"),
+                  })
+                  .strict(),
+              ])
+              .describe(
+                "A single patch op. Ops apply in order; any failure aborts the whole patch (no half-applied state).",
+              ),
+          )
+          .min(1)
+          .describe(
+            "Ordered list of patch operations. Apply smallest first - each op must still find its markers in the string after previous ops have applied.",
+          ),
+      ),
+    },
+    async ({ pageId, blockId, locale, fieldPath, operations }) => {
+      // discriminatedUnion narrows each op so only the relevant marker
+      // fields are present - pass them through directly.
+      const operationsInput = operations.map((op) => {
+        switch (op.op) {
+          case "insert_before":
+          case "insert_after":
+            return { op: op.op, marker: op.marker, html: op.html };
+          case "replace_section":
+            return {
+              op: op.op,
+              startMarker: op.startMarker,
+              endMarker: op.endMarker,
+              html: op.html,
+            };
+        }
+      });
+
+      // Narrow shape matches the minimal selection set in
+      // PATCH_BLOCK_CONTENT_MUTATION - we don't round-trip block content.
+      interface PatchResult {
+        id: string;
+        slug: string;
+        hasUnpublishedChanges: boolean;
+        updatedAt: string;
+      }
+
+      const data = await client.query<{
+        patchBlockContent: PatchResult | null;
+      }>(PATCH_BLOCK_CONTENT_MUTATION, {
+        input: {
+          pageId,
+          blockId,
+          locale,
+          ...(fieldPath ? { fieldPath } : {}),
+          operations: operationsInput,
+        },
+      });
+
+      if (!data.patchBlockContent) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Page not found or patch failed",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.patchBlockContent, null, 2),
+          },
+        ],
+      };
     },
   );
 
