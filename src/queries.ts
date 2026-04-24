@@ -335,3 +335,107 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
     }
   }
 `;
+
+// ─── Form Queries ────────────────────────────────────────────
+
+const FORM_FIELDS_FRAGMENT = `
+  id
+  name
+  slug
+  description
+  status
+  fields {
+    id name fieldType
+    label placeholder helpText
+    defaultValue
+    validation { required minLength maxLength minValue maxValue pattern customMessage }
+    options { value label disabled }
+    width order showIf
+  }
+  settings {
+    actionType webhookUrl emailRecipients newsletterListId
+    submitButtonLabel successMessage errorMessage
+    redirectUrl enableCaptcha requireLogin
+    saveSubmissions sendEmailNotification emailConfigurationId
+  }
+  submissionCount
+  createdAt updatedAt createdBy updatedBy
+`;
+
+export const FORMS_QUERY = `
+  query Forms($status: String, $skip: Int, $limit: Int) {
+    forms(status: $status, skip: $skip, limit: $limit) {
+      forms { ${FORM_FIELDS_FRAGMENT} }
+      total
+      hasMore
+    }
+  }
+`;
+
+export const FORM_BY_ID_QUERY = `
+  query Form($formId: ID!) {
+    form(formId: $formId) {
+      ${FORM_FIELDS_FRAGMENT}
+    }
+  }
+`;
+
+export const FORM_SUBMISSIONS_QUERY = `
+  query FormSubmissions($formId: ID, $status: String, $skip: Int, $limit: Int) {
+    formSubmissions(formId: $formId, status: $status, skip: $skip, limit: $limit) {
+      submissions {
+        id formId formSlug data status
+        ipAddress userAgent referrer customerId
+        processedAt emailSent webhookSent createdAt
+      }
+      total
+      hasMore
+    }
+  }
+`;
+
+export const FORM_SUBMISSION_BY_ID_QUERY = `
+  query FormSubmission($submissionId: ID!) {
+    formSubmission(submissionId: $submissionId) {
+      id formId formSlug data status
+      ipAddress userAgent referrer customerId
+      processedAt emailSent webhookSent createdAt
+    }
+  }
+`;
+
+// ─── Form Mutations ──────────────────────────────────────────
+
+export const CREATE_FORM_MUTATION = `
+  mutation CreateForm($input: CreateFormInput!) {
+    createForm(input: $input) {
+      ${FORM_FIELDS_FRAGMENT}
+    }
+  }
+`;
+
+export const UPDATE_FORM_MUTATION = `
+  mutation UpdateForm($formId: ID!, $input: UpdateFormInput!) {
+    updateForm(formId: $formId, input: $input) {
+      ${FORM_FIELDS_FRAGMENT}
+    }
+  }
+`;
+
+export const DELETE_FORM_MUTATION = `
+  mutation DeleteForm($formId: ID!) {
+    deleteForm(formId: $formId)
+  }
+`;
+
+export const UPDATE_FORM_SUBMISSION_STATUS_MUTATION = `
+  mutation UpdateFormSubmissionStatus($submissionId: ID!, $status: String!) {
+    updateFormSubmissionStatus(submissionId: $submissionId, status: $status)
+  }
+`;
+
+export const DELETE_FORM_SUBMISSION_MUTATION = `
+  mutation DeleteFormSubmission($submissionId: ID!) {
+    deleteFormSubmission(submissionId: $submissionId)
+  }
+`;
