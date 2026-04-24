@@ -270,6 +270,7 @@ export const UPDATE_PAGE_SETTINGS_MUTATION = `
       seoKeywords
       pageType
       parentId
+      hasUnpublishedChanges
       updatedAt
     }
   }
@@ -279,9 +280,11 @@ export const TOGGLE_PUBLISH_MUTATION = `
   mutation TogglePublish($id: ID!) {
     togglePublish(id: $id) {
       id
+      slug
       published
       publishedAt
       hasUnpublishedChanges
+      updatedAt
     }
   }
 `;
@@ -290,9 +293,11 @@ export const PUBLISH_PAGE_MUTATION = `
   mutation PublishPage($id: ID!, $blocks: [BlockDataInput!]!) {
     publishPage(id: $id, blocks: $blocks) {
       id
+      slug
       published
       publishedAt
       hasUnpublishedChanges
+      updatedAt
       blocks {
         id
         type
@@ -321,6 +326,7 @@ export const REVERT_TO_PUBLISHED_MUTATION = `
       name
       slug
       hasUnpublishedChanges
+      updatedAt
       blocks {
         id type content settings style advanced
         translations defaultLanguage blockVersion
@@ -339,6 +345,9 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
   mutation UpdatePageLayout($input: UpdatePageLayoutInput!) {
     updatePageLayout(input: $input) {
       id
+      slug
+      hasUnpublishedChanges
+      updatedAt
       layoutBlocks {
         id type position order isActive
         content settings style advanced
