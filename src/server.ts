@@ -1,10 +1,25 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { CmssyClient } from "./graphql-client.js";
+
+/**
+ * Preprocess helper: parse JSON string to object if needed.
+ * MCP clients may serialize complex nested objects as JSON strings
+ * instead of passing them as objects. This ensures they're parsed.
+ * Malformed JSON is passed through so Zod produces a validation error
+ * instead of crashing the handler.
+ */
+const jsonPreprocess = (val: unknown) => {
+  if (typeof val !== "string") return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return val;
+  }
+};
 import {
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
-  PAGE_BY_SLUG_QUERY,
   WORKSPACE_BLOCKS_QUERY,
   WORKSPACE_BLOCK_BY_TYPE_QUERY,
   SITE_CONFIG_QUERY,
@@ -17,6 +32,15 @@ import {
   REVERT_TO_PUBLISHED_MUTATION,
   REMOVE_PAGE_MUTATION,
   UPDATE_PAGE_LAYOUT_MUTATION,
+  FORMS_QUERY,
+  FORM_BY_ID_QUERY,
+  FORM_SUBMISSIONS_QUERY,
+  FORM_SUBMISSION_BY_ID_QUERY,
+  CREATE_FORM_MUTATION,
+  UPDATE_FORM_MUTATION,
+  DELETE_FORM_MUTATION,
+  UPDATE_FORM_SUBMISSION_STATUS_MUTATION,
+  DELETE_FORM_SUBMISSION_MUTATION,
 } from "./queries.js";
 import type {
   Page,
@@ -104,10 +128,17 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "list_pages",
-    "List all pages in the workspace with hierarchy info (id, name, slug, published, parentId, pageType)",
-    {},
-    async () => {
-      const data = await client.query<{ pages: Page[] }>(PAGES_QUERY);
+    "List pages in the workspace. Optionally filter by search query (matches name, slug, displayName).",
+    {
+      search: z
+        .string()
+        .optional()
+        .describe("Search query to filter pages by name, slug, or displayName"),
+    },
+    async ({ search }) => {
+      const data = await client.query<{ pages: Page[] }>(PAGES_QUERY, {
+        search: search || undefined,
+      });
       return {
         content: [
           { type: "text" as const, text: JSON.stringify(data.pages, null, 2) },
@@ -136,20 +167,10 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      let page: Page | null;
-      if (id) {
-        const data = await client.query<{ pageById: Page | null }>(
-          PAGE_BY_ID_QUERY,
-          { id },
-        );
-        page = data.pageById;
-      } else {
-        const data = await client.query<{ page: Page | null }>(
-          PAGE_BY_SLUG_QUERY,
-          { slug },
-        );
-        page = data.page;
-      }
+      const data = await client.query<{ page: Page | null }>(PAGE_BY_ID_QUERY, {
+        pageId: id || slug,
+      });
+      const page = data.page;
 
       if (!page) {
         return {
@@ -320,17 +341,17 @@ export function createServer(client: CmssyClient) {
         .default("page")
         .describe("Page type (default: 'page')"),
       displayName: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe(
           "Multilingual display name, e.g. { en: 'About', pl: 'O nas' }",
         ),
       seoTitle: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO title"),
       seoDescription: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO description"),
     },
@@ -369,26 +390,29 @@ export function createServer(client: CmssyClient) {
     "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config. Blocks with matching IDs preserve their existing content/settings when not explicitly provided.",
     {
       pageId: z.string().describe("Page ID"),
-      blocks: z
-        .array(
-          z.object({
-            id: z.string().describe("Unique block instance ID (UUID)"),
-            type: z
-              .string()
-              .describe("Block type (must exist in workspace blocks)"),
-            content: z.record(z.string(), z.unknown()).optional(),
-            settings: z.record(z.string(), z.unknown()).optional(),
-            style: z.record(z.string(), z.unknown()).optional(),
-            advanced: z.record(z.string(), z.unknown()).optional(),
-            translations: z
-              .record(z.string(), z.object({ status: z.string() }))
-              .optional(),
-            defaultLanguage: z.string().optional(),
-            metadata: z.record(z.string(), z.unknown()).optional(),
-            blockVersion: z.string().optional(),
-          }),
-        )
-        .describe("Full array of content blocks to set on the page"),
+      blocks: z.preprocess(
+        jsonPreprocess,
+        z
+          .array(
+            z.object({
+              id: z.string().describe("Unique block instance ID (UUID)"),
+              type: z
+                .string()
+                .describe("Block type (must exist in workspace blocks)"),
+              content: z.record(z.string(), z.unknown()).optional(),
+              settings: z.record(z.string(), z.unknown()).optional(),
+              style: z.record(z.string(), z.unknown()).optional(),
+              advanced: z.record(z.string(), z.unknown()).optional(),
+              translations: z
+                .record(z.string(), z.object({ status: z.string() }))
+                .optional(),
+              defaultLanguage: z.string().optional(),
+              metadata: z.record(z.string(), z.unknown()).optional(),
+              blockVersion: z.string().optional(),
+            }),
+          )
+          .describe("Full array of content blocks to set on the page"),
+      ),
     },
     async ({ pageId, blocks }) => {
       // Validate all block types against workspace registry
@@ -400,12 +424,12 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
@@ -413,7 +437,7 @@ export function createServer(client: CmssyClient) {
       }
 
       // Merge: preserve existing block data when not provided in input
-      const existingBlocks = pageData.pageById.blocks || [];
+      const existingBlocks = pageData.page.blocks || [];
       const mergedBlocks = blocks.map((block) => {
         const existing = existingBlocks.find((b) => b.id === block.id);
         if (!existing) return block;
@@ -437,9 +461,9 @@ export function createServer(client: CmssyClient) {
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input: {
           id: pageId,
-          name: pageData.pageById.name,
-          slug: toRelativeSlug(pageData.pageById.slug),
-          parentId: pageData.pageById.parentId ?? undefined,
+          name: pageData.page.name,
+          slug: toRelativeSlug(pageData.page.slug),
+          parentId: pageData.page.parentId ?? undefined,
           blocks: mergedBlocks,
         },
       });
@@ -462,15 +486,15 @@ export function createServer(client: CmssyClient) {
       name: z.string().optional().describe("Internal page name"),
       slug: z.string().optional().describe("URL slug"),
       displayName: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual display name"),
       seoTitle: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO title"),
       seoDescription: z
-        .record(z.string(), z.string())
+        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO description"),
       seoKeywords: z.array(z.string()).optional().describe("SEO keywords"),
@@ -512,19 +536,19 @@ export function createServer(client: CmssyClient) {
     "Publish a page or re-publish with latest draft changes. Uses atomic publishPage mutation.",
     { pageId: z.string().describe("Page ID to publish") },
     async ({ pageId }) => {
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
         };
       }
 
-      const page = pageData.pageById;
+      const page = pageData.page;
 
       if (page.published && !page.hasUnpublishedChanges) {
         return {
@@ -570,19 +594,19 @@ export function createServer(client: CmssyClient) {
     "Unpublish a published page (toggles published state off).",
     { pageId: z.string().describe("Page ID to unpublish") },
     async ({ pageId }) => {
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
         };
       }
 
-      if (!pageData.pageById.published) {
+      if (!pageData.page.published) {
         return {
           content: [
             { type: "text" as const, text: "Page is already unpublished" },
@@ -704,11 +728,11 @@ export function createServer(client: CmssyClient) {
       // Merge layout blocks: preserve existing content when not provided
       let mergedLayoutBlocks = layoutBlocks;
       if (layoutBlocks) {
-        const pageData = await client.query<{ pageById: Page | null }>(
+        const pageData = await client.query<{ page: Page | null }>(
           PAGE_BY_ID_QUERY,
-          { id: pageId },
+          { pageId },
         );
-        const existingLayoutBlocks = pageData.pageById?.layoutBlocks ?? [];
+        const existingLayoutBlocks = pageData.page?.layoutBlocks ?? [];
         mergedLayoutBlocks = layoutBlocks.map((block) => {
           const existing = existingLayoutBlocks.find((b) => b.id === block.id);
           if (!existing) return block;
@@ -764,18 +788,21 @@ export function createServer(client: CmssyClient) {
     "Add a block to a page. Automatically detects layout vs content block from workspace config. Auto-generates UUID and translation status.",
     {
       pageId: z.string().describe("Page ID"),
-      block: z.object({
-        type: z
-          .string()
-          .describe("Block type (must exist in workspace blocks)"),
-        content: z
-          .record(z.string(), z.unknown())
-          .describe(
-            "Language-keyed content: { en: { title: '...' }, pl: { title: '...' } }",
-          ),
-        settings: z.record(z.string(), z.unknown()).optional(),
-        style: z.record(z.string(), z.unknown()).optional(),
-      }),
+      block: z.preprocess(
+        jsonPreprocess,
+        z.object({
+          type: z
+            .string()
+            .describe("Block type (must exist in workspace blocks)"),
+          content: z
+            .record(z.string(), z.unknown())
+            .describe(
+              "Language-keyed content: { en: { title: '...' }, pl: { title: '...' } }",
+            ),
+          settings: z.record(z.string(), z.unknown()).optional(),
+          style: z.record(z.string(), z.unknown()).optional(),
+        }),
+      ),
       position: z
         .number()
         .optional()
@@ -798,12 +825,12 @@ export function createServer(client: CmssyClient) {
       }
 
       // Fetch current page
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
@@ -832,7 +859,7 @@ export function createServer(client: CmssyClient) {
 
       if (isLayout) {
         // Layout block — add to layoutBlocks via updatePageLayout
-        const existingLayoutBlocks = pageData.pageById.layoutBlocks || [];
+        const existingLayoutBlocks = pageData.page.layoutBlocks || [];
         const layoutPosition = blockDef.layoutPosition!;
 
         // Append after existing blocks in same position
@@ -883,7 +910,7 @@ export function createServer(client: CmssyClient) {
           defaultLanguage,
         };
 
-        const blocks = [...pageData.pageById.blocks];
+        const blocks = [...pageData.page.blocks];
         if (
           position !== undefined &&
           position >= 0 &&
@@ -899,9 +926,9 @@ export function createServer(client: CmssyClient) {
           {
             input: {
               id: pageId,
-              name: pageData.pageById.name,
-              slug: toRelativeSlug(pageData.pageById.slug),
-              parentId: pageData.pageById.parentId ?? undefined,
+              name: pageData.page.name,
+              slug: toRelativeSlug(pageData.page.slug),
+              parentId: pageData.page.parentId ?? undefined,
               blocks,
             },
           },
@@ -936,19 +963,19 @@ export function createServer(client: CmssyClient) {
     },
     async ({ pageId, blockId, content, settings }) => {
       // Fetch current page
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
         };
       }
 
-      const page = pageData.pageById;
+      const page = pageData.page;
 
       // Search in content blocks first, then layout blocks
       const contentIdx = page.blocks.findIndex((b) => b.id === blockId);
@@ -1033,7 +1060,8 @@ export function createServer(client: CmssyClient) {
             input: {
               id: pageId,
               name: page.name,
-              slug: page.slug,
+              slug: toRelativeSlug(page.slug),
+              parentId: page.parentId ?? undefined,
               blocks: targetArray,
             },
           },
@@ -1058,19 +1086,19 @@ export function createServer(client: CmssyClient) {
       blockId: z.string().describe("Block instance ID (UUID) to remove"),
     },
     async ({ pageId, blockId }) => {
-      const pageData = await client.query<{ pageById: Page | null }>(
+      const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
-        { id: pageId },
+        { pageId },
       );
 
-      if (!pageData.pageById) {
+      if (!pageData.page) {
         return {
           content: [{ type: "text" as const, text: "Page not found" }],
           isError: true,
         };
       }
 
-      const page = pageData.pageById;
+      const page = pageData.page;
 
       // Try content blocks first
       const contentBlocks = page.blocks.filter((b) => b.id !== blockId);
@@ -1081,7 +1109,8 @@ export function createServer(client: CmssyClient) {
             input: {
               id: pageId,
               name: page.name,
-              slug: page.slug,
+              slug: toRelativeSlug(page.slug),
+              parentId: page.parentId ?? undefined,
               blocks: contentBlocks,
             },
           },
@@ -1123,6 +1152,450 @@ export function createServer(client: CmssyClient) {
           },
         ],
         isError: true,
+      };
+    },
+  );
+
+  // ─── Form Tools ──────────────────────────────────────────────
+
+  server.tool(
+    "list_forms",
+    "List forms in the workspace with optional status filter and pagination.",
+    {
+      status: z
+        .enum(["draft", "published", "archived"])
+        .optional()
+        .describe("Filter by form status"),
+      skip: z
+        .number()
+        .optional()
+        .default(0)
+        .describe("Number of items to skip"),
+      limit: z
+        .number()
+        .optional()
+        .default(50)
+        .describe("Max items to return (default 50)"),
+    },
+    async ({ status, skip, limit }) => {
+      const data = await client.query<{
+        forms: { forms: unknown[]; total: number; hasMore: boolean };
+      }>(FORMS_QUERY, {
+        status: status || undefined,
+        skip,
+        limit,
+      });
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(data.forms, null, 2) },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_form",
+    "Get full form details including fields, settings, and i18n content.",
+    {
+      formId: z.string().describe("Form ID"),
+    },
+    async ({ formId }) => {
+      const data = await client.query<{ form: unknown | null }>(
+        FORM_BY_ID_QUERY,
+        { formId },
+      );
+      if (!data.form) {
+        return {
+          content: [{ type: "text" as const, text: "Form not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(data.form, null, 2) },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_form",
+    "Create a new form with fields and settings. Returns the created form.",
+    {
+      name: z.string().describe("Form name"),
+      slug: z.string().describe("URL-friendly slug (must be unique)"),
+      description: z.string().optional().describe("Form description"),
+      fields: z
+        .preprocess(
+          jsonPreprocess,
+          z.array(
+            z.object({
+              id: z.string().describe("Unique field ID"),
+              name: z.string().describe("Field name (used as form data key)"),
+              fieldType: z
+                .enum([
+                  "text",
+                  "email",
+                  "password",
+                  "textarea",
+                  "number",
+                  "phone",
+                  "url",
+                  "date",
+                  "datetime",
+                  "select",
+                  "multiselect",
+                  "checkbox",
+                  "radio",
+                  "file",
+                  "hidden",
+                ])
+                .optional()
+                .default("text"),
+              label: z
+                .record(z.string(), z.unknown())
+                .optional()
+                .describe("i18n labels: { en: 'Name', pl: 'Imię' }"),
+              placeholder: z.record(z.string(), z.unknown()).optional(),
+              helpText: z.record(z.string(), z.unknown()).optional(),
+              defaultValue: z.string().optional(),
+              validation: z
+                .object({
+                  required: z.boolean().optional(),
+                  minLength: z.number().optional(),
+                  maxLength: z.number().optional(),
+                  minValue: z.number().optional(),
+                  maxValue: z.number().optional(),
+                  pattern: z.string().optional(),
+                  customMessage: z.string().optional(),
+                })
+                .optional(),
+              options: z
+                .array(
+                  z.object({
+                    value: z.string(),
+                    label: z.record(z.string(), z.unknown()).optional(),
+                    disabled: z.boolean().optional(),
+                  }),
+                )
+                .optional(),
+              width: z
+                .enum(["full", "half", "third"])
+                .optional()
+                .default("full"),
+              order: z.number().optional().default(0),
+              showIf: z.record(z.string(), z.unknown()).optional(),
+            }),
+          ),
+        )
+        .optional()
+        .describe("Form field definitions"),
+      settings: z
+        .preprocess(
+          jsonPreprocess,
+          z.object({
+            actionType: z
+              .enum(["login", "register", "newsletter", "contact", "custom"])
+              .optional()
+              .default("contact"),
+            webhookUrl: z.string().optional(),
+            emailRecipients: z.array(z.string()).optional(),
+            newsletterListId: z.string().optional(),
+            submitButtonLabel: z.record(z.string(), z.unknown()).optional(),
+            successMessage: z.record(z.string(), z.unknown()).optional(),
+            errorMessage: z.record(z.string(), z.unknown()).optional(),
+            redirectUrl: z.string().optional(),
+            enableCaptcha: z.boolean().optional(),
+            requireLogin: z.boolean().optional(),
+            saveSubmissions: z.boolean().optional(),
+            sendEmailNotification: z.boolean().optional(),
+            emailConfigurationId: z.string().optional(),
+          }),
+        )
+        .optional()
+        .describe("Form settings (action type, notifications, etc.)"),
+    },
+    async ({ name, slug, description, fields, settings }) => {
+      const input: Record<string, unknown> = { name, slug };
+      if (description) input.description = description;
+      if (fields) input.fields = fields;
+      if (settings) input.settings = settings;
+
+      const data = await client.query<{ createForm: unknown }>(
+        CREATE_FORM_MUTATION,
+        { input },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.createForm, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "update_form",
+    "Update an existing form's name, slug, status, fields, or settings.",
+    {
+      formId: z.string().describe("Form ID to update"),
+      name: z.string().optional().describe("New form name"),
+      slug: z.string().optional().describe("New slug"),
+      description: z.string().optional().describe("New description"),
+      status: z
+        .enum(["draft", "published", "archived"])
+        .optional()
+        .describe("New status"),
+      fields: z
+        .preprocess(
+          jsonPreprocess,
+          z.array(
+            z.object({
+              id: z.string(),
+              name: z.string(),
+              fieldType: z
+                .enum([
+                  "text",
+                  "email",
+                  "password",
+                  "textarea",
+                  "number",
+                  "phone",
+                  "url",
+                  "date",
+                  "datetime",
+                  "select",
+                  "multiselect",
+                  "checkbox",
+                  "radio",
+                  "file",
+                  "hidden",
+                ])
+                .optional(),
+              label: z.record(z.string(), z.unknown()).optional(),
+              placeholder: z.record(z.string(), z.unknown()).optional(),
+              helpText: z.record(z.string(), z.unknown()).optional(),
+              defaultValue: z.string().optional(),
+              validation: z
+                .object({
+                  required: z.boolean().optional(),
+                  minLength: z.number().optional(),
+                  maxLength: z.number().optional(),
+                  minValue: z.number().optional(),
+                  maxValue: z.number().optional(),
+                  pattern: z.string().optional(),
+                  customMessage: z.string().optional(),
+                })
+                .optional(),
+              options: z
+                .array(
+                  z.object({
+                    value: z.string(),
+                    label: z.record(z.string(), z.unknown()).optional(),
+                    disabled: z.boolean().optional(),
+                  }),
+                )
+                .optional(),
+              width: z.enum(["full", "half", "third"]).optional(),
+              order: z.number().optional(),
+              showIf: z.record(z.string(), z.unknown()).optional(),
+            }),
+          ),
+        )
+        .optional()
+        .describe("Replacement fields array"),
+      settings: z
+        .preprocess(
+          jsonPreprocess,
+          z.object({
+            actionType: z
+              .enum(["login", "register", "newsletter", "contact", "custom"])
+              .optional(),
+            webhookUrl: z.string().optional(),
+            emailRecipients: z.array(z.string()).optional(),
+            newsletterListId: z.string().optional(),
+            submitButtonLabel: z.record(z.string(), z.unknown()).optional(),
+            successMessage: z.record(z.string(), z.unknown()).optional(),
+            errorMessage: z.record(z.string(), z.unknown()).optional(),
+            redirectUrl: z.string().optional(),
+            enableCaptcha: z.boolean().optional(),
+            requireLogin: z.boolean().optional(),
+            saveSubmissions: z.boolean().optional(),
+            sendEmailNotification: z.boolean().optional(),
+            emailConfigurationId: z.string().optional(),
+          }),
+        )
+        .optional()
+        .describe("Updated settings"),
+    },
+    async ({ formId, name, slug, description, status, fields, settings }) => {
+      const input: Record<string, unknown> = {};
+      if (name !== undefined) input.name = name;
+      if (slug !== undefined) input.slug = slug;
+      if (description !== undefined) input.description = description;
+      if (status !== undefined) input.status = status;
+      if (fields !== undefined) input.fields = fields;
+      if (settings !== undefined) input.settings = settings;
+
+      const data = await client.query<{ updateForm: unknown | null }>(
+        UPDATE_FORM_MUTATION,
+        { formId, input },
+      );
+      if (!data.updateForm) {
+        return {
+          content: [
+            { type: "text" as const, text: "Form not found or update failed" },
+          ],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.updateForm, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "delete_form",
+    "Permanently delete a form and all its submissions.",
+    {
+      formId: z.string().describe("Form ID to delete"),
+    },
+    async ({ formId }) => {
+      const data = await client.query<{ deleteForm: boolean }>(
+        DELETE_FORM_MUTATION,
+        { formId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.deleteForm
+              ? "Form deleted successfully"
+              : "Failed to delete form",
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "list_form_submissions",
+    "List form submissions with optional filters and pagination.",
+    {
+      formId: z.string().optional().describe("Filter by form ID"),
+      status: z
+        .enum(["pending", "processed", "spam", "archived"])
+        .optional()
+        .describe("Filter by submission status"),
+      skip: z.number().optional().default(0),
+      limit: z.number().optional().default(50),
+    },
+    async ({ formId, status, skip, limit }) => {
+      const data = await client.query<{
+        formSubmissions: {
+          submissions: unknown[];
+          total: number;
+          hasMore: boolean;
+        };
+      }>(FORM_SUBMISSIONS_QUERY, {
+        formId: formId || undefined,
+        status: status || undefined,
+        skip,
+        limit,
+      });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.formSubmissions, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_form_submission",
+    "Get a specific form submission by ID.",
+    {
+      submissionId: z.string().describe("Submission ID"),
+    },
+    async ({ submissionId }) => {
+      const data = await client.query<{ formSubmission: unknown | null }>(
+        FORM_SUBMISSION_BY_ID_QUERY,
+        { submissionId },
+      );
+      if (!data.formSubmission) {
+        return {
+          content: [{ type: "text" as const, text: "Submission not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.formSubmission, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "update_form_submission_status",
+    "Update a form submission's status (pending, processed, spam, archived).",
+    {
+      submissionId: z.string().describe("Submission ID"),
+      status: z
+        .enum(["pending", "processed", "spam", "archived"])
+        .describe("New status"),
+    },
+    async ({ submissionId, status }) => {
+      const data = await client.query<{
+        updateFormSubmissionStatus: boolean;
+      }>(UPDATE_FORM_SUBMISSION_STATUS_MUTATION, { submissionId, status });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.updateFormSubmissionStatus
+              ? "Submission status updated"
+              : "Failed to update submission status",
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "delete_form_submission",
+    "Permanently delete a form submission.",
+    {
+      submissionId: z.string().describe("Submission ID to delete"),
+    },
+    async ({ submissionId }) => {
+      const data = await client.query<{ deleteFormSubmission: boolean }>(
+        DELETE_FORM_SUBMISSION_MUTATION,
+        { submissionId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.deleteFormSubmission
+              ? "Submission deleted successfully"
+              : "Failed to delete submission",
+          },
+        ],
       };
     },
   );

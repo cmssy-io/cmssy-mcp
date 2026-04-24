@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@cmssy/types':
-        specifier: ^0.8.0
-        version: 0.8.0
+        specifier: ^0.10.0
+        version: 0.10.1
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
         version: 1.27.1(zod@3.25.76)
@@ -30,8 +30,8 @@ importers:
 
 packages:
 
-  '@cmssy/types@0.8.0':
-    resolution: {integrity: sha512-IWyZql3fVcYUSf7N7innXxsBN8yib5n2+WXCJVhQGrh5/PA989V8dr4wvYI/LwlfFemuvn/XWtNZU6ggOp9k0A==}
+  '@cmssy/types@0.10.1':
+    resolution: {integrity: sha512-zmyw9xNpcFr4O8JtQ27gYd0S8LyBhO0IGJq/04XScmpH7d63HnknLJdasbO5U01lylud/Q0PyuXeVl/u1oiFPw==}
 
   '@esbuild/aix-ppc64@0.27.3':
     resolution: {integrity: sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg==}
@@ -589,7 +589,7 @@ packages:
 
 snapshots:
 
-  '@cmssy/types@0.8.0': {}
+  '@cmssy/types@0.10.1': {}
 
   '@esbuild/aix-ppc64@0.27.3':
     optional: true

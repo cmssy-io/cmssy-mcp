@@ -49,7 +49,7 @@ Instead of CLI args, you can set:
 
 | Tool                 | Description                                            |
 | -------------------- | ------------------------------------------------------ |
-| `list_pages`         | Page tree with hierarchy                               |
+| `list_pages`         | Page tree with hierarchy (optional `search` filter)    |
 | `get_page`           | Full page with blocks and i18n content (by slug or id) |
 | `list_block_types`   | All available blocks with schemas and defaults         |
 | `get_block_schema`   | Detailed schema for one block type                     |
@@ -59,14 +59,15 @@ Instead of CLI args, you can set:
 
 ### Write Tools
 
-| Tool                   | Description                     |
-| ---------------------- | ------------------------------- |
-| `create_page`          | Create a new page               |
-| `update_page_blocks`   | Set full blocks array on a page |
-| `update_page_settings` | Update page metadata and SEO    |
-| `publish_page`         | Publish a page                  |
-| `unpublish_page`       | Unpublish a page                |
-| `delete_page`          | Delete a page                   |
+| Tool                   | Description                        |
+| ---------------------- | ---------------------------------- |
+| `create_page`          | Create a new page                  |
+| `update_page_blocks`   | Set full blocks array on a page    |
+| `update_page_settings` | Update page metadata and SEO       |
+| `publish_page`         | Publish a page                     |
+| `unpublish_page`       | Unpublish a page                   |
+| `delete_page`          | Delete a page                      |
+| `revert_to_published`  | Discard draft, revert to published |
 
 ### Block Helper Tools
 
@@ -75,6 +76,7 @@ Instead of CLI args, you can set:
 | `add_block_to_page`      | Insert a block at position (auto-generates UUID + translations) |
 | `update_block_content`   | Merge content into an existing block                            |
 | `remove_block_from_page` | Remove a block by ID                                            |
+| `update_page_layout`     | Update layout blocks and overrides                              |
 
 ## Resources
 
@@ -88,6 +90,7 @@ Instead of CLI args, you can set:
 
 ```
 > List all pages in my workspace
+> Search for pages matching "blog"
 > Show me the available block types
 > Create a new "Features" page with content in English and Polish
 > Add a hero block to the Features page
