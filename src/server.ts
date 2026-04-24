@@ -62,6 +62,7 @@ import {
   UPDATE_FORM_SUBMISSION_STATUS_MUTATION,
   DELETE_FORM_SUBMISSION_MUTATION,
   MODEL_DEFINITIONS_QUERY,
+  MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_RECORDS_QUERY,
   MODEL_RECORD_BY_ID_QUERY,
@@ -1947,12 +1948,26 @@ export function createServer(client: CmssyClient) {
         }
       }
 
-      // Fallback: look up by slug via list query
-      const list = await client.query<{
-        modelDefinitions: Array<{ slug: string; [k: string]: unknown }>;
-      }>(MODEL_DEFINITIONS_QUERY);
-      const match = list.modelDefinitions.find((m) => m.slug === idOrSlug);
+      // Fallback: resolve slug → id via a lightweight list (id + slug only),
+      // then fetch the full definition for that single model. Avoids
+      // pulling every model's fields when only one is needed.
+      const index = await client.query<{
+        modelDefinitions: Array<{ id: string; slug: string }>;
+      }>(MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY);
+      const match = index.modelDefinitions.find((m) => m.slug === idOrSlug);
       if (!match) {
+        return {
+          content: [
+            { type: "text" as const, text: `Model '${idOrSlug}' not found` },
+          ],
+          isError: true,
+        };
+      }
+      const full = await client.query<{ modelDefinition: unknown | null }>(
+        MODEL_DEFINITION_BY_ID_QUERY,
+        { id: match.id },
+      );
+      if (!full.modelDefinition) {
         return {
           content: [
             { type: "text" as const, text: `Model '${idOrSlug}' not found` },
@@ -1962,7 +1977,10 @@ export function createServer(client: CmssyClient) {
       }
       return {
         content: [
-          { type: "text" as const, text: JSON.stringify(match, null, 2) },
+          {
+            type: "text" as const,
+            text: JSON.stringify(full.modelDefinition, null, 2),
+          },
         ],
       };
     },

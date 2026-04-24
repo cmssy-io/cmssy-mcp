@@ -527,6 +527,18 @@ export const MODEL_DEFINITIONS_QUERY = `
   }
 `;
 
+// Lightweight companion to MODEL_DEFINITIONS_QUERY: used by get_model's
+// slug fallback to avoid pulling full field schemas for every model when
+// all we need is the id for a follow-up lookup.
+export const MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY = `
+  query ModelDefinitionsSlugIndex {
+    modelDefinitions {
+      id
+      slug
+    }
+  }
+`;
+
 export const MODEL_DEFINITION_BY_ID_QUERY = `
   query ModelDefinition($id: ID!) {
     modelDefinition(id: $id) {
