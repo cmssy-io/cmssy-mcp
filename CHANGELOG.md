@@ -1,5 +1,10 @@
 # @cmssy/mcp-server
 
+## 0.7.0
+
+- Bumped `@cmssy/types` to `^0.12.0` (PlatformContext gains `formDefinitions`,
+  `branding`, `primaryDomain`).
+
 ## 0.6.0
 
 ### Breaking
