@@ -581,7 +581,11 @@ export function createServer(client: CmssyClient) {
 
       const page = pageData.page;
 
-      if (page.published && !page.hasUnpublishedChanges) {
+      if (
+        page.published &&
+        !page.hasUnpublishedContentChanges &&
+        !page.hasUnpublishedLayoutChanges
+      ) {
         return {
           content: [
             {
@@ -1200,7 +1204,8 @@ export function createServer(client: CmssyClient) {
       interface PatchResult {
         id: string;
         slug: string;
-        hasUnpublishedChanges: boolean;
+        hasUnpublishedContentChanges: boolean;
+        hasUnpublishedLayoutChanges: boolean;
         updatedAt: string;
       }
 
@@ -1238,11 +1243,19 @@ export function createServer(client: CmssyClient) {
 
       // Compact JSON: patch_block_content is ack-only (no pretty-print
       // needed), matching the compact shape used by minimal-mode returns.
+      const patched = data.patchBlockContent;
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(data.patchBlockContent),
+            text: JSON.stringify({
+              id: patched.id,
+              slug: patched.slug,
+              hasUnpublishedChanges:
+                Boolean(patched.hasUnpublishedContentChanges) ||
+                Boolean(patched.hasUnpublishedLayoutChanges),
+              updatedAt: patched.updatedAt,
+            }),
           },
         ],
       };

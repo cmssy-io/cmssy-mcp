@@ -17,9 +17,20 @@ export type ResponseMode = "minimal" | "full";
 interface PageLike {
   id: string;
   slug?: string | null;
-  hasUnpublishedChanges?: boolean | null;
+  hasUnpublishedContentChanges?: boolean | null;
+  hasUnpublishedLayoutChanges?: boolean | null;
   updatedAt?: string | null;
   published?: boolean | null;
+}
+
+// The backend split the single dirty flag into per-axis flags (content
+// vs layout). The MCP ack keeps a single `hasUnpublishedChanges` for a
+// stable external shape: true when either axis has unpublished changes.
+function combinedUnpublished(page: PageLike): boolean | undefined {
+  const c = page.hasUnpublishedContentChanges;
+  const l = page.hasUnpublishedLayoutChanges;
+  if (c == null && l == null) return undefined;
+  return Boolean(c) || Boolean(l);
 }
 
 export interface PageMinimal {
@@ -36,8 +47,8 @@ export function pageMinimal(
 ): PageMinimal {
   const out: PageMinimal = { id: page.id };
   if (page.slug != null) out.slug = page.slug;
-  if (page.hasUnpublishedChanges != null)
-    out.hasUnpublishedChanges = page.hasUnpublishedChanges;
+  const unpublished = combinedUnpublished(page);
+  if (unpublished != null) out.hasUnpublishedChanges = unpublished;
   if (page.updatedAt != null) out.updatedAt = page.updatedAt;
   // `published` is only emitted when the caller explicitly requests it —
   // i.e. publish_page / unpublish_page. Other mutations (savePage etc.)
@@ -60,8 +71,8 @@ export function pageBlockMinimal(
   blockId: string,
 ): PageBlockMinimal {
   const out: PageBlockMinimal = { pageId: page.id, blockId };
-  if (page.hasUnpublishedChanges != null)
-    out.hasUnpublishedChanges = page.hasUnpublishedChanges;
+  const unpublished = combinedUnpublished(page);
+  if (unpublished != null) out.hasUnpublishedChanges = unpublished;
   if (page.updatedAt != null) out.updatedAt = page.updatedAt;
   return out;
 }

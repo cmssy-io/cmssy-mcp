@@ -51,7 +51,8 @@ export interface Page {
   seoKeywords: string[];
   published: boolean;
   publishedAt: string | null;
-  hasUnpublishedChanges: boolean;
+  hasUnpublishedContentChanges: boolean;
+  hasUnpublishedLayoutChanges: boolean;
   layoutBlocks: LayoutBlock[];
   publishedLayoutBlocks: LayoutBlock[];
   layoutOverrides: LayoutOverride[];
@@ -71,7 +72,7 @@ export interface WorkspaceBlock {
   icon: string;
   category: string;
   layoutPosition: string | null;
-  interactive: boolean;
+  useClient: boolean;
   schemaFields: SchemaField[];
   defaultContent: Record<string, unknown>;
   version: string;
