@@ -295,9 +295,9 @@ export const TOGGLE_PUBLISH_MUTATION = `
   }
 `;
 
-export const PUBLISH_PAGE_MUTATION = `
-  mutation PublishPage($id: ID!, $blocks: [BlockDataInput!]!) {
-    publishPage(id: $id, blocks: $blocks) {
+export const PUBLISH_PAGE_CONTENT_MUTATION = `
+  mutation PublishPageContent($id: ID!) {
+    publishPageContent(id: $id) {
       id
       slug
       published
@@ -326,9 +326,23 @@ export const PUBLISH_PAGE_MUTATION = `
   }
 `;
 
-export const REVERT_TO_PUBLISHED_MUTATION = `
-  mutation RevertToPublished($id: ID!) {
-    revertToPublished(id: $id) {
+export const PUBLISH_PAGE_LAYOUT_MUTATION = `
+  mutation PublishPageLayout($id: ID!) {
+    publishPageLayout(id: $id) {
+      id
+      slug
+      published
+      publishedAt
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
+      updatedAt
+    }
+  }
+`;
+
+export const REVERT_CONTENT_TO_PUBLISHED_MUTATION = `
+  mutation RevertContentToPublished($id: ID!) {
+    revertContentToPublished(id: $id) {
       id
       name
       slug
@@ -339,6 +353,19 @@ export const REVERT_TO_PUBLISHED_MUTATION = `
         id type content settings style advanced
         translations defaultLanguage blockVersion
       }
+    }
+  }
+`;
+
+export const REVERT_LAYOUT_TO_PUBLISHED_MUTATION = `
+  mutation RevertLayoutToPublished($id: ID!) {
+    revertLayoutToPublished(id: $id) {
+      id
+      name
+      slug
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
+      updatedAt
     }
   }
 `;

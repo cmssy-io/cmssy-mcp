@@ -48,8 +48,10 @@ import {
   PATCH_BLOCK_CONTENT_MUTATION,
   UPDATE_PAGE_SETTINGS_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
-  PUBLISH_PAGE_MUTATION,
-  REVERT_TO_PUBLISHED_MUTATION,
+  PUBLISH_PAGE_CONTENT_MUTATION,
+  PUBLISH_PAGE_LAYOUT_MUTATION,
+  REVERT_CONTENT_TO_PUBLISHED_MUTATION,
+  REVERT_LAYOUT_TO_PUBLISHED_MUTATION,
   REMOVE_PAGE_MUTATION,
   UPDATE_PAGE_LAYOUT_MUTATION,
   FORMS_QUERY,
@@ -561,7 +563,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "publish_page",
-    "Publish a page or re-publish with latest draft changes. Uses atomic publishPage mutation. Returns a minimal ack by default; pass response='full' for the full mutation response.",
+    "Publish a page or re-publish with latest draft changes. Publishes both content and layout axes. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID to publish"),
       response: responseModeSchema,
@@ -596,24 +598,41 @@ export function createServer(client: CmssyClient) {
         };
       }
 
-      const blocks = (page.blocks || []).map((b) => ({
-        id: b.id,
-        type: b.type,
-        content: b.content,
-        settings: b.settings,
-        style: b.style,
-        advanced: b.advanced,
-        translations: b.translations,
-        defaultLanguage: b.defaultLanguage,
-        metadata: b.metadata,
-        blockVersion: b.blockVersion,
-      }));
-
-      const data = await client.query<{ publishPage: Page }>(
-        PUBLISH_PAGE_MUTATION,
-        { id: pageId, blocks },
+      // Publishing content flips published=true and snapshots blocks.
+      const contentData = await client.query<{ publishPageContent: Page }>(
+        PUBLISH_PAGE_CONTENT_MUTATION,
+        { id: pageId },
       );
-      return jsonText(response, data.publishPage, (p) =>
+
+      // Publish layout too so no draft axis is left behind. The two axes are
+      // separate backend mutations - if layout fails, content is already
+      // published, so report the partial state instead of a bare throw.
+      let layoutData: { publishPageLayout: Page };
+      try {
+        layoutData = await client.query<{ publishPageLayout: Page }>(
+          PUBLISH_PAGE_LAYOUT_MUTATION,
+          { id: pageId },
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Content published, but layout publish failed: ${message}. Re-run publish_page to complete the layout axis.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Merge: content payload carries blocks, layout payload carries the
+      // up-to-date layout flags (it ran last).
+      const published = {
+        ...contentData.publishPageContent,
+        ...layoutData.publishPageLayout,
+      };
+      return jsonText(response, published, (p) =>
         pageMinimal(p, { published: true }),
       );
     },
@@ -665,22 +684,73 @@ export function createServer(client: CmssyClient) {
       response: responseModeSchema,
     },
     async ({ pageId, response }) => {
-      const data = await client.query<{ revertToPublished: Page | null }>(
-        REVERT_TO_PUBLISHED_MUTATION,
-        { id: pageId },
+      // Both revert mutations throw if the page has no published version, so
+      // guard up front for a clean message (mirrors publish_page/unpublish_page).
+      const pageData = await client.query<{ page: Page | null }>(
+        PAGE_BY_ID_QUERY,
+        { pageId },
       );
-      if (!data.revertToPublished) {
+
+      if (!pageData.page) {
+        return {
+          content: [{ type: "text" as const, text: "Page not found" }],
+          isError: true,
+        };
+      }
+
+      if (!pageData.page.published) {
         return {
           content: [
             {
               type: "text" as const,
-              text: "Failed to revert - page may not have a published version",
+              text: "Page has no published version to revert to",
             },
           ],
           isError: true,
         };
       }
-      return jsonText(response, data.revertToPublished, pageMinimal);
+
+      const contentData = await client.query<{
+        revertContentToPublished: Page | null;
+      }>(REVERT_CONTENT_TO_PUBLISHED_MUTATION, { id: pageId });
+
+      const revertedContent = contentData.revertContentToPublished;
+      if (!revertedContent) {
+        return {
+          content: [
+            { type: "text" as const, text: "Failed to revert page content" },
+          ],
+          isError: true,
+        };
+      }
+
+      // Layout revert is a separate mutation - if it fails, content drafts are
+      // already discarded, so report the partial state rather than a bare throw.
+      let layoutData: { revertLayoutToPublished: Page | null };
+      try {
+        layoutData = await client.query<{
+          revertLayoutToPublished: Page | null;
+        }>(REVERT_LAYOUT_TO_PUBLISHED_MUTATION, { id: pageId });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Content reverted, but layout revert failed: ${message}. Re-run revert_to_published to complete the layout axis.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Merge: content payload carries blocks, layout payload carries the
+      // up-to-date layout flags (it ran last).
+      const reverted = {
+        ...revertedContent,
+        ...layoutData.revertLayoutToPublished,
+      };
+      return jsonText(response, reverted, pageMinimal);
     },
   );
 
