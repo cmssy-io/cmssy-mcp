@@ -607,9 +607,9 @@ export function createServer(client: CmssyClient) {
       // Publish layout too so no draft axis is left behind. The two axes are
       // separate backend mutations - if layout fails, content is already
       // published, so report the partial state instead of a bare throw.
-      let layoutData: { publishPageLayout: Page };
+      let layoutData: { publishPageLayout: Page | null };
       try {
-        layoutData = await client.query<{ publishPageLayout: Page }>(
+        layoutData = await client.query<{ publishPageLayout: Page | null }>(
           PUBLISH_PAGE_LAYOUT_MUTATION,
           { id: pageId },
         );
@@ -620,6 +620,18 @@ export function createServer(client: CmssyClient) {
             {
               type: "text" as const,
               text: `Content published, but layout publish failed: ${message}. Re-run publish_page to complete the layout axis.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!layoutData.publishPageLayout) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Content published, but layout publish returned no result. Re-run publish_page to complete the layout axis.",
             },
           ],
           isError: true,
@@ -738,6 +750,18 @@ export function createServer(client: CmssyClient) {
             {
               type: "text" as const,
               text: `Content reverted, but layout revert failed: ${message}. Re-run revert_to_published to complete the layout axis.`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!layoutData.revertLayoutToPublished) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Content reverted, but layout revert returned no result. Re-run revert_to_published to complete the layout axis.",
             },
           ],
           isError: true,
