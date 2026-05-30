@@ -1,5 +1,20 @@
 # @cmssy/mcp-server
 
+## 0.7.2
+
+- **Fix `publish_page` / `revert_to_published` against per-axis backend
+  mutations (CMS-628).** The backend removed `publishPage(id, blocks)` and
+  `revertToPublished(id)` in favour of separate content/layout mutations
+  (`publishPageContent` + `publishPageLayout`, `revertContentToPublished` +
+  `revertLayoutToPublished`); the tools called the removed mutations and
+  failed. Both tools now drive both axes and surface a partial-state error
+  if the layout step fails after content already changed.
+
+## 0.7.0
+
+- Bumped `@cmssy/types` to `^0.12.0` (PlatformContext gains `formDefinitions`,
+  `branding`, `primaryDomain`).
+
 ## 0.6.0
 
 ### Breaking

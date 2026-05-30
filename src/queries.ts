@@ -14,7 +14,8 @@ export const PAGES_QUERY = `
       displayName
       published
       publishedAt
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       pageType
       parentId
       order
@@ -37,7 +38,8 @@ export const PAGE_BY_ID_QUERY = `
       seoKeywords
       published
       publishedAt
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       pageType
       parentId
       order
@@ -109,7 +111,7 @@ export const WORKSPACE_BLOCKS_QUERY = `
       icon
       category
       layoutPosition
-      interactive
+      useClient
       schemaFields {
         ${SCHEMA_FIELDS_FRAGMENT}
       }
@@ -129,7 +131,7 @@ export const WORKSPACE_BLOCK_BY_TYPE_QUERY = `
       icon
       category
       layoutPosition
-      interactive
+      useClient
       schemaFields {
         ${SCHEMA_FIELDS_FRAGMENT}
       }
@@ -215,7 +217,8 @@ export const SAVE_PAGE_MUTATION = `
       seoDescription
       seoKeywords
       published
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       pageType
       parentId
       blocks {
@@ -251,7 +254,8 @@ export const PATCH_BLOCK_CONTENT_MUTATION = `
     patchBlockContent(input: $input) {
       id
       slug
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       updatedAt
     }
   }
@@ -270,7 +274,8 @@ export const UPDATE_PAGE_SETTINGS_MUTATION = `
       seoKeywords
       pageType
       parentId
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       updatedAt
     }
   }
@@ -283,20 +288,22 @@ export const TOGGLE_PUBLISH_MUTATION = `
       slug
       published
       publishedAt
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       updatedAt
     }
   }
 `;
 
-export const PUBLISH_PAGE_MUTATION = `
-  mutation PublishPage($id: ID!, $blocks: [BlockDataInput!]!) {
-    publishPage(id: $id, blocks: $blocks) {
+export const PUBLISH_PAGE_CONTENT_MUTATION = `
+  mutation PublishPageContent($id: ID!) {
+    publishPageContent(id: $id) {
       id
       slug
       published
       publishedAt
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       updatedAt
       blocks {
         id
@@ -319,18 +326,46 @@ export const PUBLISH_PAGE_MUTATION = `
   }
 `;
 
-export const REVERT_TO_PUBLISHED_MUTATION = `
-  mutation RevertToPublished($id: ID!) {
-    revertToPublished(id: $id) {
+export const PUBLISH_PAGE_LAYOUT_MUTATION = `
+  mutation PublishPageLayout($id: ID!) {
+    publishPageLayout(id: $id) {
+      id
+      slug
+      published
+      publishedAt
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
+      updatedAt
+    }
+  }
+`;
+
+export const REVERT_CONTENT_TO_PUBLISHED_MUTATION = `
+  mutation RevertContentToPublished($id: ID!) {
+    revertContentToPublished(id: $id) {
       id
       name
       slug
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       updatedAt
       blocks {
         id type content settings style advanced
         translations defaultLanguage blockVersion
       }
+    }
+  }
+`;
+
+export const REVERT_LAYOUT_TO_PUBLISHED_MUTATION = `
+  mutation RevertLayoutToPublished($id: ID!) {
+    revertLayoutToPublished(id: $id) {
+      id
+      name
+      slug
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
+      updatedAt
     }
   }
 `;
@@ -346,7 +381,8 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
     updatePageLayout(input: $input) {
       id
       slug
-      hasUnpublishedChanges
+      hasUnpublishedContentChanges
+      hasUnpublishedLayoutChanges
       updatedAt
       layoutBlocks {
         id type position order isActive
