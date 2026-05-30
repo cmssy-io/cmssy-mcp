@@ -619,7 +619,7 @@ export function createServer(client: CmssyClient) {
           content: [
             {
               type: "text" as const,
-              text: `Content published, but layout publish failed: ${message}. Re-run publish_page to complete the layout axis.`,
+              text: `Content published, but the layout axis failed and is still unpublished: ${message}. Note: re-running publish_page also re-publishes the current content draft, so publish any pending content edits first.`,
             },
           ],
           isError: true,
@@ -631,7 +631,7 @@ export function createServer(client: CmssyClient) {
           content: [
             {
               type: "text" as const,
-              text: "Content published, but layout publish returned no result. Re-run publish_page to complete the layout axis.",
+              text: "Content published, but the layout axis returned no result and is still unpublished. Note: re-running publish_page also re-publishes the current content draft, so publish any pending content edits first.",
             },
           ],
           isError: true,
@@ -749,7 +749,7 @@ export function createServer(client: CmssyClient) {
           content: [
             {
               type: "text" as const,
-              text: `Content reverted, but layout revert failed: ${message}. Re-run revert_to_published to complete the layout axis.`,
+              text: `Content reverted, but the layout axis failed and still holds draft changes: ${message}. Note: re-running revert_to_published reverts the content axis again first, discarding any content edits made since this failure.`,
             },
           ],
           isError: true,
@@ -761,7 +761,7 @@ export function createServer(client: CmssyClient) {
           content: [
             {
               type: "text" as const,
-              text: "Content reverted, but layout revert returned no result. Re-run revert_to_published to complete the layout axis.",
+              text: "Content reverted, but the layout axis returned no result and still holds draft changes. Note: re-running revert_to_published reverts the content axis again first, discarding any content edits made since this failure.",
             },
           ],
           isError: true,
