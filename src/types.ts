@@ -60,6 +60,8 @@ export interface Page {
   pageType: string;
   parentId: string | null;
   order: number;
+  /** Monotonic save counter; used as the optimistic-concurrency expectedVersion. */
+  version: number;
   createdAt: string;
   updatedAt: string;
 }
