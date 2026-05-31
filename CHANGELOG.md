@@ -1,5 +1,17 @@
 # @cmssy/mcp-server
 
+## 0.7.3
+
+- **Send `expectedVersion` on page content writes (CMS-639).** The
+  read-modify-write tools (`update_page_blocks`, `add_block_to_page`,
+  `update_block_content`, `remove_block_from_page`) now pass the page version
+  they just read as `expectedVersion`, so a concurrent change (e.g. the web
+  editor) is rejected with `VERSION_CONFLICT` instead of silently overwriting
+  it; re-running the tool re-reads the fresh page and succeeds.
+  `patch_block_content` gains an optional `expectedVersion`. Page queries now
+  select page-level `version`, and `savePage` returns it. Requires the
+  `expectedVersion` input on the backend (deployed).
+
 ## 0.7.2
 
 - **Fix `publish_page` / `revert_to_published` against per-axis backend

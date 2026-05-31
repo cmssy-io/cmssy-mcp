@@ -19,6 +19,7 @@ export const PAGES_QUERY = `
       pageType
       parentId
       order
+      version
       createdAt
       updatedAt
     }
@@ -43,6 +44,7 @@ export const PAGE_BY_ID_QUERY = `
       pageType
       parentId
       order
+      version
       blocks {
         id
         type
@@ -209,6 +211,7 @@ export const SAVE_PAGE_MUTATION = `
   mutation SavePage($input: SavePageInput!) {
     savePage(input: $input) {
       id
+      version
       name
       slug
       description

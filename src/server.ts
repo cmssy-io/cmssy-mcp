@@ -170,6 +170,19 @@ export function createServer(client: CmssyClient) {
     return "/" + slug.split("/").filter(Boolean).pop();
   }
 
+  /**
+   * Optimistic-concurrency guard for a read-modify-write save. Passes the
+   * version we just read as `expectedVersion`, so if another writer (e.g. the
+   * web editor) changed the page in the read→save window the backend returns
+   * VERSION_CONFLICT instead of silently clobbering it. Re-running the tool
+   * re-reads the fresh page and succeeds.
+   */
+  function expectedVersionOf(page: {
+    version?: string | number | null;
+  }): number | undefined {
+    return page?.version != null ? Number(page.version) : undefined;
+  }
+
   // ─── Read Tools ──────────────────────────────────────────────
 
   server.tool(
@@ -507,6 +520,7 @@ export function createServer(client: CmssyClient) {
           slug: toRelativeSlug(pageData.page.slug),
           parentId: pageData.page.parentId ?? undefined,
           blocks: mergedBlocks,
+          expectedVersion: expectedVersionOf(pageData.page),
         },
       });
       return jsonText(response, data.savePage, pageMinimal);
@@ -1054,6 +1068,7 @@ export function createServer(client: CmssyClient) {
               slug: toRelativeSlug(pageData.page.slug),
               parentId: pageData.page.parentId ?? undefined,
               blocks,
+              expectedVersion: expectedVersionOf(pageData.page),
             },
           },
         );
@@ -1187,6 +1202,7 @@ export function createServer(client: CmssyClient) {
               slug: toRelativeSlug(page.slug),
               parentId: page.parentId ?? undefined,
               blocks: targetArray,
+              expectedVersion: expectedVersionOf(page),
             },
           },
         );
@@ -1217,6 +1233,13 @@ export function createServer(client: CmssyClient) {
         .optional()
         .describe(
           "Field inside content[locale] to patch (default: 'content', the HTML body of docs-article blocks). Must resolve to a string.",
+        ),
+      expectedVersion: z
+        .number()
+        .int()
+        .optional()
+        .describe(
+          "Optimistic-concurrency guard: the page `version` you last read (e.g. from get_page). If set and the page changed since, the patch is rejected with VERSION_CONFLICT instead of overwriting concurrent edits - refetch the page and retry.",
         ),
       // `jsonPreprocess` matches the other tools in this file that accept
       // complex inputs - MCP clients sometimes JSON-serialize nested
@@ -1290,7 +1313,7 @@ export function createServer(client: CmssyClient) {
           ),
       ),
     },
-    async ({ pageId, blockId, locale, fieldPath, operations }) => {
+    async ({ pageId, blockId, locale, fieldPath, operations, expectedVersion }) => {
       // discriminatedUnion narrows each op so only the relevant marker
       // fields are present - pass them through directly.
       // Narrow shape matches the minimal selection set in
@@ -1319,6 +1342,7 @@ export function createServer(client: CmssyClient) {
           blockId,
           locale,
           ...(fieldPath ? { fieldPath } : {}),
+          ...(expectedVersion !== undefined ? { expectedVersion } : {}),
           operations,
         },
       });
@@ -1391,6 +1415,7 @@ export function createServer(client: CmssyClient) {
               slug: toRelativeSlug(page.slug),
               parentId: page.parentId ?? undefined,
               blocks: contentBlocks,
+              expectedVersion: expectedVersionOf(page),
             },
           },
         );
