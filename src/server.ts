@@ -327,7 +327,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_blocks",
-    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated against workspace config. Blocks with matching IDs preserve their existing content/settings when not explicitly provided. Returns a minimal ack by default; pass response='full' for the full mutation response.",
+    "Set the full content blocks array on a page. Replaces all existing content blocks. Block types are validated server-side on save. Blocks with matching IDs preserve their existing content/settings when not explicitly provided. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID"),
       blocks: z.preprocess(
@@ -336,9 +336,7 @@ export function createServer(client: CmssyClient) {
           .array(
             z.object({
               id: z.string().describe("Unique block instance ID (UUID)"),
-              type: z
-                .string()
-                .describe("Block type (must exist in workspace blocks)"),
+              type: z.string().describe("Block type"),
               content: z.record(z.string(), z.unknown()).optional(),
               settings: z.record(z.string(), z.unknown()).optional(),
               style: z.record(z.string(), z.unknown()).optional(),
@@ -695,14 +693,14 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_layout",
-    "Update page-level layout settings: inheritance, overrides, or replace all layout blocks. Block types are validated against workspace config. Returns a minimal ack by default; pass response='full' for the full mutation response.",
+    "Update page-level layout settings: inheritance, overrides, or replace all layout blocks. Block types are validated server-side on save. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID"),
       layoutBlocks: z
         .array(z.record(z.string(), z.unknown()))
         .optional()
         .describe(
-          "Full replacement array of layout blocks. Each must have 'type' (validated against workspace). Position, order, content etc. are passed through to the backend.",
+          "Full replacement array of layout blocks. Each must have 'type' (validated server-side on save). Position, order, content etc. are passed through to the backend.",
         ),
       layoutOverrides: z
         .array(
