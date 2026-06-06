@@ -39,8 +39,6 @@ const jsonPreprocess = (val: unknown) => {
 import {
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
-  WORKSPACE_BLOCKS_QUERY,
-  WORKSPACE_BLOCK_BY_TYPE_QUERY,
   SITE_CONFIG_QUERY,
   CURRENT_WORKSPACE_QUERY,
   MEDIA_ASSETS_QUERY,
@@ -81,7 +79,6 @@ import {
 } from "./queries.js";
 import type {
   Page,
-  WorkspaceBlock,
   SiteConfig,
   Workspace,
   MediaAsset,
@@ -102,62 +99,6 @@ export function createServer(client: CmssyClient) {
     name: "cmssy",
     version: PACKAGE_VERSION,
   });
-
-  // ─── Workspace Block Registry (cached with TTL) ──────────────
-
-  let workspaceBlocksCache: WorkspaceBlock[] | null = null;
-  let cacheTimestamp = 0;
-  const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-  async function getWorkspaceBlocks(
-    forceRefresh = false,
-  ): Promise<WorkspaceBlock[]> {
-    const now = Date.now();
-    if (
-      !workspaceBlocksCache ||
-      forceRefresh ||
-      now - cacheTimestamp > CACHE_TTL_MS
-    ) {
-      const data = await client.query<{ workspaceBlocks: WorkspaceBlock[] }>(
-        WORKSPACE_BLOCKS_QUERY,
-      );
-      workspaceBlocksCache = data.workspaceBlocks;
-      cacheTimestamp = now;
-    }
-    return workspaceBlocksCache;
-  }
-
-  async function findBlockDef(
-    blockType: string,
-  ): Promise<WorkspaceBlock | null> {
-    let blocks = await getWorkspaceBlocks();
-    const found = blocks.find((b) => b.blockType === blockType);
-    if (found) return found;
-    // Cache miss - block may have been added recently, retry with fresh data
-    blocks = await getWorkspaceBlocks(true);
-    return blocks.find((b) => b.blockType === blockType) ?? null;
-  }
-
-  async function validateBlockTypes(
-    types: string[],
-  ): Promise<{ valid: boolean; error?: string }> {
-    let wsBlocks = await getWorkspaceBlocks();
-    let available = wsBlocks.map((b) => b.blockType);
-    let invalid = types.filter((t) => !available.includes(t));
-    // Retry with fresh cache if unknown types found
-    if (invalid.length > 0) {
-      wsBlocks = await getWorkspaceBlocks(true);
-      available = wsBlocks.map((b) => b.blockType);
-      invalid = types.filter((t) => !available.includes(t));
-    }
-    if (invalid.length > 0) {
-      return {
-        valid: false,
-        error: `Unknown block type(s): ${invalid.join(", ")}. Available: ${available.join(", ")}`,
-      };
-    }
-    return { valid: true };
-  }
 
   /** Check if value is null, undefined, or empty object */
   const isEmpty = (obj: unknown) =>
@@ -241,61 +182,6 @@ export function createServer(client: CmssyClient) {
       return {
         content: [
           { type: "text" as const, text: JSON.stringify(page, null, 2) },
-        ],
-      };
-    },
-  );
-
-  server.tool(
-    "list_block_types",
-    "List all available block types with schemas, categories, and defaults",
-    {},
-    async () => {
-      const data = await client.query<{ workspaceBlocks: WorkspaceBlock[] }>(
-        WORKSPACE_BLOCKS_QUERY,
-      );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.workspaceBlocks, null, 2),
-          },
-        ],
-      };
-    },
-  );
-
-  server.tool(
-    "get_block_schema",
-    "Get detailed schema for a specific block type (fields, types, validation, defaults)",
-    {
-      blockType: z
-        .string()
-        .describe("Block type identifier (e.g. 'hero', 'text-block')"),
-    },
-    async ({ blockType }) => {
-      const data = await client.query<{
-        workspaceBlockByType: WorkspaceBlock | null;
-      }>(WORKSPACE_BLOCK_BY_TYPE_QUERY, { blockType });
-
-      if (!data.workspaceBlockByType) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Block type '${blockType}' not found`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.workspaceBlockByType, null, 2),
-          },
         ],
       };
     },
@@ -470,15 +356,6 @@ export function createServer(client: CmssyClient) {
       response: responseModeSchema,
     },
     async ({ pageId, blocks, response }) => {
-      // Validate all block types against workspace registry
-      const validation = await validateBlockTypes(blocks.map((b) => b.type));
-      if (!validation.valid) {
-        return {
-          content: [{ type: "text" as const, text: validation.error! }],
-          isError: true,
-        };
-      }
-
       const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
         { pageId },
@@ -850,20 +727,6 @@ export function createServer(client: CmssyClient) {
       inheritsLayout,
       response,
     }) => {
-      // Validate block types against workspace registry
-      if (layoutBlocks) {
-        const types = layoutBlocks
-          .map((b) => b.type as string | undefined)
-          .filter(Boolean) as string[];
-        const validation = await validateBlockTypes(types);
-        if (!validation.valid) {
-          return {
-            content: [{ type: "text" as const, text: validation.error! }],
-            isError: true,
-          };
-        }
-      }
-
       // Merge layout blocks: preserve existing content when not provided
       let mergedLayoutBlocks = layoutBlocks;
       if (layoutBlocks) {
@@ -917,15 +780,13 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "add_block_to_page",
-    "Add a block to a page. Automatically detects layout vs content block from workspace config. Auto-generates UUID and translation status. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full mutation response.",
+    "Add a block to a page. Auto-generates UUID and translation status. Pass layoutPosition (e.g. 'header'/'footer') to add a layout block; omit it for a content block in the page body. Returns a minimal ack by default ({pageId, blockId, hasUnpublishedChanges, updatedAt}); pass response='full' for the full mutation response.",
     {
       pageId: z.string().describe("Page ID"),
       block: z.preprocess(
         jsonPreprocess,
         z.object({
-          type: z
-            .string()
-            .describe("Block type (must exist in workspace blocks)"),
+          type: z.string().describe("Block type"),
           content: z
             .record(z.string(), z.unknown())
             .describe(
@@ -935,28 +796,19 @@ export function createServer(client: CmssyClient) {
           style: z.record(z.string(), z.unknown()).optional(),
         }),
       ),
+      layoutPosition: z
+        .string()
+        .optional()
+        .describe(
+          "Layout position (e.g. 'header', 'footer') to add a layout block; omit for a content block",
+        ),
       position: z
         .number()
         .optional()
         .describe("0-based position to insert at (default: end)"),
       response: responseModeSchema,
     },
-    async ({ pageId, block, position, response }) => {
-      // Validate block type against workspace registry
-      const blockDef = await findBlockDef(block.type);
-      if (!blockDef) {
-        const available = await getWorkspaceBlocks();
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Block type '${block.type}' not found. Available: ${available.map((b) => b.blockType).join(", ")}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
+    async ({ pageId, block, layoutPosition, position, response }) => {
       // Fetch current page
       const pageData = await client.query<{ page: Page | null }>(
         PAGE_BY_ID_QUERY,
@@ -988,12 +840,10 @@ export function createServer(client: CmssyClient) {
       }
 
       const newBlockId = crypto.randomUUID();
-      const isLayout = blockDef.layoutPosition !== null;
 
-      if (isLayout) {
+      if (layoutPosition) {
         // Layout block — add to layoutBlocks via updatePageLayout
         const existingLayoutBlocks = pageData.page.layoutBlocks || [];
-        const layoutPosition = blockDef.layoutPosition!;
 
         // Append after existing blocks in same position
         const maxOrder = existingLayoutBlocks
@@ -1313,7 +1163,14 @@ export function createServer(client: CmssyClient) {
           ),
       ),
     },
-    async ({ pageId, blockId, locale, fieldPath, operations, expectedVersion }) => {
+    async ({
+      pageId,
+      blockId,
+      locale,
+      fieldPath,
+      operations,
+      expectedVersion,
+    }) => {
       // discriminatedUnion narrows each op so only the relevant marker
       // fields are present - pass them through directly.
       // Narrow shape matches the minimal selection set in
@@ -2587,29 +2444,6 @@ export function createServer(client: CmssyClient) {
             uri: uri.href,
             mimeType: "application/json",
             text: JSON.stringify(data.pages, null, 2),
-          },
-        ],
-      };
-    },
-  );
-
-  server.resource(
-    "blocks",
-    "cmssy://blocks",
-    {
-      description: "All available block types with schemas and defaults",
-      mimeType: "application/json",
-    },
-    async (uri) => {
-      const data = await client.query<{ workspaceBlocks: WorkspaceBlock[] }>(
-        WORKSPACE_BLOCKS_QUERY,
-      );
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: "application/json",
-            text: JSON.stringify(data.workspaceBlocks, null, 2),
           },
         ],
       };

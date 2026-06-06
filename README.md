@@ -77,8 +77,6 @@ already returned a compact ack and don't take `response`.
 | -------------------- | ------------------------------------------------------ |
 | `list_pages`         | Page tree with hierarchy (optional `search` filter)    |
 | `get_page`           | Full page with blocks and i18n content (by slug or id) |
-| `list_block_types`   | All available blocks with schemas and defaults         |
-| `get_block_schema`   | Detailed schema for one block type                     |
 | `get_site_config`    | Languages, navigation, site name                       |
 | `get_workspace_info` | Workspace name, plan, limits                           |
 | `list_media`         | Media library listing                                  |
@@ -165,7 +163,6 @@ Requires workspace permissions `MODELS_VIEW` (read) / `MODELS_CREATE` /
 | URI                 | Description                  |
 | ------------------- | ---------------------------- |
 | `cmssy://sitemap`   | Full page tree as JSON       |
-| `cmssy://blocks`    | All block types with schemas |
 | `cmssy://workspace` | Workspace info + site config |
 
 ## Example Workflow
