@@ -1,7 +1,3 @@
-import { blockFieldGraphQLSelection } from "@cmssy/types";
-
-const SCHEMA_FIELDS_FRAGMENT = blockFieldGraphQLSelection();
-
 // ─── Page Queries ────────────────────────────────────────────
 
 export const PAGES_QUERY = `
@@ -97,48 +93,6 @@ export const PAGE_BY_ID_QUERY = `
       inheritsLayout
       createdAt
       updatedAt
-    }
-  }
-`;
-
-// ─── Workspace Block Queries ─────────────────────────────────
-
-export const WORKSPACE_BLOCKS_QUERY = `
-  query WorkspaceBlocks {
-    workspaceBlocks {
-      id
-      blockType
-      name
-      description
-      icon
-      category
-      layoutPosition
-      useClient
-      schemaFields {
-        ${SCHEMA_FIELDS_FRAGMENT}
-      }
-      defaultContent
-      version
-    }
-  }
-`;
-
-export const WORKSPACE_BLOCK_BY_TYPE_QUERY = `
-  query WorkspaceBlockByType($blockType: String!) {
-    workspaceBlockByType(blockType: $blockType) {
-      id
-      blockType
-      name
-      description
-      icon
-      category
-      layoutPosition
-      useClient
-      schemaFields {
-        ${SCHEMA_FIELDS_FRAGMENT}
-      }
-      defaultContent
-      version
     }
   }
 `;

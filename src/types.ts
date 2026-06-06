@@ -1,5 +1,3 @@
-import type { BlockFieldSchema } from "@cmssy/types";
-
 export interface BlockData {
   id: string;
   type: string;
@@ -65,23 +63,6 @@ export interface Page {
   createdAt: string;
   updatedAt: string;
 }
-
-export interface WorkspaceBlock {
-  id: string;
-  blockType: string;
-  name: string;
-  description: string | null;
-  icon: string;
-  category: string;
-  layoutPosition: string | null;
-  useClient: boolean;
-  schemaFields: SchemaField[];
-  defaultContent: Record<string, unknown>;
-  version: string;
-}
-
-// SchemaField imported from @cmssy/types (single source of truth)
-export type SchemaField = BlockFieldSchema;
 
 export interface SiteConfig {
   id: string;
