@@ -8,3 +8,4 @@ package-lock.json
 # Local Claude Code config (personal hooks/settings)
 .claude/settings.json
 .claude/settings.local.json
+.claude/.prepush-ok

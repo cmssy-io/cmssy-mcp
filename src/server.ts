@@ -798,6 +798,8 @@ export function createServer(client: CmssyClient) {
       ),
       layoutPosition: z
         .string()
+        .trim()
+        .min(1)
         .optional()
         .describe(
           "Layout position (e.g. 'header', 'footer') to add a layout block; omit for a content block",
@@ -805,7 +807,9 @@ export function createServer(client: CmssyClient) {
       position: z
         .number()
         .optional()
-        .describe("0-based position to insert at (default: end)"),
+        .describe(
+          "0-based position to insert at (default: end). Content blocks only - layout blocks are always appended within their position",
+        ),
       response: responseModeSchema,
     },
     async ({ pageId, block, layoutPosition, position, response }) => {
