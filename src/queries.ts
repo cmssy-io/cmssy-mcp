@@ -581,26 +581,6 @@ export const MODEL_RECORD_BY_ID_QUERY = `
   }
 `;
 
-export const MODEL_TEMPLATES_QUERY = `
-  query ModelTemplates {
-    modelTemplates {
-      id
-      name
-      description
-      icon
-      category
-      models {
-        name
-        slug
-        description
-        icon
-        fieldCount
-        hasStatus
-      }
-    }
-  }
-`;
-
 // ─── Model Mutations ─────────────────────────────────────────
 
 export const CREATE_MODEL_DEFINITION_MUTATION = `
@@ -660,16 +640,6 @@ export const IMPORT_MODEL_RECORDS_MUTATION = `
     importModelRecords(input: $input) {
       importedCount
       errors { row message }
-    }
-  }
-`;
-
-export const INSTALL_MODEL_TEMPLATE_MUTATION = `
-  mutation InstallModelTemplate($templateId: String!) {
-    installModelTemplate(templateId: $templateId) {
-      templateId
-      installedCount
-      skippedSlugs
     }
   }
 `;
