@@ -66,7 +66,6 @@ import {
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_RECORDS_QUERY,
   MODEL_RECORD_BY_ID_QUERY,
-  MODEL_TEMPLATES_QUERY,
   CREATE_MODEL_DEFINITION_MUTATION,
   UPDATE_MODEL_DEFINITION_MUTATION,
   DELETE_MODEL_DEFINITION_MUTATION,
@@ -75,7 +74,6 @@ import {
   UPDATE_MODEL_RECORD_STATUS_MUTATION,
   DELETE_MODEL_RECORD_MUTATION,
   IMPORT_MODEL_RECORDS_MUTATION,
-  INSTALL_MODEL_TEMPLATE_MUTATION,
 } from "./queries.js";
 import type {
   Page,
@@ -2377,52 +2375,6 @@ export function createServer(client: CmssyClient) {
           {
             type: "text" as const,
             text: JSON.stringify(data.importModelRecords, null, 2),
-          },
-        ],
-      };
-    },
-  );
-
-  server.tool(
-    "list_model_templates",
-    "List available model templates (E-commerce, Blog, etc.). Each template installs one or more ModelDefinitions.",
-    {},
-    async () => {
-      const data = await client.query<{ modelTemplates: unknown[] }>(
-        MODEL_TEMPLATES_QUERY,
-      );
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.modelTemplates, null, 2),
-          },
-        ],
-      };
-    },
-  );
-
-  server.tool(
-    "create_model_from_template",
-    "Install a model template into the workspace. Creates all models defined by the template; skips any whose slug already exists. Returns { templateId, installedCount, skippedSlugs }.",
-    {
-      templateId: z
-        .string()
-        .describe("Template id (from list_model_templates)"),
-    },
-    async ({ templateId }) => {
-      const data = await client.query<{
-        installModelTemplate: {
-          templateId: string;
-          installedCount: number;
-          skippedSlugs: string[];
-        };
-      }>(INSTALL_MODEL_TEMPLATE_MUTATION, { templateId });
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(data.installModelTemplate, null, 2),
           },
         ],
       };

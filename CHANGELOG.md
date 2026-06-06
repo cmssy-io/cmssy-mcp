@@ -1,5 +1,22 @@
 # @cmssy/mcp-server
 
+## 0.9.0
+
+- **Dropped model-template tools (headless).** Removed `list_model_templates`
+  and `create_model_from_template` — the backend no longer exposes
+  `modelTemplates` / `installModelTemplate` (templates are not a headless
+  concept). Custom data models (`create_model` / `list_models` / records CRUD)
+  are unaffected.
+
+## 0.8.0
+
+- **Dropped block-discovery tools (headless).** Removed `list_block_types`,
+  `get_block_schema`, and the `cmssy://blocks` resource — the backend no longer
+  exposes a server-side block catalog (blocks live in the consumer app).
+  `add_block_to_page` / `update_page_blocks` / `update_page_layout` no longer
+  validate block types against the workspace registry (the backend validates on
+  save); `add_block_to_page` takes an optional `layoutPosition`.
+
 ## 0.7.3
 
 - **Send `expectedVersion` on page content writes (CMS-639).** The
