@@ -473,23 +473,20 @@ export function createServer(client: CmssyClient) {
   server.tool(
     "list_page_types",
     "List page types in the workspace with their custom-field schema. Page types define which custom fields a page of that type carries.",
-    {
-      response: responseModeSchema,
-    },
-    async ({ response }) => {
+    {},
+    async () => {
       const data = await client.query<{ pageTypes: unknown[] }>(
         PAGE_TYPES_QUERY,
         {},
       );
-      return jsonText(response, data.pageTypes, (types) =>
-        (types as Array<Record<string, unknown>>).map((t) => ({
-          id: t.id,
-          name: t.name,
-          slug: t.slug,
-          description: t.description,
-          fields: t.fields,
-        })),
-      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.pageTypes, null, 2),
+          },
+        ],
+      };
     },
   );
 
