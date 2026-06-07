@@ -481,23 +481,14 @@ export function createServer(client: CmssyClient) {
         PAGE_TYPES_QUERY,
         {},
       );
-      return jsonText(
-        response,
-        data.pageTypes,
-        (types) =>
-          (types as Array<Record<string, unknown>>).map((t) => ({
-            id: t.id,
-            name: t.name,
-            slug: t.slug,
-            fields: Array.isArray(t.fields)
-              ? (t.fields as Array<Record<string, unknown>>).map((f) => ({
-                  key: f.key,
-                  label: f.label,
-                  type: f.type,
-                  required: f.required,
-                }))
-              : [],
-          })),
+      return jsonText(response, data.pageTypes, (types) =>
+        (types as Array<Record<string, unknown>>).map((t) => ({
+          id: t.id,
+          name: t.name,
+          slug: t.slug,
+          description: t.description,
+          fields: t.fields,
+        })),
       );
     },
   );
@@ -575,7 +566,10 @@ export function createServer(client: CmssyClient) {
         CREATE_PAGE_TYPE_MUTATION,
         { input },
       );
-      return jsonText(response, data.createPageType, (pt) => pt);
+      return jsonText(response, data.createPageType, (pt) => {
+        const p = pt as Record<string, unknown>;
+        return { id: p.id, name: p.name, slug: p.slug };
+      });
     },
   );
 

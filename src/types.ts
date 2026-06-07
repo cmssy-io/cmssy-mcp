@@ -47,6 +47,7 @@ export interface Page {
   seoTitle: Record<string, string> | null;
   seoDescription: Record<string, string> | null;
   seoKeywords: string[];
+  customFields: Array<{ fieldKey: string; value: unknown }>;
   published: boolean;
   publishedAt: string | null;
   hasUnpublishedContentChanges: boolean;
