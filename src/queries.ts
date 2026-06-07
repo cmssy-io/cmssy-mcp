@@ -14,6 +14,7 @@ export const PAGES_QUERY = `
       hasUnpublishedLayoutChanges
       pageType
       parentId
+      customFields { fieldKey value }
       order
       version
       createdAt
@@ -33,6 +34,7 @@ export const PAGE_BY_ID_QUERY = `
       seoTitle
       seoDescription
       seoKeywords
+      customFields { fieldKey value }
       published
       publishedAt
       hasUnpublishedContentChanges
@@ -173,6 +175,7 @@ export const SAVE_PAGE_MUTATION = `
       seoTitle
       seoDescription
       seoKeywords
+      customFields { fieldKey value }
       published
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
@@ -229,11 +232,51 @@ export const UPDATE_PAGE_SETTINGS_MUTATION = `
       seoTitle
       seoDescription
       seoKeywords
+      customFields { fieldKey value }
       pageType
       parentId
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
       updatedAt
+    }
+  }
+`;
+
+// ─── Page Type Queries / Mutations ───────────────────────────
+
+export const PAGE_TYPES_QUERY = `
+  query PageTypes {
+    pageTypes {
+      id
+      name
+      slug
+      description
+      icon
+      schemaType
+      urlPrefix
+      allowChildren
+      fields {
+        key
+        label
+        type
+        required
+        description
+        options
+        defaultValue
+      }
+    }
+  }
+`;
+
+export const CREATE_PAGE_TYPE_MUTATION = `
+  mutation CreatePageType($input: CreatePageTypeInput!) {
+    createPageType(input: $input) {
+      id
+      name
+      slug
+      description
+      icon
+      fields { key label type required }
     }
   }
 `;
