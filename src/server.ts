@@ -327,7 +327,7 @@ export function createServer(client: CmssyClient) {
       if (displayName) input.displayName = displayName;
       if (seoTitle) input.seoTitle = seoTitle;
       if (seoDescription) input.seoDescription = seoDescription;
-      if (customFields) input.customFields = customFields;
+      if (customFields !== undefined) input.customFields = customFields;
 
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input,
@@ -490,7 +490,12 @@ export function createServer(client: CmssyClient) {
             name: t.name,
             slug: t.slug,
             fields: Array.isArray(t.fields)
-              ? (t.fields as Array<Record<string, unknown>>).map((f) => f.key)
+              ? (t.fields as Array<Record<string, unknown>>).map((f) => ({
+                  key: f.key,
+                  label: f.label,
+                  type: f.type,
+                  required: f.required,
+                }))
               : [],
           })),
       );
@@ -520,10 +525,21 @@ export function createServer(client: CmssyClient) {
               key: z.string().describe("Field key (identifier in customFields)"),
               label: z.string().describe("Human-readable label"),
               type: z
-                .string()
-                .describe(
-                  "Field type: string | richtext | number | boolean | date | datetime | email | url | media | relation | select | multiselect",
-                ),
+                .enum([
+                  "string",
+                  "richtext",
+                  "number",
+                  "boolean",
+                  "date",
+                  "datetime",
+                  "email",
+                  "url",
+                  "media",
+                  "relation",
+                  "select",
+                  "multiselect",
+                ])
+                .describe("Field type"),
               required: z.boolean().optional(),
               description: z.string().optional(),
               options: z
@@ -553,7 +569,7 @@ export function createServer(client: CmssyClient) {
       if (icon !== undefined) input.icon = icon;
       if (urlPrefix !== undefined) input.urlPrefix = urlPrefix;
       if (allowChildren !== undefined) input.allowChildren = allowChildren;
-      if (fields) input.fields = fields;
+      if (fields !== undefined) input.fields = fields;
 
       const data = await client.query<{ createPageType: unknown }>(
         CREATE_PAGE_TYPE_MUTATION,
