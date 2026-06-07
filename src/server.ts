@@ -45,6 +45,8 @@ import {
   SAVE_PAGE_MUTATION,
   PATCH_BLOCK_CONTENT_MUTATION,
   UPDATE_PAGE_SETTINGS_MUTATION,
+  PAGE_TYPES_QUERY,
+  CREATE_PAGE_TYPE_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
   PUBLISH_PAGE_CONTENT_MUTATION,
   PUBLISH_PAGE_LAYOUT_MUTATION,
@@ -297,6 +299,15 @@ export function createServer(client: CmssyClient) {
         .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
         .optional()
         .describe("Multilingual SEO description"),
+      customFields: z
+        .preprocess(
+          jsonPreprocess,
+          z.array(z.object({ fieldKey: z.string(), value: z.unknown() })),
+        )
+        .optional()
+        .describe(
+          "Custom field values for the page type's schema: [{ fieldKey, value }]. value is JSON.",
+        ),
       response: responseModeSchema,
     },
     async ({
@@ -307,6 +318,7 @@ export function createServer(client: CmssyClient) {
       displayName,
       seoTitle,
       seoDescription,
+      customFields,
       response,
     }) => {
       const input: Record<string, unknown> = { name, slug };
@@ -315,6 +327,7 @@ export function createServer(client: CmssyClient) {
       if (displayName) input.displayName = displayName;
       if (seoTitle) input.seoTitle = seoTitle;
       if (seoDescription) input.seoDescription = seoDescription;
+      if (customFields !== undefined) input.customFields = customFields;
 
       const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
         input,
@@ -402,7 +415,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_settings",
-    "Update page metadata: name, slug, display name, SEO fields. Returns a minimal ack by default; pass response='full' for the full mutation response.",
+    "Update page metadata: name, slug, display name, SEO fields, and custom fields. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       id: z.string().describe("Page ID"),
       name: z.string().optional().describe("Internal page name"),
@@ -420,6 +433,13 @@ export function createServer(client: CmssyClient) {
         .optional()
         .describe("Multilingual SEO description"),
       seoKeywords: z.array(z.string()).optional().describe("SEO keywords"),
+      customFields: z
+        .preprocess(
+          jsonPreprocess,
+          z.array(z.object({ fieldKey: z.string(), value: z.unknown() })),
+        )
+        .optional()
+        .describe("Custom field values: [{ fieldKey, value }]. value is JSON."),
       response: responseModeSchema,
     },
     async ({
@@ -430,6 +450,7 @@ export function createServer(client: CmssyClient) {
       seoTitle,
       seoDescription,
       seoKeywords,
+      customFields,
       response,
     }) => {
       const input: Record<string, unknown> = { id };
@@ -439,12 +460,117 @@ export function createServer(client: CmssyClient) {
       if (seoTitle !== undefined) input.seoTitle = seoTitle;
       if (seoDescription !== undefined) input.seoDescription = seoDescription;
       if (seoKeywords !== undefined) input.seoKeywords = seoKeywords;
+      if (customFields !== undefined) input.customFields = customFields;
 
       const data = await client.query<{ updatePageSettings: Page }>(
         UPDATE_PAGE_SETTINGS_MUTATION,
         { input },
       );
       return jsonText(response, data.updatePageSettings, pageMinimal);
+    },
+  );
+
+  server.tool(
+    "list_page_types",
+    "List page types in the workspace with their custom-field schema. Page types define which custom fields a page of that type carries.",
+    {},
+    async () => {
+      const data = await client.query<{ pageTypes: unknown[] }>(
+        PAGE_TYPES_QUERY,
+        {},
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.pageTypes, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_page_type",
+    "Create a page type with a custom-field schema. Pages created with this pageType carry these custom fields (settable via create_page/update_page_settings customFields).",
+    {
+      name: z.string().describe("Display name"),
+      slug: z
+        .string()
+        .regex(
+          /^[a-z][a-z0-9-]*$/,
+          "lowercase, URL-safe: start with a letter, then letters/digits/hyphens",
+        )
+        .describe("URL-safe slug, lowercase (e.g. 'post', 'case-study')"),
+      description: z.string().optional().describe("Description"),
+      icon: z.string().optional().describe("Lucide icon name"),
+      urlPrefix: z
+        .string()
+        .optional()
+        .describe("URL prefix for pages of this type (e.g. 'blog')"),
+      allowChildren: z.boolean().optional(),
+      fields: z
+        .preprocess(
+          jsonPreprocess,
+          z.array(
+            z.object({
+              key: z.string().describe("Field key (identifier in customFields)"),
+              label: z.string().describe("Human-readable label"),
+              type: z
+                .enum([
+                  "string",
+                  "richtext",
+                  "number",
+                  "boolean",
+                  "date",
+                  "datetime",
+                  "email",
+                  "url",
+                  "media",
+                  "relation",
+                  "select",
+                  "multiselect",
+                ])
+                .describe("Field type"),
+              required: z.boolean().optional(),
+              description: z.string().optional(),
+              options: z
+                .array(z.string())
+                .optional()
+                .describe("For select/multiselect"),
+              defaultValue: z.string().optional(),
+            }),
+          ),
+        )
+        .optional()
+        .describe("Custom-field schema for this page type"),
+      response: responseModeSchema,
+    },
+    async ({
+      name,
+      slug,
+      description,
+      icon,
+      urlPrefix,
+      allowChildren,
+      fields,
+      response,
+    }) => {
+      const input: Record<string, unknown> = { name, slug };
+      if (description !== undefined) input.description = description;
+      if (icon !== undefined) input.icon = icon;
+      if (urlPrefix !== undefined) input.urlPrefix = urlPrefix;
+      if (allowChildren !== undefined) input.allowChildren = allowChildren;
+      if (fields !== undefined) input.fields = fields;
+
+      const data = await client.query<{ createPageType: unknown }>(
+        CREATE_PAGE_TYPE_MUTATION,
+        { input },
+      );
+      return jsonText(response, data.createPageType, (pt) => {
+        const p = pt as Record<string, unknown>;
+        return { id: p.id, name: p.name, slug: p.slug };
+      });
     },
   );
 
