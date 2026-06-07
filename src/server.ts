@@ -415,7 +415,7 @@ export function createServer(client: CmssyClient) {
 
   server.tool(
     "update_page_settings",
-    "Update page metadata: name, slug, display name, SEO fields. Returns a minimal ack by default; pass response='full' for the full mutation response.",
+    "Update page metadata: name, slug, display name, SEO fields, and custom fields. Returns a minimal ack by default; pass response='full' for the full mutation response.",
     {
       id: z.string().describe("Page ID"),
       name: z.string().optional().describe("Internal page name"),
