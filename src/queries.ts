@@ -276,7 +276,10 @@ export const CREATE_PAGE_TYPE_MUTATION = `
       slug
       description
       icon
-      fields { key label type required }
+      schemaType
+      urlPrefix
+      allowChildren
+      fields { key label type required description options defaultValue }
     }
   }
 `;

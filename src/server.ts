@@ -497,6 +497,10 @@ export function createServer(client: CmssyClient) {
       name: z.string().describe("Display name"),
       slug: z
         .string()
+        .regex(
+          /^[a-z][a-z0-9-]*$/,
+          "lowercase, URL-safe: start with a letter, then letters/digits/hyphens",
+        )
         .describe("URL-safe slug, lowercase (e.g. 'post', 'case-study')"),
       description: z.string().optional().describe("Description"),
       icon: z.string().optional().describe("Lucide icon name"),
