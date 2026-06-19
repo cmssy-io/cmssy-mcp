@@ -76,6 +76,35 @@ import {
   UPDATE_MODEL_RECORD_STATUS_MUTATION,
   DELETE_MODEL_RECORD_MUTATION,
   IMPORT_MODEL_RECORDS_MUTATION,
+  ORDERS_QUERY,
+  ORDER_BY_ID_QUERY,
+  ORDER_PIPELINE_QUERY,
+  CREATE_MANUAL_ORDER_MUTATION,
+  EDIT_ORDER_MUTATION,
+  UPDATE_ORDER_DETAILS_MUTATION,
+  MARK_ORDER_PAID_MUTATION,
+  RECORD_ORDER_PAYMENT_MUTATION,
+  REFUND_ORDER_MUTATION,
+  CANCEL_ORDER_MUTATION,
+  TRANSITION_ORDER_FULFILLMENT_MUTATION,
+  SET_ORDER_PIPELINE_STAGE_MUTATION,
+  RECORD_ORDER_INVOICE_MUTATION,
+  ADMIN_CARTS_QUERY,
+  DISCOUNTS_QUERY,
+  DISCOUNT_BY_ID_QUERY,
+  CREATE_DISCOUNT_MUTATION,
+  UPDATE_DISCOUNT_MUTATION,
+  SET_DISCOUNT_ENABLED_MUTATION,
+  WEBHOOK_ENDPOINTS_QUERY,
+  WEBHOOK_DELIVERIES_QUERY,
+  WEBHOOK_EVENT_TYPES_QUERY,
+  CREATE_WEBHOOK_ENDPOINT_MUTATION,
+  UPDATE_WEBHOOK_ENDPOINT_MUTATION,
+  ROTATE_WEBHOOK_SECRET_MUTATION,
+  DELETE_WEBHOOK_ENDPOINT_MUTATION,
+  PRODUCT_CATALOG_QUERY,
+  BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
+  BULK_DELETE_PRODUCT_RECORDS_MUTATION,
 } from "./queries.js";
 import type {
   Page,
@@ -91,6 +120,8 @@ import {
   formMinimal,
   modelMinimal,
   recordMinimal,
+  orderMinimal,
+  discountMinimal,
   jsonText,
 } from "./responses.js";
 
@@ -2503,6 +2534,927 @@ export function createServer(client: CmssyClient) {
             text: JSON.stringify(data.importModelRecords, null, 2),
           },
         ],
+      };
+    },
+  );
+
+  // ─── Commerce: Orders ────────────────────────────────────────
+  //
+  // workspaceId is required by every commerce resolver and cross-checked
+  // against the token's workspace context, so it always comes from the
+  // client (the same value sent in the x-workspace-id header) - it is not
+  // a caller-supplied arg. All money fields are integer minor units (cents).
+
+  const PAYMENT_STATUS = [
+    "unpaid",
+    "partially_paid",
+    "authorized",
+    "paid",
+    "partially_refunded",
+    "refunded",
+  ] as const;
+  const FULFILLMENT_STATUS = [
+    "unfulfilled",
+    "partially_fulfilled",
+    "fulfilled",
+    "returned",
+  ] as const;
+  const CART_STATUS = [
+    "active",
+    "saved",
+    "quote_requested",
+    "merged",
+    "expired",
+    "abandoned",
+    "ordered",
+  ] as const;
+  const DISCOUNT_TYPE = ["percentage", "fixed", "free_shipping"] as const;
+
+  type OrderResult = {
+    id: string;
+    orderNumber?: number | null;
+    status?: string | null;
+    paymentStatus?: string | null;
+    fulfillmentStatus?: string | null;
+    total?: number | null;
+    balanceDue?: number | null;
+    currency?: string | null;
+    updatedAt?: string | null;
+  };
+  type DiscountResult = {
+    id: string;
+    code?: string | null;
+    type?: string | null;
+    value?: number | null;
+    enabled?: boolean | null;
+    updatedAt?: string | null;
+  };
+
+  const orderItemSchema = z
+    .object({
+      recordId: z
+        .string()
+        .optional()
+        .describe("Product record id (ObjectId) the line refers to"),
+      quantity: z.number().int().positive(),
+      variantSelections: z
+        .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
+        .optional()
+        .describe("Selected variant options, e.g. {size: 'M', color: 'red'}"),
+      name: z.string().optional().describe("Custom line name (ad-hoc item)"),
+      price: z
+        .number()
+        .int()
+        .optional()
+        .describe("Custom unit price in minor units (ad-hoc item)"),
+    })
+    .refine(
+      (item) =>
+        item.recordId != null || (item.name != null && item.price != null),
+      {
+        message:
+          "Each item needs a recordId, or both name and price for an ad-hoc line",
+      },
+    );
+
+  server.tool(
+    "list_orders",
+    "List orders with optional filters and pagination. Money fields are integer minor units (cents). Pass pipelineStageId='__unassigned__' to list orders with no pipeline stage.",
+    {
+      paymentStatus: z.enum(PAYMENT_STATUS).optional(),
+      fulfillmentStatus: z.enum(FULFILLMENT_STATUS).optional(),
+      customerId: z.string().optional(),
+      search: z.string().optional(),
+      pipelineStageId: z.string().optional(),
+      dateFrom: z
+        .string()
+        .optional()
+        .describe("ISO date-time lower bound (inclusive)"),
+      dateTo: z
+        .string()
+        .optional()
+        .describe("ISO date-time upper bound (inclusive)"),
+      skip: z.number().int().optional().default(0),
+      limit: z.number().int().optional().default(20),
+    },
+    async (args) => {
+      const data = await client.query<{
+        orders: { items: unknown[]; total: number; hasMore: boolean };
+      }>(ORDERS_QUERY, { workspaceId: client.workspaceId, ...args });
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(data.orders, null, 2) },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_order",
+    "Get a single order by id, including items, payments, and tax summary.",
+    {
+      id: z.string().describe("Order id"),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ order: unknown | null }>(
+        ORDER_BY_ID_QUERY,
+        { workspaceId: client.workspaceId, id },
+      );
+      if (!data.order) {
+        return {
+          content: [{ type: "text" as const, text: "Order not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(data.order, null, 2) },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_order_pipeline",
+    "Get the workspace order pipeline (the configurable stages orders move through).",
+    {},
+    async () => {
+      const data = await client.query<{ orderPipeline: unknown }>(
+        ORDER_PIPELINE_QUERY,
+        { workspaceId: client.workspaceId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.orderPipeline, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_manual_order",
+    "Create a manual (admin-entered) order. Each item references a product recordId or is an ad-hoc line with name+price (minor units). Returns a minimal ack by default; pass response='full' for the full order.",
+    {
+      customerEmail: z.string().describe("Customer email for the order"),
+      customerId: z.string().optional(),
+      items: z.array(orderItemSchema).min(1, "Provide at least 1 item"),
+      response: responseModeSchema,
+    },
+    async ({ customerEmail, customerId, items, response }) => {
+      const result = await client.query<{ createManualOrder: OrderResult }>(
+        CREATE_MANUAL_ORDER_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            customerEmail,
+            customerId,
+            items,
+          },
+        },
+      );
+      return jsonText(response, result.createManualOrder, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "edit_order",
+    "Replace an order's line items (full replace of the items array). Recomputes totals. Returns a minimal ack by default; pass response='full' for the full order.",
+    {
+      orderId: z.string(),
+      items: z.array(orderItemSchema).min(1, "Provide at least 1 item"),
+      response: responseModeSchema,
+    },
+    async ({ orderId, items, response }) => {
+      const result = await client.query<{ editOrder: OrderResult }>(
+        EDIT_ORDER_MUTATION,
+        { input: { workspaceId: client.workspaceId, orderId, items } },
+      );
+      return jsonText(response, result.editOrder, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "update_order_details",
+    "Update order metadata: customer email, internal notes, and shipment tracking. Only provided fields change.",
+    {
+      orderId: z.string(),
+      customerEmail: z.string().optional(),
+      notes: z.string().optional(),
+      trackingNumber: z.string().optional(),
+      trackingCarrier: z.string().optional(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, response, ...fields }) => {
+      if (Object.keys(fields).length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide at least one field to update",
+            },
+          ],
+          isError: true,
+        };
+      }
+      const result = await client.query<{ updateOrderDetails: OrderResult }>(
+        UPDATE_ORDER_DETAILS_MUTATION,
+        { input: { workspaceId: client.workspaceId, orderId, ...fields } },
+      );
+      return jsonText(response, result.updateOrderDetails, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "mark_order_paid",
+    "Record a full payment for an order (does NOT verify with a payment provider - admin/manual reconciliation). amount is in minor units.",
+    {
+      orderId: z.string(),
+      amount: z.number().int().describe("Amount in minor units (cents)"),
+      reference: z.string().describe("Payment reference / receipt id"),
+      provider: z.string().describe("Payment provider label, e.g. 'manual'"),
+      response: responseModeSchema,
+    },
+    async ({ orderId, amount, reference, provider, response }) => {
+      const result = await client.query<{ markOrderPaid: OrderResult }>(
+        MARK_ORDER_PAID_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            orderId,
+            amount,
+            reference,
+            provider,
+          },
+        },
+      );
+      return jsonText(response, result.markOrderPaid, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "record_order_payment",
+    "Record a (possibly partial) payment against an order's outstanding balance. amount is in minor units and capped at the balance due.",
+    {
+      orderId: z.string(),
+      amount: z.number().int().describe("Amount in minor units (cents)"),
+      reference: z.string().describe("Payment reference / receipt id"),
+      provider: z.string().optional(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, amount, reference, provider, response }) => {
+      const result = await client.query<{ recordOrderPayment: OrderResult }>(
+        RECORD_ORDER_PAYMENT_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            orderId,
+            amount,
+            reference,
+            provider,
+          },
+        },
+      );
+      return jsonText(response, result.recordOrderPayment, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "refund_order",
+    "Refund an order. Omit amount for a full refund; pass amount (minor units) for a partial refund.",
+    {
+      orderId: z.string(),
+      reference: z.string().describe("Refund reference / receipt id"),
+      amount: z
+        .number()
+        .int()
+        .optional()
+        .describe("Partial refund amount in minor units; omit for full refund"),
+      response: responseModeSchema,
+    },
+    async ({ orderId, reference, amount, response }) => {
+      const result = await client.query<{ refundOrder: OrderResult }>(
+        REFUND_ORDER_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            orderId,
+            reference,
+            amount,
+          },
+        },
+      );
+      return jsonText(response, result.refundOrder, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "cancel_order",
+    "Cancel an order.",
+    {
+      orderId: z.string(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, response }) => {
+      const result = await client.query<{ cancelOrder: OrderResult }>(
+        CANCEL_ORDER_MUTATION,
+        { input: { workspaceId: client.workspaceId, orderId } },
+      );
+      return jsonText(response, result.cancelOrder, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "transition_order_fulfillment",
+    "Move an order to a new fulfillment status. Optionally attach tracking when marking fulfilled.",
+    {
+      orderId: z.string(),
+      status: z.enum(FULFILLMENT_STATUS),
+      trackingNumber: z.string().optional(),
+      trackingCarrier: z.string().optional(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, status, trackingNumber, trackingCarrier, response }) => {
+      const result = await client.query<{
+        transitionOrderFulfillment: OrderResult;
+      }>(TRANSITION_ORDER_FULFILLMENT_MUTATION, {
+        input: {
+          workspaceId: client.workspaceId,
+          orderId,
+          status,
+          trackingNumber,
+          trackingCarrier,
+        },
+      });
+      return jsonText(
+        response,
+        result.transitionOrderFulfillment,
+        orderMinimal,
+      );
+    },
+  );
+
+  server.tool(
+    "set_order_pipeline_stage",
+    "Move an order to a pipeline stage (use get_order_pipeline for valid stage ids).",
+    {
+      orderId: z.string(),
+      stageId: z.string(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, stageId, response }) => {
+      const result = await client.query<{ setOrderPipelineStage: OrderResult }>(
+        SET_ORDER_PIPELINE_STAGE_MUTATION,
+        { input: { workspaceId: client.workspaceId, orderId, stageId } },
+      );
+      return jsonText(response, result.setOrderPipelineStage, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "record_order_invoice",
+    "Attach an invoice (number, optional URL and provider) to an order.",
+    {
+      orderId: z.string(),
+      number: z.string().describe("Invoice number"),
+      url: z.string().optional(),
+      provider: z.string().optional(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, number, url, provider, response }) => {
+      const result = await client.query<{ recordOrderInvoice: OrderResult }>(
+        RECORD_ORDER_INVOICE_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            orderId,
+            number,
+            url,
+            provider,
+          },
+        },
+      );
+      return jsonText(response, result.recordOrderInvoice, orderMinimal);
+    },
+  );
+
+  // ─── Commerce: Carts ─────────────────────────────────────────
+
+  server.tool(
+    "list_carts",
+    "List shopping carts (admin view) with optional status filter and pagination. totalValue is in minor units.",
+    {
+      status: z.enum(CART_STATUS).optional(),
+      skip: z.number().int().optional().default(0),
+      limit: z.number().int().optional().default(20),
+    },
+    async (args) => {
+      const data = await client.query<{
+        adminCarts: { items: unknown[]; total: number; hasMore: boolean };
+      }>(ADMIN_CARTS_QUERY, { workspaceId: client.workspaceId, ...args });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.adminCarts, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  // ─── Commerce: Discounts ─────────────────────────────────────
+
+  server.tool(
+    "list_discounts",
+    "List discount codes with optional filters and pagination.",
+    {
+      enabled: z.boolean().optional(),
+      type: z.enum(DISCOUNT_TYPE).optional(),
+      search: z.string().optional().describe("Substring match on code"),
+      limit: z.number().int().optional().default(25),
+      offset: z.number().int().optional().default(0),
+    },
+    async (args) => {
+      const data = await client.query<{
+        discounts: { items: unknown[]; total: number; hasMore: boolean };
+      }>(DISCOUNTS_QUERY, { workspaceId: client.workspaceId, ...args });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.discounts, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_discount",
+    "Get a single discount by id.",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ discount: unknown | null }>(
+        DISCOUNT_BY_ID_QUERY,
+        { workspaceId: client.workspaceId, id },
+      );
+      if (!data.discount) {
+        return {
+          content: [{ type: "text" as const, text: "Discount not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.discount, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_discount",
+    "Create a discount code. For type='fixed', value and currency are required (value in minor units). For 'percentage', value is the percent and currency must be omitted. minSubtotal is in minor units. Dates are ISO date-time strings.",
+    {
+      code: z.string(),
+      type: z.enum(DISCOUNT_TYPE),
+      value: z
+        .number()
+        .describe("Percent for 'percentage'; minor units for 'fixed'"),
+      currency: z
+        .string()
+        .optional()
+        .describe("Required for 'fixed'; omit otherwise"),
+      minSubtotal: z
+        .number()
+        .optional()
+        .describe("Minimum order subtotal in minor units"),
+      maxUses: z.number().int().optional(),
+      maxUsesPerUser: z.number().int().optional(),
+      startsAt: z.string().optional().describe("ISO date-time"),
+      endsAt: z.string().optional().describe("ISO date-time"),
+      enabled: z.boolean(),
+      response: responseModeSchema,
+    },
+    async ({ response, ...input }) => {
+      const currencyError =
+        input.type === "fixed" && !input.currency
+          ? "currency is required for type 'fixed'"
+          : input.type !== "fixed" && input.currency
+            ? `currency must be omitted for type '${input.type}'`
+            : null;
+      if (currencyError) {
+        return {
+          content: [{ type: "text" as const, text: currencyError }],
+          isError: true,
+        };
+      }
+      const result = await client.query<{ createDiscount: DiscountResult }>(
+        CREATE_DISCOUNT_MUTATION,
+        { workspaceId: client.workspaceId, input },
+      );
+      return jsonText(response, result.createDiscount, discountMinimal);
+    },
+  );
+
+  server.tool(
+    "update_discount",
+    "Update a discount (partial - only provided fields change). code/type/currency become immutable once the discount has been used at least once.",
+    {
+      id: z.string(),
+      code: z.string().optional(),
+      type: z.enum(DISCOUNT_TYPE).optional(),
+      value: z.number().optional(),
+      currency: z.string().optional(),
+      minSubtotal: z.number().optional(),
+      maxUses: z.number().int().optional(),
+      maxUsesPerUser: z.number().int().optional(),
+      startsAt: z.string().optional().describe("ISO date-time"),
+      endsAt: z.string().optional().describe("ISO date-time"),
+      enabled: z.boolean().optional(),
+      response: responseModeSchema,
+    },
+    async ({ id, response, ...input }) => {
+      if (Object.keys(input).length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide at least one field to update",
+            },
+          ],
+          isError: true,
+        };
+      }
+      const result = await client.query<{ updateDiscount: DiscountResult }>(
+        UPDATE_DISCOUNT_MUTATION,
+        { workspaceId: client.workspaceId, id, input },
+      );
+      return jsonText(response, result.updateDiscount, discountMinimal);
+    },
+  );
+
+  server.tool(
+    "set_discount_enabled",
+    "Enable or disable a discount code.",
+    {
+      id: z.string(),
+      enabled: z.boolean(),
+      response: responseModeSchema,
+    },
+    async ({ id, enabled, response }) => {
+      const result = await client.query<{ setDiscountEnabled: DiscountResult }>(
+        SET_DISCOUNT_ENABLED_MUTATION,
+        { workspaceId: client.workspaceId, id, enabled },
+      );
+      return jsonText(response, result.setDiscountEnabled, discountMinimal);
+    },
+  );
+
+  // ─── Commerce: Products (catalog over model records) ─────────
+  //
+  // Products are stored as records of a Custom Data Model. These tools add
+  // product-aware reads/writes (stock + variants) on top of the generic
+  // record tools. Money fields are integer minor units (cents).
+
+  const productFilterSchema = z.object({
+    search: z.string().optional(),
+    status: z.string().optional(),
+    stockState: z
+      .enum(["in", "low", "out"])
+      .optional()
+      .describe("in stock / low stock / out of stock"),
+    priceMin: z.number().optional(),
+    priceMax: z.number().optional(),
+    hasVariants: z.boolean().optional(),
+  });
+
+  server.tool(
+    "list_products",
+    "List a product model's catalog with stock and variant info. modelId is the Custom Data Model holding the products. Returns CatalogItem rows (onHand/reserved/available + per-variant stock) plus the workspace lowStockThreshold.",
+    {
+      modelId: z.string().describe("Product model id (ObjectId)"),
+      filter: productFilterSchema.optional(),
+      limit: z.number().int().optional().default(50),
+      offset: z.number().int().optional().default(0),
+      sort: z
+        .string()
+        .optional()
+        .describe("Sort expression, e.g. 'createdAt' or '-updatedAt'"),
+    },
+    async ({ modelId, filter, limit, offset, sort }) => {
+      const data = await client.query<{ productCatalog: unknown }>(
+        PRODUCT_CATALOG_QUERY,
+        { modelId, filter, limit, offset, sort },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.productCatalog, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  // Selection model shared by the bulk product mutations: target an explicit
+  // list of ids, OR everything matching a filter (allMatching=true). One of
+  // the two is required by the backend.
+  const productSelectionSchema = z
+    .object({
+      ids: z
+        .array(z.string())
+        .optional()
+        .describe("Explicit record ids to target"),
+      allMatching: z
+        .boolean()
+        .optional()
+        .describe("Target every record matching filter (ignores ids)"),
+      filter: productFilterSchema.optional(),
+    })
+    .refine((s) => (s.ids?.length ?? 0) > 0 || s.allMatching === true, {
+      message: "Provide a non-empty 'ids' array or set 'allMatching: true'",
+    })
+    .describe("Provide non-empty 'ids' OR 'allMatching: true'");
+
+  server.tool(
+    "bulk_update_products",
+    "Bulk-update selected product records with a single patch applied uniformly (status, set/adjust stock, set/adjust price). Stock fields are units; price fields are minor units. Returns the number of records updated.",
+    {
+      modelId: z.string().describe("Product model id (ObjectId)"),
+      selection: productSelectionSchema,
+      patch: z
+        .object({
+          status: z.string().optional(),
+          setStock: z.number().int().optional().describe("Set absolute stock"),
+          adjustStock: z
+            .number()
+            .int()
+            .optional()
+            .describe("Delta to stock (+/-)"),
+          setPrice: z
+            .number()
+            .int()
+            .optional()
+            .describe("Set absolute price (minor units)"),
+          adjustPrice: z
+            .number()
+            .int()
+            .optional()
+            .describe("Delta to price (minor units, +/-)"),
+        })
+        .describe("Single patch applied to every selected record"),
+    },
+    async ({ modelId, selection, patch }) => {
+      if (Object.keys(patch).length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide at least one patch field (status, set/adjust stock or price)",
+            },
+          ],
+          isError: true,
+        };
+      }
+      const data = await client.query<{ bulkUpdateProductRecords: number }>(
+        BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
+        { modelId, selection, patch },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ updated: data.bulkUpdateProductRecords }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "bulk_delete_products",
+    "Bulk-delete selected product records permanently. Returns the number of records deleted.",
+    {
+      modelId: z.string().describe("Product model id (ObjectId)"),
+      selection: productSelectionSchema,
+    },
+    async ({ modelId, selection }) => {
+      const data = await client.query<{ bulkDeleteProductRecords: number }>(
+        BULK_DELETE_PRODUCT_RECORDS_MUTATION,
+        { modelId, selection },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ deleted: data.bulkDeleteProductRecords }),
+          },
+        ],
+      };
+    },
+  );
+
+  // ─── Webhooks ────────────────────────────────────────────────
+  //
+  // Outbound event webhooks. Like commerce, workspaceId is required by every
+  // resolver and sourced from the client. createWebhookEndpoint and
+  // rotateWebhookSecret return the signing secret ONCE - it is surfaced in
+  // full and cannot be retrieved again.
+
+  server.tool(
+    "list_webhooks",
+    "List the workspace's webhook endpoints (signing secrets are never returned here).",
+    {},
+    async () => {
+      const data = await client.query<{ webhookEndpoints: unknown[] }>(
+        WEBHOOK_ENDPOINTS_QUERY,
+        { workspaceId: client.workspaceId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.webhookEndpoints, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "list_webhook_deliveries",
+    "List recent webhook delivery attempts (status: pending/success/failed) for debugging.",
+    {
+      limit: z.number().int().optional().default(50),
+    },
+    async ({ limit }) => {
+      const data = await client.query<{ webhookDeliveries: unknown[] }>(
+        WEBHOOK_DELIVERIES_QUERY,
+        { workspaceId: client.workspaceId, limit },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.webhookDeliveries, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "list_webhook_event_types",
+    "List the event types a webhook can subscribe to (the authoritative allowlist).",
+    {},
+    async () => {
+      const data = await client.query<{ webhookEventTypes: string[] }>(
+        WEBHOOK_EVENT_TYPES_QUERY,
+        { workspaceId: client.workspaceId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.webhookEventTypes, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  // The backend validates events against its allowlist; list_webhook_event_types
+  // is authoritative. These are the known values at time of writing.
+  const WEBHOOK_EVENTS_HINT =
+    "Event names, e.g. order.created, order.paid, order.refunded, order.canceled, order.fulfilled, order.returned, order.edited, order.pipeline_changed. Use list_webhook_event_types for the authoritative list.";
+
+  server.tool(
+    "create_webhook",
+    "Create a webhook endpoint subscribed to one or more events. The URL must be a public https endpoint. Returns the endpoint AND its signing secret - the secret is shown only once.",
+    {
+      url: z.string().describe("Public https endpoint URL"),
+      events: z
+        .array(z.string())
+        .min(1, "Subscribe to at least 1 event")
+        .describe(WEBHOOK_EVENTS_HINT),
+      description: z.string().optional(),
+    },
+    async ({ url, events, description }) => {
+      const data = await client.query<{ createWebhookEndpoint: unknown }>(
+        CREATE_WEBHOOK_ENDPOINT_MUTATION,
+        {
+          input: { workspaceId: client.workspaceId, url, events, description },
+        },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.createWebhookEndpoint, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "update_webhook",
+    "Update a webhook endpoint (partial - only provided fields change). Pass enabled to enable/disable. Pass description=null to clear it. The signing secret is not returned.",
+    {
+      id: z.string(),
+      url: z.string().optional(),
+      events: z
+        .array(z.string())
+        .min(1)
+        .optional()
+        .describe(WEBHOOK_EVENTS_HINT),
+      enabled: z.boolean().optional(),
+      description: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("New description; null clears it"),
+    },
+    async ({ id, ...fields }) => {
+      if (Object.keys(fields).length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide at least one field to update",
+            },
+          ],
+          isError: true,
+        };
+      }
+      const data = await client.query<{ updateWebhookEndpoint: unknown }>(
+        UPDATE_WEBHOOK_ENDPOINT_MUTATION,
+        { input: { workspaceId: client.workspaceId, id, ...fields } },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.updateWebhookEndpoint, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "rotate_webhook_secret",
+    "Rotate a webhook endpoint's signing secret. Returns the endpoint and the NEW secret - shown only once.",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ rotateWebhookSecret: unknown }>(
+        ROTATE_WEBHOOK_SECRET_MUTATION,
+        { workspaceId: client.workspaceId, id },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.rotateWebhookSecret, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "delete_webhook",
+    "Delete a webhook endpoint permanently.",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ deleteWebhookEndpoint: boolean }>(
+        DELETE_WEBHOOK_ENDPOINT_MUTATION,
+        { workspaceId: client.workspaceId, id },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.deleteWebhookEndpoint
+              ? "Webhook deleted"
+              : "Failed to delete webhook",
+          },
+        ],
+        isError: !data.deleteWebhookEndpoint,
       };
     },
   );

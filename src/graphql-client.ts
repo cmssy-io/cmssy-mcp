@@ -40,7 +40,7 @@ export class CmssyClient {
   constructor(
     private apiUrl: string,
     private token: string,
-    private workspaceId: string,
+    public readonly workspaceId: string,
   ) {}
 
   async query<T>(

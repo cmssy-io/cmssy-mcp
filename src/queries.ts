@@ -689,3 +689,412 @@ export const IMPORT_MODEL_RECORDS_MUTATION = `
     }
   }
 `;
+
+// ─── Commerce: Orders ────────────────────────────────────────
+
+// Selection set reused by every order read + mutation (they all return Order).
+// Money fields are integer minor units (cents).
+const ORDER_FRAGMENT = `
+  id
+  status
+  displayStatus
+  paymentStatus
+  fulfillmentStatus
+  orderNumber
+  customerId
+  customerEmail
+  currency
+  subtotal
+  tax
+  total
+  pricesIncludeTax
+  amountPaid
+  balanceDue
+  refundedAmount
+  paymentProvider
+  paymentReference
+  paidAt
+  fulfilledAt
+  trackingNumber
+  trackingCarrier
+  notes
+  invoiceNumber
+  invoiceUrl
+  invoiceProvider
+  invoicedAt
+  canceledAt
+  pipelineStageId
+  items {
+    name
+    price
+    currency
+    quantity
+    sku
+    variantKey
+    modelId
+    recordId
+    recordDeleted
+    taxRate
+    taxAmount
+  }
+  payments { amount reference provider at }
+  taxSummary { name rate base amount }
+  createdAt
+  updatedAt
+`;
+
+// Slim selection for list views - omits items/payments/taxSummary so a page
+// of orders does not blow up the agent's context. Use get_order for full detail.
+const ORDER_LIST_FRAGMENT = `
+  id
+  status
+  paymentStatus
+  fulfillmentStatus
+  orderNumber
+  customerId
+  customerEmail
+  currency
+  subtotal
+  tax
+  total
+  amountPaid
+  balanceDue
+  refundedAmount
+  pipelineStageId
+  createdAt
+  updatedAt
+`;
+
+export const ORDERS_QUERY = `
+  query Orders(
+    $workspaceId: ID!
+    $paymentStatus: String
+    $fulfillmentStatus: String
+    $customerId: ID
+    $search: String
+    $pipelineStageId: String
+    $dateFrom: DateTime
+    $dateTo: DateTime
+    $skip: Int
+    $limit: Int
+  ) {
+    orders(
+      workspaceId: $workspaceId
+      paymentStatus: $paymentStatus
+      fulfillmentStatus: $fulfillmentStatus
+      customerId: $customerId
+      search: $search
+      pipelineStageId: $pipelineStageId
+      dateFrom: $dateFrom
+      dateTo: $dateTo
+      skip: $skip
+      limit: $limit
+    ) {
+      items { ${ORDER_LIST_FRAGMENT} }
+      total
+      hasMore
+    }
+  }
+`;
+
+export const ORDER_BY_ID_QUERY = `
+  query Order($workspaceId: ID!, $id: ID!) {
+    order(workspaceId: $workspaceId, id: $id) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const ORDER_PIPELINE_QUERY = `
+  query OrderPipeline($workspaceId: ID!) {
+    orderPipeline(workspaceId: $workspaceId) {
+      stages { id label color position isDefault isTerminal }
+    }
+  }
+`;
+
+export const CREATE_MANUAL_ORDER_MUTATION = `
+  mutation CreateManualOrder($input: CreateManualOrderInput!) {
+    createManualOrder(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const EDIT_ORDER_MUTATION = `
+  mutation EditOrder($input: EditOrderInput!) {
+    editOrder(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const UPDATE_ORDER_DETAILS_MUTATION = `
+  mutation UpdateOrderDetails($input: UpdateOrderDetailsInput!) {
+    updateOrderDetails(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const MARK_ORDER_PAID_MUTATION = `
+  mutation MarkOrderPaid($input: MarkOrderPaidInput!) {
+    markOrderPaid(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const RECORD_ORDER_PAYMENT_MUTATION = `
+  mutation RecordOrderPayment($input: RecordOrderPaymentInput!) {
+    recordOrderPayment(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const REFUND_ORDER_MUTATION = `
+  mutation RefundOrder($input: RefundOrderInput!) {
+    refundOrder(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const CANCEL_ORDER_MUTATION = `
+  mutation CancelOrder($input: CancelOrderInput!) {
+    cancelOrder(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const TRANSITION_ORDER_FULFILLMENT_MUTATION = `
+  mutation TransitionOrderFulfillment($input: FulfillOrderInput!) {
+    transitionOrderFulfillment(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const SET_ORDER_PIPELINE_STAGE_MUTATION = `
+  mutation SetOrderPipelineStage($input: SetOrderPipelineStageInput!) {
+    setOrderPipelineStage(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+export const RECORD_ORDER_INVOICE_MUTATION = `
+  mutation RecordOrderInvoice($input: RecordOrderInvoiceInput!) {
+    recordOrderInvoice(input: $input) { ${ORDER_FRAGMENT} }
+  }
+`;
+
+// ─── Commerce: Carts ─────────────────────────────────────────
+
+export const ADMIN_CARTS_QUERY = `
+  query AdminCarts($workspaceId: ID!, $status: String, $skip: Int, $limit: Int) {
+    adminCarts(workspaceId: $workspaceId, status: $status, skip: $skip, limit: $limit) {
+      items {
+        id
+        status
+        customerId
+        itemCount
+        totalValue
+        currency
+        createdAt
+        updatedAt
+      }
+      total
+      hasMore
+    }
+  }
+`;
+
+// ─── Commerce: Discounts ─────────────────────────────────────
+
+const DISCOUNT_FRAGMENT = `
+  id
+  code
+  type
+  value
+  currency
+  minSubtotal
+  maxUses
+  currentUses
+  maxUsesPerUser
+  startsAt
+  endsAt
+  enabled
+  createdAt
+  updatedAt
+`;
+
+export const DISCOUNTS_QUERY = `
+  query Discounts(
+    $workspaceId: ID!
+    $enabled: Boolean
+    $type: String
+    $search: String
+    $limit: Int
+    $offset: Int
+  ) {
+    discounts(
+      workspaceId: $workspaceId
+      enabled: $enabled
+      type: $type
+      search: $search
+      limit: $limit
+      offset: $offset
+    ) {
+      items { ${DISCOUNT_FRAGMENT} }
+      total
+      hasMore
+    }
+  }
+`;
+
+export const DISCOUNT_BY_ID_QUERY = `
+  query Discount($workspaceId: ID!, $id: ID!) {
+    discount(workspaceId: $workspaceId, id: $id) { ${DISCOUNT_FRAGMENT} }
+  }
+`;
+
+export const CREATE_DISCOUNT_MUTATION = `
+  mutation CreateDiscount($workspaceId: ID!, $input: CreateDiscountInput!) {
+    createDiscount(workspaceId: $workspaceId, input: $input) { ${DISCOUNT_FRAGMENT} }
+  }
+`;
+
+export const UPDATE_DISCOUNT_MUTATION = `
+  mutation UpdateDiscount($workspaceId: ID!, $id: ID!, $input: UpdateDiscountInput!) {
+    updateDiscount(workspaceId: $workspaceId, id: $id, input: $input) { ${DISCOUNT_FRAGMENT} }
+  }
+`;
+
+export const SET_DISCOUNT_ENABLED_MUTATION = `
+  mutation SetDiscountEnabled($workspaceId: ID!, $id: ID!, $enabled: Boolean!) {
+    setDiscountEnabled(workspaceId: $workspaceId, id: $id, enabled: $enabled) { ${DISCOUNT_FRAGMENT} }
+  }
+`;
+
+// ─── Webhooks ────────────────────────────────────────────────
+
+const WEBHOOK_ENDPOINT_FRAGMENT = `
+  id
+  url
+  events
+  enabled
+  description
+  createdAt
+  updatedAt
+`;
+
+export const WEBHOOK_ENDPOINTS_QUERY = `
+  query WebhookEndpoints($workspaceId: ID!) {
+    webhookEndpoints(workspaceId: $workspaceId) { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+  }
+`;
+
+export const WEBHOOK_DELIVERIES_QUERY = `
+  query WebhookDeliveries($workspaceId: ID!, $limit: Int) {
+    webhookDeliveries(workspaceId: $workspaceId, limit: $limit) {
+      id
+      endpointId
+      webhookId
+      event
+      url
+      status
+      attempts
+      responseCode
+      error
+      nextAttemptAt
+      deliveredAt
+      createdAt
+    }
+  }
+`;
+
+export const WEBHOOK_EVENT_TYPES_QUERY = `
+  query WebhookEventTypes($workspaceId: ID!) {
+    webhookEventTypes(workspaceId: $workspaceId)
+  }
+`;
+
+export const CREATE_WEBHOOK_ENDPOINT_MUTATION = `
+  mutation CreateWebhookEndpoint($input: CreateWebhookEndpointInput!) {
+    createWebhookEndpoint(input: $input) {
+      secret
+      endpoint { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+    }
+  }
+`;
+
+export const UPDATE_WEBHOOK_ENDPOINT_MUTATION = `
+  mutation UpdateWebhookEndpoint($input: UpdateWebhookEndpointInput!) {
+    updateWebhookEndpoint(input: $input) { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+  }
+`;
+
+export const ROTATE_WEBHOOK_SECRET_MUTATION = `
+  mutation RotateWebhookSecret($workspaceId: ID!, $id: ID!) {
+    rotateWebhookSecret(workspaceId: $workspaceId, id: $id) {
+      secret
+      endpoint { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+    }
+  }
+`;
+
+export const DELETE_WEBHOOK_ENDPOINT_MUTATION = `
+  mutation DeleteWebhookEndpoint($workspaceId: ID!, $id: ID!) {
+    deleteWebhookEndpoint(workspaceId: $workspaceId, id: $id)
+  }
+`;
+
+// ─── Commerce: Products (catalog over model records) ─────────
+
+export const PRODUCT_CATALOG_QUERY = `
+  query ProductCatalog(
+    $modelId: ID!
+    $filter: ProductCatalogFilterInput
+    $limit: Int
+    $offset: Int
+    $sort: String
+  ) {
+    productCatalog(
+      modelId: $modelId
+      filter: $filter
+      limit: $limit
+      offset: $offset
+      sort: $sort
+    ) {
+      items {
+        id
+        data
+        status
+        onHand
+        reserved
+        available
+        hasVariants
+        variants {
+          key
+          sku
+          price
+          onHand
+          reserved
+          available
+          selectedOptions { name value }
+        }
+        createdAt
+        updatedAt
+      }
+      total
+      hasMore
+      lowStockThreshold
+    }
+  }
+`;
+
+export const BULK_UPDATE_PRODUCT_RECORDS_MUTATION = `
+  mutation BulkUpdateProductRecords(
+    $modelId: ID!
+    $selection: ProductBulkSelectionInput!
+    $patch: ProductBulkPatchInput!
+  ) {
+    bulkUpdateProductRecords(
+      modelId: $modelId
+      selection: $selection
+      patch: $patch
+    )
+  }
+`;
+
+export const BULK_DELETE_PRODUCT_RECORDS_MUTATION = `
+  mutation BulkDeleteProductRecords(
+    $modelId: ID!
+    $selection: ProductBulkSelectionInput!
+  ) {
+    bulkDeleteProductRecords(modelId: $modelId, selection: $selection)
+  }
+`;

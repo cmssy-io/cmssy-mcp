@@ -52,7 +52,9 @@ As of 0.6.0, most write tools accept an optional `response` arg:
   `{pageId, blockId, hasUnpublishedChanges, updatedAt}` for block tools,
   `{id, slug, status, updatedAt}` for form tools,
   `{id, slug, updatedAt}` for model tools,
-  `{id, status, updatedAt}` for record tools.
+  `{id, status, updatedAt}` for record tools,
+  `{id, orderNumber, status, paymentStatus, fulfillmentStatus, total, balanceDue, currency, updatedAt}` for order tools,
+  `{id, code, type, value, enabled, updatedAt}` for discount tools.
 - `response: "full"` - returns the full mutation response (pre-0.6 behavior).
 
 Use `"full"` only if you need the post-write state inline; otherwise issue a
@@ -63,7 +65,11 @@ Tools that accept `response`: `create_page`, `update_page_blocks`,
 `update_page_settings`, `publish_page`, `unpublish_page`, `revert_to_published`,
 `update_page_layout`, `add_block_to_page`, `update_block_content`,
 `remove_block_from_page`, `create_form`, `update_form`, `create_model`,
-`update_model`, `create_record`, `update_record`.
+`update_model`, `create_record`, `update_record`, `create_manual_order`,
+`edit_order`, `update_order_details`, `mark_order_paid`, `record_order_payment`,
+`refund_order`, `cancel_order`, `transition_order_fulfillment`,
+`set_order_pipeline_stage`, `record_order_invoice`, `create_discount`,
+`update_discount`, `set_discount_enabled`.
 
 `patch_block_content` and the various `delete_*` / status-only tools
 (`update_form_submission_status`, `import_records`)
@@ -155,6 +161,66 @@ model on every write.
 
 Requires workspace permissions `MODELS_VIEW` (read) / `MODELS_CREATE` /
 `MODELS_EDIT` / `MODELS_DELETE` depending on the operation.
+
+### Commerce Tools (Orders, Carts, Discounts)
+
+Manage the storefront's orders, carts, and discount codes. **All money fields
+are integer minor units (cents).** Order/discount write tools accept the
+`response` arg (see [Response shape](#response-shape-write-tools)).
+
+| Tool                           | Description                                                         |
+| ------------------------------ | ------------------------------------------------------------------- |
+| `list_orders`                  | List orders (filter by payment/fulfillment status, customer, dates) |
+| `get_order`                    | Get an order with items, payments, and tax summary                  |
+| `get_order_pipeline`           | Get the workspace's configurable order pipeline stages              |
+| `create_manual_order`          | Create an admin-entered order                                       |
+| `edit_order`                   | Replace an order's line items (recomputes totals)                   |
+| `update_order_details`         | Update customer email, notes, and tracking                          |
+| `mark_order_paid`              | Record a full payment (manual reconciliation, no provider verify)   |
+| `record_order_payment`         | Record a partial payment against the balance due                    |
+| `refund_order`                 | Refund an order (full, or partial with `amount`)                    |
+| `cancel_order`                 | Cancel an order                                                     |
+| `transition_order_fulfillment` | Move an order to a new fulfillment status (with optional tracking)  |
+| `set_order_pipeline_stage`     | Move an order to a pipeline stage                                   |
+| `record_order_invoice`         | Attach an invoice (number, url, provider) to an order               |
+| `list_carts`                   | List shopping carts (admin view, optional status filter)            |
+| `list_discounts`               | List discount codes (filter by enabled/type/code)                   |
+| `get_discount`                 | Get a discount by id                                                |
+| `create_discount`              | Create a discount (`percentage` / `fixed` / `free_shipping`)        |
+| `update_discount`              | Partial update (code/type/currency lock once the code is used)      |
+| `set_discount_enabled`         | Enable or disable a discount                                        |
+| `list_products`                | Product catalog with stock + variant info (over a Data Model)       |
+| `bulk_update_products`         | Bulk set/adjust status, stock, or price on selected products        |
+| `bulk_delete_products`         | Bulk-delete selected product records                                |
+
+Products are records of a Custom Data Model; these tools add product-aware
+stock/variant reads and bulk writes on top of the generic record tools. The
+bulk tools target an explicit `ids` list **or** everything matching a `filter`
+(`allMatching: true`). There is no per-variant stock write and no standalone
+inventory mutation - stock is set/adjusted in bulk via `patch.setStock` /
+`patch.adjustStock`.
+
+Requires workspace permissions `ORDERS_VIEW` / `ORDERS_MANAGE` (orders),
+`CARTS_VIEW` (carts), `DISCOUNTS_VIEW` / `DISCOUNTS_MANAGE` (discounts),
+`MODELS_VIEW` / `MODELS_EDIT` / `MODELS_DELETE` (products).
+
+### Webhook Tools
+
+Manage outbound event webhooks. `create_webhook` and `rotate_webhook_secret`
+return the signing secret **once** - it cannot be retrieved again.
+
+| Tool                       | Description                                              |
+| -------------------------- | -------------------------------------------------------- |
+| `list_webhooks`            | List webhook endpoints (secrets never returned)          |
+| `list_webhook_deliveries`  | Recent delivery attempts (pending/success/failed)        |
+| `list_webhook_event_types` | The authoritative allowlist of subscribable events       |
+| `create_webhook`           | Create an endpoint; returns the endpoint + secret (once) |
+| `update_webhook`           | Partial update; pass `enabled` to enable/disable         |
+| `rotate_webhook_secret`    | Rotate the signing secret (returns new secret once)      |
+| `delete_webhook`           | Delete an endpoint                                       |
+
+Requires workspace permissions `WEBHOOKS_VIEW` (read) / `WEBHOOKS_MANAGE`
+(create, update, rotate, delete).
 
 ## Resources
 
