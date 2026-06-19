@@ -890,3 +890,143 @@ export const SET_DISCOUNT_ENABLED_MUTATION = `
     setDiscountEnabled(workspaceId: $workspaceId, id: $id, enabled: $enabled) { ${DISCOUNT_FRAGMENT} }
   }
 `;
+
+// ─── Webhooks ────────────────────────────────────────────────
+
+const WEBHOOK_ENDPOINT_FRAGMENT = `
+  id
+  url
+  events
+  enabled
+  description
+  createdAt
+  updatedAt
+`;
+
+export const WEBHOOK_ENDPOINTS_QUERY = `
+  query WebhookEndpoints($workspaceId: ID!) {
+    webhookEndpoints(workspaceId: $workspaceId) { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+  }
+`;
+
+export const WEBHOOK_DELIVERIES_QUERY = `
+  query WebhookDeliveries($workspaceId: ID!, $limit: Int) {
+    webhookDeliveries(workspaceId: $workspaceId, limit: $limit) {
+      id
+      endpointId
+      webhookId
+      event
+      url
+      status
+      attempts
+      responseCode
+      error
+      nextAttemptAt
+      deliveredAt
+      createdAt
+    }
+  }
+`;
+
+export const WEBHOOK_EVENT_TYPES_QUERY = `
+  query WebhookEventTypes($workspaceId: ID!) {
+    webhookEventTypes(workspaceId: $workspaceId)
+  }
+`;
+
+export const CREATE_WEBHOOK_ENDPOINT_MUTATION = `
+  mutation CreateWebhookEndpoint($input: CreateWebhookEndpointInput!) {
+    createWebhookEndpoint(input: $input) {
+      secret
+      endpoint { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+    }
+  }
+`;
+
+export const UPDATE_WEBHOOK_ENDPOINT_MUTATION = `
+  mutation UpdateWebhookEndpoint($input: UpdateWebhookEndpointInput!) {
+    updateWebhookEndpoint(input: $input) { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+  }
+`;
+
+export const ROTATE_WEBHOOK_SECRET_MUTATION = `
+  mutation RotateWebhookSecret($workspaceId: ID!, $id: ID!) {
+    rotateWebhookSecret(workspaceId: $workspaceId, id: $id) {
+      secret
+      endpoint { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+    }
+  }
+`;
+
+export const DELETE_WEBHOOK_ENDPOINT_MUTATION = `
+  mutation DeleteWebhookEndpoint($workspaceId: ID!, $id: ID!) {
+    deleteWebhookEndpoint(workspaceId: $workspaceId, id: $id)
+  }
+`;
+
+// ─── Commerce: Products (catalog over model records) ─────────
+
+export const PRODUCT_CATALOG_QUERY = `
+  query ProductCatalog(
+    $modelId: ID!
+    $filter: ProductCatalogFilterInput
+    $limit: Int
+    $offset: Int
+    $sort: String
+  ) {
+    productCatalog(
+      modelId: $modelId
+      filter: $filter
+      limit: $limit
+      offset: $offset
+      sort: $sort
+    ) {
+      items {
+        id
+        data
+        status
+        onHand
+        reserved
+        available
+        hasVariants
+        variants {
+          key
+          sku
+          price
+          onHand
+          reserved
+          available
+          selectedOptions { name value }
+        }
+        createdAt
+        updatedAt
+      }
+      total
+      hasMore
+      lowStockThreshold
+    }
+  }
+`;
+
+export const BULK_UPDATE_PRODUCT_RECORDS_MUTATION = `
+  mutation BulkUpdateProductRecords(
+    $modelId: ID!
+    $selection: ProductBulkSelectionInput!
+    $patch: ProductBulkPatchInput!
+  ) {
+    bulkUpdateProductRecords(
+      modelId: $modelId
+      selection: $selection
+      patch: $patch
+    )
+  }
+`;
+
+export const BULK_DELETE_PRODUCT_RECORDS_MUTATION = `
+  mutation BulkDeleteProductRecords(
+    $modelId: ID!
+    $selection: ProductBulkSelectionInput!
+  ) {
+    bulkDeleteProductRecords(modelId: $modelId, selection: $selection)
+  }
+`;

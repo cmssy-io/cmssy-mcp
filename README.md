@@ -189,9 +189,38 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `create_discount`              | Create a discount (`percentage` / `fixed` / `free_shipping`)        |
 | `update_discount`              | Partial update (code/type/currency lock once the code is used)      |
 | `set_discount_enabled`         | Enable or disable a discount                                        |
+| `list_products`                | Product catalog with stock + variant info (over a Data Model)       |
+| `bulk_update_products`         | Bulk set/adjust status, stock, or price on selected products        |
+| `bulk_delete_products`         | Bulk-delete selected product records                                |
+
+Products are records of a Custom Data Model; these tools add product-aware
+stock/variant reads and bulk writes on top of the generic record tools. The
+bulk tools target an explicit `ids` list **or** everything matching a `filter`
+(`allMatching: true`). There is no per-variant stock write and no standalone
+inventory mutation - stock is set/adjusted in bulk via `patch.setStock` /
+`patch.adjustStock`.
 
 Requires workspace permissions `ORDERS_VIEW` / `ORDERS_MANAGE` (orders),
-`CARTS_VIEW` (carts), `DISCOUNTS_VIEW` / `DISCOUNTS_MANAGE` (discounts).
+`CARTS_VIEW` (carts), `DISCOUNTS_VIEW` / `DISCOUNTS_MANAGE` (discounts),
+`MODELS_VIEW` / `MODELS_EDIT` / `MODELS_DELETE` (products).
+
+### Webhook Tools
+
+Manage outbound event webhooks. `create_webhook` and `rotate_webhook_secret`
+return the signing secret **once** - it cannot be retrieved again.
+
+| Tool                       | Description                                              |
+| -------------------------- | -------------------------------------------------------- |
+| `list_webhooks`            | List webhook endpoints (secrets never returned)          |
+| `list_webhook_deliveries`  | Recent delivery attempts (pending/success/failed)        |
+| `list_webhook_event_types` | The authoritative allowlist of subscribable events       |
+| `create_webhook`           | Create an endpoint; returns the endpoint + secret (once) |
+| `update_webhook`           | Partial update; pass `enabled` to enable/disable         |
+| `rotate_webhook_secret`    | Rotate the signing secret (returns new secret once)      |
+| `delete_webhook`           | Delete an endpoint                                       |
+
+Requires workspace permissions `WEBHOOKS_VIEW` (read) / `WEBHOOKS_MANAGE`
+(create, update, rotate, delete).
 
 ## Resources
 

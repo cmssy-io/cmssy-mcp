@@ -93,6 +93,16 @@ import {
   CREATE_DISCOUNT_MUTATION,
   UPDATE_DISCOUNT_MUTATION,
   SET_DISCOUNT_ENABLED_MUTATION,
+  WEBHOOK_ENDPOINTS_QUERY,
+  WEBHOOK_DELIVERIES_QUERY,
+  WEBHOOK_EVENT_TYPES_QUERY,
+  CREATE_WEBHOOK_ENDPOINT_MUTATION,
+  UPDATE_WEBHOOK_ENDPOINT_MUTATION,
+  ROTATE_WEBHOOK_SECRET_MUTATION,
+  DELETE_WEBHOOK_ENDPOINT_MUTATION,
+  PRODUCT_CATALOG_QUERY,
+  BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
+  BULK_DELETE_PRODUCT_RECORDS_MUTATION,
 } from "./queries.js";
 import type {
   Page,
@@ -2937,6 +2947,319 @@ export function createServer(client: CmssyClient) {
         { workspaceId: client.workspaceId, id, enabled },
       );
       return jsonText(response, result.setDiscountEnabled, discountMinimal);
+    },
+  );
+
+  // ─── Commerce: Products (catalog over model records) ─────────
+  //
+  // Products are stored as records of a Custom Data Model. These tools add
+  // product-aware reads/writes (stock + variants) on top of the generic
+  // record tools. Money fields are integer minor units (cents).
+
+  const productFilterSchema = z.object({
+    search: z.string().optional(),
+    status: z.string().optional(),
+    stockState: z
+      .enum(["in", "low", "out"])
+      .optional()
+      .describe("in stock / low stock / out of stock"),
+    priceMin: z.number().optional(),
+    priceMax: z.number().optional(),
+    hasVariants: z.boolean().optional(),
+  });
+
+  server.tool(
+    "list_products",
+    "List a product model's catalog with stock and variant info. modelId is the Custom Data Model holding the products. Returns CatalogItem rows (onHand/reserved/available + per-variant stock) plus the workspace lowStockThreshold.",
+    {
+      modelId: z.string().describe("Product model id (ObjectId)"),
+      filter: productFilterSchema.optional(),
+      limit: z.number().int().optional().default(50),
+      offset: z.number().int().optional().default(0),
+      sort: z
+        .string()
+        .optional()
+        .describe("Sort expression, e.g. 'createdAt' or '-updatedAt'"),
+    },
+    async ({ modelId, filter, limit, offset, sort }) => {
+      const data = await client.query<{ productCatalog: unknown }>(
+        PRODUCT_CATALOG_QUERY,
+        { modelId, filter, limit, offset, sort },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.productCatalog, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  // Selection model shared by the bulk product mutations: target an explicit
+  // list of ids, OR everything matching a filter (allMatching=true). One of
+  // the two is required by the backend.
+  const productSelectionSchema = z
+    .object({
+      ids: z
+        .array(z.string())
+        .optional()
+        .describe("Explicit record ids to target"),
+      allMatching: z
+        .boolean()
+        .optional()
+        .describe("Target every record matching filter (ignores ids)"),
+      filter: productFilterSchema.optional(),
+    })
+    .describe("Provide non-empty 'ids' OR 'allMatching: true'");
+
+  server.tool(
+    "bulk_update_products",
+    "Bulk-update selected product records with a single patch applied uniformly (status, set/adjust stock, set/adjust price). Stock fields are units; price fields are minor units. Returns the number of records updated.",
+    {
+      modelId: z.string().describe("Product model id (ObjectId)"),
+      selection: productSelectionSchema,
+      patch: z
+        .object({
+          status: z.string().optional(),
+          setStock: z.number().int().optional().describe("Set absolute stock"),
+          adjustStock: z
+            .number()
+            .int()
+            .optional()
+            .describe("Delta to stock (+/-)"),
+          setPrice: z
+            .number()
+            .optional()
+            .describe("Set absolute price (minor units)"),
+          adjustPrice: z
+            .number()
+            .optional()
+            .describe("Delta to price (minor units, +/-)"),
+        })
+        .describe("Single patch applied to every selected record"),
+    },
+    async ({ modelId, selection, patch }) => {
+      const data = await client.query<{ bulkUpdateProductRecords: number }>(
+        BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
+        { modelId, selection, patch },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ updated: data.bulkUpdateProductRecords }),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "bulk_delete_products",
+    "Bulk-delete selected product records permanently. Returns the number of records deleted.",
+    {
+      modelId: z.string().describe("Product model id (ObjectId)"),
+      selection: productSelectionSchema,
+    },
+    async ({ modelId, selection }) => {
+      const data = await client.query<{ bulkDeleteProductRecords: number }>(
+        BULK_DELETE_PRODUCT_RECORDS_MUTATION,
+        { modelId, selection },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ deleted: data.bulkDeleteProductRecords }),
+          },
+        ],
+      };
+    },
+  );
+
+  // ─── Webhooks ────────────────────────────────────────────────
+  //
+  // Outbound event webhooks. Like commerce, workspaceId is required by every
+  // resolver and sourced from the client. createWebhookEndpoint and
+  // rotateWebhookSecret return the signing secret ONCE - it is surfaced in
+  // full and cannot be retrieved again.
+
+  server.tool(
+    "list_webhooks",
+    "List the workspace's webhook endpoints (signing secrets are never returned here).",
+    {},
+    async () => {
+      const data = await client.query<{ webhookEndpoints: unknown[] }>(
+        WEBHOOK_ENDPOINTS_QUERY,
+        { workspaceId: client.workspaceId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.webhookEndpoints, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "list_webhook_deliveries",
+    "List recent webhook delivery attempts (status: pending/success/failed) for debugging.",
+    {
+      limit: z.number().int().optional().default(50),
+    },
+    async ({ limit }) => {
+      const data = await client.query<{ webhookDeliveries: unknown[] }>(
+        WEBHOOK_DELIVERIES_QUERY,
+        { workspaceId: client.workspaceId, limit },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.webhookDeliveries, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "list_webhook_event_types",
+    "List the event types a webhook can subscribe to (the authoritative allowlist).",
+    {},
+    async () => {
+      const data = await client.query<{ webhookEventTypes: string[] }>(
+        WEBHOOK_EVENT_TYPES_QUERY,
+        { workspaceId: client.workspaceId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.webhookEventTypes, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  // The backend validates events against its allowlist; list_webhook_event_types
+  // is authoritative. These are the known values at time of writing.
+  const WEBHOOK_EVENTS_HINT =
+    "Event names, e.g. order.created, order.paid, order.refunded, order.canceled, order.fulfilled, order.returned, order.edited, order.pipeline_changed. Use list_webhook_event_types for the authoritative list.";
+
+  server.tool(
+    "create_webhook",
+    "Create a webhook endpoint subscribed to one or more events. The URL must be a public https endpoint. Returns the endpoint AND its signing secret - the secret is shown only once.",
+    {
+      url: z.string().describe("Public https endpoint URL"),
+      events: z
+        .array(z.string())
+        .min(1, "Subscribe to at least 1 event")
+        .describe(WEBHOOK_EVENTS_HINT),
+      description: z.string().optional(),
+    },
+    async ({ url, events, description }) => {
+      const data = await client.query<{ createWebhookEndpoint: unknown }>(
+        CREATE_WEBHOOK_ENDPOINT_MUTATION,
+        {
+          input: { workspaceId: client.workspaceId, url, events, description },
+        },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.createWebhookEndpoint, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "update_webhook",
+    "Update a webhook endpoint (partial - only provided fields change). Pass enabled to enable/disable. Pass description=null to clear it. The signing secret is not returned.",
+    {
+      id: z.string(),
+      url: z.string().optional(),
+      events: z
+        .array(z.string())
+        .min(1)
+        .optional()
+        .describe(WEBHOOK_EVENTS_HINT),
+      enabled: z.boolean().optional(),
+      description: z
+        .string()
+        .nullable()
+        .optional()
+        .describe("New description; null clears it"),
+    },
+    async ({ id, ...fields }) => {
+      const data = await client.query<{ updateWebhookEndpoint: unknown }>(
+        UPDATE_WEBHOOK_ENDPOINT_MUTATION,
+        { input: { workspaceId: client.workspaceId, id, ...fields } },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.updateWebhookEndpoint, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "rotate_webhook_secret",
+    "Rotate a webhook endpoint's signing secret. Returns the endpoint and the NEW secret - shown only once.",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ rotateWebhookSecret: unknown }>(
+        ROTATE_WEBHOOK_SECRET_MUTATION,
+        { workspaceId: client.workspaceId, id },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.rotateWebhookSecret, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "delete_webhook",
+    "Delete a webhook endpoint permanently.",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ deleteWebhookEndpoint: boolean }>(
+        DELETE_WEBHOOK_ENDPOINT_MUTATION,
+        { workspaceId: client.workspaceId, id },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: data.deleteWebhookEndpoint
+              ? "Webhook deleted"
+              : "Failed to delete webhook",
+          },
+        ],
+        isError: !data.deleteWebhookEndpoint,
+      };
     },
   );
 
