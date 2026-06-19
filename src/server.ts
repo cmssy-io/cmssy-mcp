@@ -2613,6 +2613,17 @@ export function createServer(client: CmssyClient) {
       response: responseModeSchema,
     },
     async ({ orderId, response, ...fields }) => {
+      if (Object.keys(fields).length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide at least one field to update",
+            },
+          ],
+          isError: true,
+        };
+      }
       const result = await client.query<{ updateOrderDetails: OrderResult }>(
         UPDATE_ORDER_DETAILS_MUTATION,
         { input: { workspaceId: client.workspaceId, orderId, ...fields } },
@@ -2925,6 +2936,17 @@ export function createServer(client: CmssyClient) {
       response: responseModeSchema,
     },
     async ({ id, response, ...input }) => {
+      if (Object.keys(input).length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide at least one field to update",
+            },
+          ],
+          isError: true,
+        };
+      }
       const result = await client.query<{ updateDiscount: DiscountResult }>(
         UPDATE_DISCOUNT_MUTATION,
         { workspaceId: client.workspaceId, id, input },
@@ -3201,6 +3223,17 @@ export function createServer(client: CmssyClient) {
         .describe("New description; null clears it"),
     },
     async ({ id, ...fields }) => {
+      if (Object.keys(fields).length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide at least one field to update",
+            },
+          ],
+          isError: true,
+        };
+      }
       const data = await client.query<{ updateWebhookEndpoint: unknown }>(
         UPDATE_WEBHOOK_ENDPOINT_MUTATION,
         { input: { workspaceId: client.workspaceId, id, ...fields } },
