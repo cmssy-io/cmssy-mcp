@@ -137,6 +137,72 @@ export function recordMinimal(record: RecordLike): RecordMinimal {
   return out;
 }
 
+interface OrderLike {
+  id: string;
+  orderNumber?: number | null;
+  status?: string | null;
+  paymentStatus?: string | null;
+  fulfillmentStatus?: string | null;
+  total?: number | null;
+  balanceDue?: number | null;
+  currency?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface OrderMinimal {
+  id: string;
+  orderNumber?: number;
+  status?: string;
+  paymentStatus?: string;
+  fulfillmentStatus?: string;
+  total?: number;
+  balanceDue?: number;
+  currency?: string;
+  updatedAt?: string;
+}
+
+export function orderMinimal(order: OrderLike): OrderMinimal {
+  const out: OrderMinimal = { id: order.id };
+  if (order.orderNumber != null) out.orderNumber = order.orderNumber;
+  if (order.status != null) out.status = order.status;
+  if (order.paymentStatus != null) out.paymentStatus = order.paymentStatus;
+  if (order.fulfillmentStatus != null)
+    out.fulfillmentStatus = order.fulfillmentStatus;
+  if (order.total != null) out.total = order.total;
+  if (order.balanceDue != null) out.balanceDue = order.balanceDue;
+  if (order.currency != null) out.currency = order.currency;
+  if (order.updatedAt != null) out.updatedAt = order.updatedAt;
+  return out;
+}
+
+interface DiscountLike {
+  id: string;
+  code?: string | null;
+  type?: string | null;
+  value?: number | null;
+  enabled?: boolean | null;
+  updatedAt?: string | null;
+}
+
+export interface DiscountMinimal {
+  id: string;
+  code?: string;
+  type?: string;
+  value?: number;
+  enabled?: boolean;
+  updatedAt?: string;
+}
+
+export function discountMinimal(discount: DiscountLike): DiscountMinimal {
+  const out: DiscountMinimal = { id: discount.id };
+  if (discount.code != null) out.code = discount.code;
+  if (discount.type != null) out.type = discount.type;
+  if (discount.value != null) out.value = discount.value;
+  if (discount.enabled != null) out.enabled = discount.enabled;
+  if (discount.updatedAt != null) out.updatedAt = discount.updatedAt;
+  return out;
+}
+
 // Tiny wrapper so call sites stay one-liners instead of repeating
 // `JSON.stringify(mode === "full" ? data : minimal(data), ...)`.
 // Minimal mode emits compact JSON - the whole point is keeping the ack

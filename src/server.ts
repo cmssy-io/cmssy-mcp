@@ -74,6 +74,25 @@ import {
   UPDATE_MODEL_RECORD_STATUS_MUTATION,
   DELETE_MODEL_RECORD_MUTATION,
   IMPORT_MODEL_RECORDS_MUTATION,
+  ORDERS_QUERY,
+  ORDER_BY_ID_QUERY,
+  ORDER_PIPELINE_QUERY,
+  CREATE_MANUAL_ORDER_MUTATION,
+  EDIT_ORDER_MUTATION,
+  UPDATE_ORDER_DETAILS_MUTATION,
+  MARK_ORDER_PAID_MUTATION,
+  RECORD_ORDER_PAYMENT_MUTATION,
+  REFUND_ORDER_MUTATION,
+  CANCEL_ORDER_MUTATION,
+  TRANSITION_ORDER_FULFILLMENT_MUTATION,
+  SET_ORDER_PIPELINE_STAGE_MUTATION,
+  RECORD_ORDER_INVOICE_MUTATION,
+  ADMIN_CARTS_QUERY,
+  DISCOUNTS_QUERY,
+  DISCOUNT_BY_ID_QUERY,
+  CREATE_DISCOUNT_MUTATION,
+  UPDATE_DISCOUNT_MUTATION,
+  SET_DISCOUNT_ENABLED_MUTATION,
 } from "./queries.js";
 import type {
   Page,
@@ -89,6 +108,8 @@ import {
   formMinimal,
   modelMinimal,
   recordMinimal,
+  orderMinimal,
+  discountMinimal,
   jsonText,
 } from "./responses.js";
 
@@ -2378,6 +2399,544 @@ export function createServer(client: CmssyClient) {
           },
         ],
       };
+    },
+  );
+
+  // ─── Commerce: Orders ────────────────────────────────────────
+  //
+  // workspaceId is required by every commerce resolver and cross-checked
+  // against the token's workspace context, so it always comes from the
+  // client (the same value sent in the x-workspace-id header) - it is not
+  // a caller-supplied arg. All money fields are integer minor units (cents).
+
+  const PAYMENT_STATUS = [
+    "unpaid",
+    "partially_paid",
+    "authorized",
+    "paid",
+    "partially_refunded",
+    "refunded",
+  ] as const;
+  const FULFILLMENT_STATUS = [
+    "unfulfilled",
+    "partially_fulfilled",
+    "fulfilled",
+    "returned",
+  ] as const;
+  const CART_STATUS = [
+    "active",
+    "saved",
+    "quote_requested",
+    "merged",
+    "expired",
+    "abandoned",
+    "ordered",
+  ] as const;
+  const DISCOUNT_TYPE = ["percentage", "fixed", "free_shipping"] as const;
+
+  type OrderResult = {
+    id: string;
+    orderNumber?: number | null;
+    status?: string | null;
+    paymentStatus?: string | null;
+    fulfillmentStatus?: string | null;
+    total?: number | null;
+    balanceDue?: number | null;
+    currency?: string | null;
+    updatedAt?: string | null;
+  };
+  type DiscountResult = {
+    id: string;
+    code?: string | null;
+    type?: string | null;
+    value?: number | null;
+    enabled?: boolean | null;
+    updatedAt?: string | null;
+  };
+
+  const orderItemSchema = z.object({
+    recordId: z
+      .string()
+      .optional()
+      .describe("Product record id (ObjectId) the line refers to"),
+    quantity: z.number().int().positive(),
+    variantSelections: z
+      .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
+      .optional()
+      .describe("Selected variant options, e.g. {size: 'M', color: 'red'}"),
+    name: z.string().optional().describe("Custom line name (ad-hoc item)"),
+    price: z
+      .number()
+      .int()
+      .optional()
+      .describe("Custom unit price in minor units (ad-hoc item)"),
+  });
+
+  server.tool(
+    "list_orders",
+    "List orders with optional filters and pagination. Money fields are integer minor units (cents). Pass pipelineStageId='__unassigned__' to list orders with no pipeline stage.",
+    {
+      paymentStatus: z.enum(PAYMENT_STATUS).optional(),
+      fulfillmentStatus: z.enum(FULFILLMENT_STATUS).optional(),
+      customerId: z.string().optional(),
+      search: z.string().optional(),
+      pipelineStageId: z.string().optional(),
+      dateFrom: z
+        .string()
+        .optional()
+        .describe("ISO date-time lower bound (inclusive)"),
+      dateTo: z
+        .string()
+        .optional()
+        .describe("ISO date-time upper bound (inclusive)"),
+      skip: z.number().int().optional().default(0),
+      limit: z.number().int().optional().default(20),
+    },
+    async (args) => {
+      const data = await client.query<{
+        orders: { items: unknown[]; total: number; hasMore: boolean };
+      }>(ORDERS_QUERY, { workspaceId: client.workspaceId, ...args });
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(data.orders, null, 2) },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_order",
+    "Get a single order by id, including items, payments, and tax summary.",
+    {
+      id: z.string().describe("Order id"),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ order: unknown | null }>(
+        ORDER_BY_ID_QUERY,
+        { workspaceId: client.workspaceId, id },
+      );
+      if (!data.order) {
+        return {
+          content: [{ type: "text" as const, text: "Order not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(data.order, null, 2) },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_order_pipeline",
+    "Get the workspace order pipeline (the configurable stages orders move through).",
+    {},
+    async () => {
+      const data = await client.query<{ orderPipeline: unknown }>(
+        ORDER_PIPELINE_QUERY,
+        { workspaceId: client.workspaceId },
+      );
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.orderPipeline, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_manual_order",
+    "Create a manual (admin-entered) order. Each item references a product recordId or is an ad-hoc line with name+price (minor units). Returns a minimal ack by default; pass response='full' for the full order.",
+    {
+      customerEmail: z.string().describe("Customer email for the order"),
+      customerId: z.string().optional(),
+      items: z.array(orderItemSchema).min(1, "Provide at least 1 item"),
+      response: responseModeSchema,
+    },
+    async ({ customerEmail, customerId, items, response }) => {
+      const result = await client.query<{ createManualOrder: OrderResult }>(
+        CREATE_MANUAL_ORDER_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            customerEmail,
+            customerId,
+            items,
+          },
+        },
+      );
+      return jsonText(response, result.createManualOrder, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "edit_order",
+    "Replace an order's line items (full replace of the items array). Recomputes totals. Returns a minimal ack by default; pass response='full' for the full order.",
+    {
+      orderId: z.string(),
+      items: z.array(orderItemSchema).min(1, "Provide at least 1 item"),
+      response: responseModeSchema,
+    },
+    async ({ orderId, items, response }) => {
+      const result = await client.query<{ editOrder: OrderResult }>(
+        EDIT_ORDER_MUTATION,
+        { input: { workspaceId: client.workspaceId, orderId, items } },
+      );
+      return jsonText(response, result.editOrder, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "update_order_details",
+    "Update order metadata: customer email, internal notes, and shipment tracking. Only provided fields change.",
+    {
+      orderId: z.string(),
+      customerEmail: z.string().optional(),
+      notes: z.string().optional(),
+      trackingNumber: z.string().optional(),
+      trackingCarrier: z.string().optional(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, response, ...fields }) => {
+      const result = await client.query<{ updateOrderDetails: OrderResult }>(
+        UPDATE_ORDER_DETAILS_MUTATION,
+        { input: { workspaceId: client.workspaceId, orderId, ...fields } },
+      );
+      return jsonText(response, result.updateOrderDetails, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "mark_order_paid",
+    "Record a full payment for an order (does NOT verify with a payment provider - admin/manual reconciliation). amount is in minor units.",
+    {
+      orderId: z.string(),
+      amount: z.number().int().describe("Amount in minor units (cents)"),
+      reference: z.string().describe("Payment reference / receipt id"),
+      provider: z.string().describe("Payment provider label, e.g. 'manual'"),
+      response: responseModeSchema,
+    },
+    async ({ orderId, amount, reference, provider, response }) => {
+      const result = await client.query<{ markOrderPaid: OrderResult }>(
+        MARK_ORDER_PAID_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            orderId,
+            amount,
+            reference,
+            provider,
+          },
+        },
+      );
+      return jsonText(response, result.markOrderPaid, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "record_order_payment",
+    "Record a (possibly partial) payment against an order's outstanding balance. amount is in minor units and capped at the balance due.",
+    {
+      orderId: z.string(),
+      amount: z.number().int().describe("Amount in minor units (cents)"),
+      reference: z.string().describe("Payment reference / receipt id"),
+      provider: z.string().optional(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, amount, reference, provider, response }) => {
+      const result = await client.query<{ recordOrderPayment: OrderResult }>(
+        RECORD_ORDER_PAYMENT_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            orderId,
+            amount,
+            reference,
+            provider,
+          },
+        },
+      );
+      return jsonText(response, result.recordOrderPayment, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "refund_order",
+    "Refund an order. Omit amount for a full refund; pass amount (minor units) for a partial refund.",
+    {
+      orderId: z.string(),
+      reference: z.string().describe("Refund reference / receipt id"),
+      amount: z
+        .number()
+        .int()
+        .optional()
+        .describe("Partial refund amount in minor units; omit for full refund"),
+      response: responseModeSchema,
+    },
+    async ({ orderId, reference, amount, response }) => {
+      const result = await client.query<{ refundOrder: OrderResult }>(
+        REFUND_ORDER_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            orderId,
+            reference,
+            amount,
+          },
+        },
+      );
+      return jsonText(response, result.refundOrder, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "cancel_order",
+    "Cancel an order.",
+    {
+      orderId: z.string(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, response }) => {
+      const result = await client.query<{ cancelOrder: OrderResult }>(
+        CANCEL_ORDER_MUTATION,
+        { input: { workspaceId: client.workspaceId, orderId } },
+      );
+      return jsonText(response, result.cancelOrder, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "transition_order_fulfillment",
+    "Move an order to a new fulfillment status. Optionally attach tracking when marking fulfilled.",
+    {
+      orderId: z.string(),
+      status: z.enum(FULFILLMENT_STATUS),
+      trackingNumber: z.string().optional(),
+      trackingCarrier: z.string().optional(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, status, trackingNumber, trackingCarrier, response }) => {
+      const result = await client.query<{
+        transitionOrderFulfillment: OrderResult;
+      }>(TRANSITION_ORDER_FULFILLMENT_MUTATION, {
+        input: {
+          workspaceId: client.workspaceId,
+          orderId,
+          status,
+          trackingNumber,
+          trackingCarrier,
+        },
+      });
+      return jsonText(
+        response,
+        result.transitionOrderFulfillment,
+        orderMinimal,
+      );
+    },
+  );
+
+  server.tool(
+    "set_order_pipeline_stage",
+    "Move an order to a pipeline stage (use get_order_pipeline for valid stage ids).",
+    {
+      orderId: z.string(),
+      stageId: z.string(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, stageId, response }) => {
+      const result = await client.query<{ setOrderPipelineStage: OrderResult }>(
+        SET_ORDER_PIPELINE_STAGE_MUTATION,
+        { input: { workspaceId: client.workspaceId, orderId, stageId } },
+      );
+      return jsonText(response, result.setOrderPipelineStage, orderMinimal);
+    },
+  );
+
+  server.tool(
+    "record_order_invoice",
+    "Attach an invoice (number, optional URL and provider) to an order.",
+    {
+      orderId: z.string(),
+      number: z.string().describe("Invoice number"),
+      url: z.string().optional(),
+      provider: z.string().optional(),
+      response: responseModeSchema,
+    },
+    async ({ orderId, number, url, provider, response }) => {
+      const result = await client.query<{ recordOrderInvoice: OrderResult }>(
+        RECORD_ORDER_INVOICE_MUTATION,
+        {
+          input: {
+            workspaceId: client.workspaceId,
+            orderId,
+            number,
+            url,
+            provider,
+          },
+        },
+      );
+      return jsonText(response, result.recordOrderInvoice, orderMinimal);
+    },
+  );
+
+  // ─── Commerce: Carts ─────────────────────────────────────────
+
+  server.tool(
+    "list_carts",
+    "List shopping carts (admin view) with optional status filter and pagination. totalValue is in minor units.",
+    {
+      status: z.enum(CART_STATUS).optional(),
+      skip: z.number().int().optional().default(0),
+      limit: z.number().int().optional().default(20),
+    },
+    async (args) => {
+      const data = await client.query<{
+        adminCarts: { items: unknown[]; total: number; hasMore: boolean };
+      }>(ADMIN_CARTS_QUERY, { workspaceId: client.workspaceId, ...args });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.adminCarts, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  // ─── Commerce: Discounts ─────────────────────────────────────
+
+  server.tool(
+    "list_discounts",
+    "List discount codes with optional filters and pagination.",
+    {
+      enabled: z.boolean().optional(),
+      type: z.enum(DISCOUNT_TYPE).optional(),
+      search: z.string().optional().describe("Substring match on code"),
+      limit: z.number().int().optional().default(25),
+      offset: z.number().int().optional().default(0),
+    },
+    async (args) => {
+      const data = await client.query<{
+        discounts: { items: unknown[]; total: number; hasMore: boolean };
+      }>(DISCOUNTS_QUERY, { workspaceId: client.workspaceId, ...args });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.discounts, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "get_discount",
+    "Get a single discount by id.",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      const data = await client.query<{ discount: unknown | null }>(
+        DISCOUNT_BY_ID_QUERY,
+        { workspaceId: client.workspaceId, id },
+      );
+      if (!data.discount) {
+        return {
+          content: [{ type: "text" as const, text: "Discount not found" }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(data.discount, null, 2),
+          },
+        ],
+      };
+    },
+  );
+
+  server.tool(
+    "create_discount",
+    "Create a discount code. For type='fixed', value and currency are required (value in minor units). For 'percentage', value is the percent and currency must be omitted. minSubtotal is in minor units. Dates are ISO date-time strings.",
+    {
+      code: z.string(),
+      type: z.enum(DISCOUNT_TYPE),
+      value: z
+        .number()
+        .describe("Percent for 'percentage'; minor units for 'fixed'"),
+      currency: z
+        .string()
+        .optional()
+        .describe("Required for 'fixed'; omit otherwise"),
+      minSubtotal: z
+        .number()
+        .optional()
+        .describe("Minimum order subtotal in minor units"),
+      maxUses: z.number().int().optional(),
+      maxUsesPerUser: z.number().int().optional(),
+      startsAt: z.string().optional().describe("ISO date-time"),
+      endsAt: z.string().optional().describe("ISO date-time"),
+      enabled: z.boolean(),
+      response: responseModeSchema,
+    },
+    async ({ response, ...input }) => {
+      const result = await client.query<{ createDiscount: DiscountResult }>(
+        CREATE_DISCOUNT_MUTATION,
+        { workspaceId: client.workspaceId, input },
+      );
+      return jsonText(response, result.createDiscount, discountMinimal);
+    },
+  );
+
+  server.tool(
+    "update_discount",
+    "Update a discount (partial - only provided fields change). code/type/currency become immutable once the discount has been used at least once.",
+    {
+      id: z.string(),
+      code: z.string().optional(),
+      type: z.enum(DISCOUNT_TYPE).optional(),
+      value: z.number().optional(),
+      currency: z.string().optional(),
+      minSubtotal: z.number().optional(),
+      maxUses: z.number().int().optional(),
+      maxUsesPerUser: z.number().int().optional(),
+      startsAt: z.string().optional().describe("ISO date-time"),
+      endsAt: z.string().optional().describe("ISO date-time"),
+      enabled: z.boolean().optional(),
+      response: responseModeSchema,
+    },
+    async ({ id, response, ...input }) => {
+      const result = await client.query<{ updateDiscount: DiscountResult }>(
+        UPDATE_DISCOUNT_MUTATION,
+        { workspaceId: client.workspaceId, id, input },
+      );
+      return jsonText(response, result.updateDiscount, discountMinimal);
+    },
+  );
+
+  server.tool(
+    "set_discount_enabled",
+    "Enable or disable a discount code.",
+    {
+      id: z.string(),
+      enabled: z.boolean(),
+      response: responseModeSchema,
+    },
+    async ({ id, enabled, response }) => {
+      const result = await client.query<{ setDiscountEnabled: DiscountResult }>(
+        SET_DISCOUNT_ENABLED_MUTATION,
+        { workspaceId: client.workspaceId, id, enabled },
+      );
+      return jsonText(response, result.setDiscountEnabled, discountMinimal);
     },
   );
 
