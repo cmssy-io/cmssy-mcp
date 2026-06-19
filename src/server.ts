@@ -2464,23 +2464,32 @@ export function createServer(client: CmssyClient) {
     updatedAt?: string | null;
   };
 
-  const orderItemSchema = z.object({
-    recordId: z
-      .string()
-      .optional()
-      .describe("Product record id (ObjectId) the line refers to"),
-    quantity: z.number().int().positive(),
-    variantSelections: z
-      .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
-      .optional()
-      .describe("Selected variant options, e.g. {size: 'M', color: 'red'}"),
-    name: z.string().optional().describe("Custom line name (ad-hoc item)"),
-    price: z
-      .number()
-      .int()
-      .optional()
-      .describe("Custom unit price in minor units (ad-hoc item)"),
-  });
+  const orderItemSchema = z
+    .object({
+      recordId: z
+        .string()
+        .optional()
+        .describe("Product record id (ObjectId) the line refers to"),
+      quantity: z.number().int().positive(),
+      variantSelections: z
+        .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
+        .optional()
+        .describe("Selected variant options, e.g. {size: 'M', color: 'red'}"),
+      name: z.string().optional().describe("Custom line name (ad-hoc item)"),
+      price: z
+        .number()
+        .int()
+        .optional()
+        .describe("Custom unit price in minor units (ad-hoc item)"),
+    })
+    .refine(
+      (item) =>
+        item.recordId != null || (item.name != null && item.price != null),
+      {
+        message:
+          "Each item needs a recordId, or both name and price for an ad-hoc line",
+      },
+    );
 
   server.tool(
     "list_orders",
@@ -2910,6 +2919,18 @@ export function createServer(client: CmssyClient) {
       response: responseModeSchema,
     },
     async ({ response, ...input }) => {
+      const currencyError =
+        input.type === "fixed" && !input.currency
+          ? "currency is required for type 'fixed'"
+          : input.type !== "fixed" && input.currency
+            ? `currency must be omitted for type '${input.type}'`
+            : null;
+      if (currencyError) {
+        return {
+          content: [{ type: "text" as const, text: currencyError }],
+          isError: true,
+        };
+      }
       const result = await client.query<{ createDiscount: DiscountResult }>(
         CREATE_DISCOUNT_MUTATION,
         { workspaceId: client.workspaceId, input },
@@ -3034,6 +3055,9 @@ export function createServer(client: CmssyClient) {
         .describe("Target every record matching filter (ignores ids)"),
       filter: productFilterSchema.optional(),
     })
+    .refine((s) => (s.ids?.length ?? 0) > 0 || s.allMatching === true, {
+      message: "Provide a non-empty 'ids' array or set 'allMatching: true'",
+    })
     .describe("Provide non-empty 'ids' OR 'allMatching: true'");
 
   server.tool(
@@ -3053,16 +3077,29 @@ export function createServer(client: CmssyClient) {
             .describe("Delta to stock (+/-)"),
           setPrice: z
             .number()
+            .int()
             .optional()
             .describe("Set absolute price (minor units)"),
           adjustPrice: z
             .number()
+            .int()
             .optional()
             .describe("Delta to price (minor units, +/-)"),
         })
         .describe("Single patch applied to every selected record"),
     },
     async ({ modelId, selection, patch }) => {
+      if (Object.keys(patch).length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Provide at least one patch field (status, set/adjust stock or price)",
+            },
+          ],
+          isError: true,
+        };
+      }
       const data = await client.query<{ bulkUpdateProductRecords: number }>(
         BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
         { modelId, selection, patch },

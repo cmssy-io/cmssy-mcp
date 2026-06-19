@@ -697,6 +697,28 @@ const ORDER_FRAGMENT = `
   updatedAt
 `;
 
+// Slim selection for list views - omits items/payments/taxSummary so a page
+// of orders does not blow up the agent's context. Use get_order for full detail.
+const ORDER_LIST_FRAGMENT = `
+  id
+  status
+  paymentStatus
+  fulfillmentStatus
+  orderNumber
+  customerId
+  customerEmail
+  currency
+  subtotal
+  tax
+  total
+  amountPaid
+  balanceDue
+  refundedAmount
+  pipelineStageId
+  createdAt
+  updatedAt
+`;
+
 export const ORDERS_QUERY = `
   query Orders(
     $workspaceId: ID!
@@ -722,7 +744,7 @@ export const ORDERS_QUERY = `
       skip: $skip
       limit: $limit
     ) {
-      items { ${ORDER_FRAGMENT} }
+      items { ${ORDER_LIST_FRAGMENT} }
       total
       hasMore
     }
