@@ -9,6 +9,7 @@ import {
   createRecordTool,
   createDiscountTool,
   createPageTool,
+  createFormTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
@@ -65,7 +66,6 @@ import {
   FORM_BY_ID_QUERY,
   FORM_SUBMISSIONS_QUERY,
   FORM_SUBMISSION_BY_ID_QUERY,
-  CREATE_FORM_MUTATION,
   UPDATE_FORM_MUTATION,
   DELETE_FORM_MUTATION,
   UPDATE_FORM_SUBMISSION_STATUS_MUTATION,
@@ -1482,121 +1482,7 @@ export function createServer(client: CmssyClient) {
     },
   );
 
-  server.tool(
-    "create_form",
-    "Create a new form with fields and settings. Returns a minimal ack by default; pass response='full' for the full form.",
-    {
-      name: z.string().describe("Form name"),
-      slug: z.string().describe("URL-friendly slug (must be unique)"),
-      description: z.string().optional().describe("Form description"),
-      fields: z
-        .preprocess(
-          jsonPreprocess,
-          z.array(
-            z.object({
-              id: z.string().describe("Unique field ID"),
-              name: z.string().describe("Field name (used as form data key)"),
-              fieldType: z
-                .enum([
-                  "text",
-                  "email",
-                  "password",
-                  "textarea",
-                  "number",
-                  "phone",
-                  "url",
-                  "date",
-                  "datetime",
-                  "select",
-                  "multiselect",
-                  "checkbox",
-                  "radio",
-                  "file",
-                  "hidden",
-                ])
-                .optional()
-                .default("text"),
-              label: z
-                .record(z.string(), z.unknown())
-                .optional()
-                .describe("i18n labels: { en: 'Name', pl: 'Imię' }"),
-              placeholder: z.record(z.string(), z.unknown()).optional(),
-              helpText: z.record(z.string(), z.unknown()).optional(),
-              defaultValue: z.string().optional(),
-              validation: z
-                .object({
-                  required: z.boolean().optional(),
-                  minLength: z.number().optional(),
-                  maxLength: z.number().optional(),
-                  minValue: z.number().optional(),
-                  maxValue: z.number().optional(),
-                  pattern: z.string().optional(),
-                  customMessage: z.string().optional(),
-                })
-                .optional(),
-              options: z
-                .array(
-                  z.object({
-                    value: z.string(),
-                    label: z.record(z.string(), z.unknown()).optional(),
-                    disabled: z.boolean().optional(),
-                  }),
-                )
-                .optional(),
-              width: z
-                .enum(["full", "half", "third"])
-                .optional()
-                .default("full"),
-              order: z.number().optional().default(0),
-              showIf: z.record(z.string(), z.unknown()).optional(),
-            }),
-          ),
-        )
-        .optional()
-        .describe("Form field definitions"),
-      settings: z
-        .preprocess(
-          jsonPreprocess,
-          z.object({
-            actionType: z
-              .enum(["login", "register", "newsletter", "contact", "custom"])
-              .optional()
-              .default("contact"),
-            webhookUrl: z.string().optional(),
-            emailRecipients: z.array(z.string()).optional(),
-            newsletterListId: z.string().optional(),
-            submitButtonLabel: z.record(z.string(), z.unknown()).optional(),
-            successMessage: z.record(z.string(), z.unknown()).optional(),
-            errorMessage: z.record(z.string(), z.unknown()).optional(),
-            redirectUrl: z.string().optional(),
-            enableCaptcha: z.boolean().optional(),
-            requireLogin: z.boolean().optional(),
-            saveSubmissions: z.boolean().optional(),
-            sendEmailNotification: z.boolean().optional(),
-            emailConfigurationId: z.string().optional(),
-          }),
-        )
-        .optional()
-        .describe("Form settings (action type, notifications, etc.)"),
-      response: responseModeSchema,
-    },
-    async ({ name, slug, description, fields, settings, response }) => {
-      const input: Record<string, unknown> = { name, slug };
-      if (description) input.description = description;
-      if (fields) input.fields = fields;
-      if (settings) input.settings = settings;
-
-      const data = await client.query<{
-        createForm: {
-          id: string;
-          slug?: string | null;
-          status?: string | null;
-          updatedAt?: string | null;
-        };
-      }>(CREATE_FORM_MUTATION, { input });
-      return jsonText(response, data.createForm, formMinimal);
-    },
-  );
+  bindSharedTool(server, createFormTool, sharedOps);
 
   server.tool(
     "update_form",

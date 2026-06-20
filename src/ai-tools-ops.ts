@@ -6,6 +6,7 @@ import {
   CREATE_MODEL_RECORD_MUTATION,
   CREATE_DISCOUNT_MUTATION,
   SAVE_PAGE_MUTATION,
+  CREATE_FORM_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -109,7 +110,21 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     media: { list: () => notBound("media.list") },
     forms: {
       list: () => notBound("forms.list"),
-      create: () => notBound("forms.create"),
+      create: async (input) => {
+        const mutationInput: Record<string, unknown> = {
+          name: input.name,
+          slug: input.slug,
+        };
+        if (input.description !== undefined)
+          mutationInput.description = input.description;
+        if (input.fields !== undefined) mutationInput.fields = input.fields;
+        if (input.settings !== undefined)
+          mutationInput.settings = input.settings;
+        const res = await client.query<{
+          createForm: { id: string; name: string };
+        }>(CREATE_FORM_MUTATION, { input: mutationInput });
+        return { id: res.createForm.id, name: res.createForm.name };
+      },
     },
     orders: { list: () => notBound("orders.list") },
     discounts: {
