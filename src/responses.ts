@@ -99,44 +99,6 @@ export function formMinimal(form: FormLike): FormMinimal {
   return out;
 }
 
-interface ModelLike {
-  id: string;
-  slug?: string | null;
-  updatedAt?: string | null;
-}
-
-export interface ModelMinimal {
-  id: string;
-  slug?: string;
-  updatedAt?: string;
-}
-
-export function modelMinimal(model: ModelLike): ModelMinimal {
-  const out: ModelMinimal = { id: model.id };
-  if (model.slug != null) out.slug = model.slug;
-  if (model.updatedAt != null) out.updatedAt = model.updatedAt;
-  return out;
-}
-
-interface RecordLike {
-  id: string;
-  status?: string | null;
-  updatedAt?: string | null;
-}
-
-export interface RecordMinimal {
-  id: string;
-  status?: string;
-  updatedAt?: string;
-}
-
-export function recordMinimal(record: RecordLike): RecordMinimal {
-  const out: RecordMinimal = { id: record.id };
-  if (record.status != null) out.status = record.status;
-  if (record.updatedAt != null) out.updatedAt = record.updatedAt;
-  return out;
-}
-
 interface OrderLike {
   id: string;
   orderNumber?: number | null;

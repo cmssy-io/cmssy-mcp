@@ -3,9 +3,16 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { mediaTypeValues } from "@cmssy/types";
 import { CmssyClient } from "./graphql-client.js";
-import { createRecordTool, createDiscountTool } from "@cmssy/ai-tools";
+import {
+  createRecordTool,
+  createDiscountTool,
+  createPageTool,
+  createFormTool,
+  createModelTool,
+  updateModelTool,
+  updateRecordTool,
+} from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
 
@@ -61,7 +68,6 @@ import {
   FORM_BY_ID_QUERY,
   FORM_SUBMISSIONS_QUERY,
   FORM_SUBMISSION_BY_ID_QUERY,
-  CREATE_FORM_MUTATION,
   UPDATE_FORM_MUTATION,
   DELETE_FORM_MUTATION,
   UPDATE_FORM_SUBMISSION_STATUS_MUTATION,
@@ -71,11 +77,7 @@ import {
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_RECORDS_QUERY,
   MODEL_RECORD_BY_ID_QUERY,
-  CREATE_MODEL_DEFINITION_MUTATION,
-  UPDATE_MODEL_DEFINITION_MUTATION,
   DELETE_MODEL_DEFINITION_MUTATION,
-  UPDATE_MODEL_RECORD_MUTATION,
-  UPDATE_MODEL_RECORD_STATUS_MUTATION,
   DELETE_MODEL_RECORD_MUTATION,
   IMPORT_MODEL_RECORDS_MUTATION,
   ORDERS_QUERY,
@@ -119,8 +121,6 @@ import {
   pageMinimal,
   pageBlockMinimal,
   formMinimal,
-  modelMinimal,
-  recordMinimal,
   orderMinimal,
   discountMinimal,
   jsonText,
@@ -304,71 +304,7 @@ export function createServer(client: CmssyClient) {
 
   // ─── Write Tools ─────────────────────────────────────────────
 
-  server.tool(
-    "create_page",
-    "Create a new page. Returns a minimal ack by default; pass response='full' for the full mutation response.",
-    {
-      name: z.string().describe("Internal page name"),
-      slug: z.string().describe("URL slug (e.g. 'about', 'features')"),
-      parentId: z
-        .string()
-        .optional()
-        .describe("Parent page ID for nested pages"),
-      pageType: z
-        .string()
-        .optional()
-        .default("page")
-        .describe("Page type (default: 'page')"),
-      displayName: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
-        .optional()
-        .describe(
-          "Multilingual display name, e.g. { en: 'About', pl: 'O nas' }",
-        ),
-      seoTitle: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
-        .optional()
-        .describe("Multilingual SEO title"),
-      seoDescription: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
-        .optional()
-        .describe("Multilingual SEO description"),
-      customFields: z
-        .preprocess(
-          jsonPreprocess,
-          z.array(z.object({ fieldKey: z.string(), value: z.unknown() })),
-        )
-        .optional()
-        .describe(
-          "Custom field values for the page type's schema: [{ fieldKey, value }]. value is JSON.",
-        ),
-      response: responseModeSchema,
-    },
-    async ({
-      name,
-      slug,
-      parentId,
-      pageType,
-      displayName,
-      seoTitle,
-      seoDescription,
-      customFields,
-      response,
-    }) => {
-      const input: Record<string, unknown> = { name, slug };
-      if (parentId) input.parentId = parentId;
-      if (pageType) input.pageType = pageType;
-      if (displayName) input.displayName = displayName;
-      if (seoTitle) input.seoTitle = seoTitle;
-      if (seoDescription) input.seoDescription = seoDescription;
-      if (customFields !== undefined) input.customFields = customFields;
-
-      const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
-        input,
-      });
-      return jsonText(response, data.savePage, pageMinimal);
-    },
-  );
+  bindSharedTool(server, createPageTool, sharedOps);
 
   server.tool(
     "update_page_blocks",
@@ -1542,121 +1478,7 @@ export function createServer(client: CmssyClient) {
     },
   );
 
-  server.tool(
-    "create_form",
-    "Create a new form with fields and settings. Returns a minimal ack by default; pass response='full' for the full form.",
-    {
-      name: z.string().describe("Form name"),
-      slug: z.string().describe("URL-friendly slug (must be unique)"),
-      description: z.string().optional().describe("Form description"),
-      fields: z
-        .preprocess(
-          jsonPreprocess,
-          z.array(
-            z.object({
-              id: z.string().describe("Unique field ID"),
-              name: z.string().describe("Field name (used as form data key)"),
-              fieldType: z
-                .enum([
-                  "text",
-                  "email",
-                  "password",
-                  "textarea",
-                  "number",
-                  "phone",
-                  "url",
-                  "date",
-                  "datetime",
-                  "select",
-                  "multiselect",
-                  "checkbox",
-                  "radio",
-                  "file",
-                  "hidden",
-                ])
-                .optional()
-                .default("text"),
-              label: z
-                .record(z.string(), z.unknown())
-                .optional()
-                .describe("i18n labels: { en: 'Name', pl: 'Imię' }"),
-              placeholder: z.record(z.string(), z.unknown()).optional(),
-              helpText: z.record(z.string(), z.unknown()).optional(),
-              defaultValue: z.string().optional(),
-              validation: z
-                .object({
-                  required: z.boolean().optional(),
-                  minLength: z.number().optional(),
-                  maxLength: z.number().optional(),
-                  minValue: z.number().optional(),
-                  maxValue: z.number().optional(),
-                  pattern: z.string().optional(),
-                  customMessage: z.string().optional(),
-                })
-                .optional(),
-              options: z
-                .array(
-                  z.object({
-                    value: z.string(),
-                    label: z.record(z.string(), z.unknown()).optional(),
-                    disabled: z.boolean().optional(),
-                  }),
-                )
-                .optional(),
-              width: z
-                .enum(["full", "half", "third"])
-                .optional()
-                .default("full"),
-              order: z.number().optional().default(0),
-              showIf: z.record(z.string(), z.unknown()).optional(),
-            }),
-          ),
-        )
-        .optional()
-        .describe("Form field definitions"),
-      settings: z
-        .preprocess(
-          jsonPreprocess,
-          z.object({
-            actionType: z
-              .enum(["login", "register", "newsletter", "contact", "custom"])
-              .optional()
-              .default("contact"),
-            webhookUrl: z.string().optional(),
-            emailRecipients: z.array(z.string()).optional(),
-            newsletterListId: z.string().optional(),
-            submitButtonLabel: z.record(z.string(), z.unknown()).optional(),
-            successMessage: z.record(z.string(), z.unknown()).optional(),
-            errorMessage: z.record(z.string(), z.unknown()).optional(),
-            redirectUrl: z.string().optional(),
-            enableCaptcha: z.boolean().optional(),
-            requireLogin: z.boolean().optional(),
-            saveSubmissions: z.boolean().optional(),
-            sendEmailNotification: z.boolean().optional(),
-            emailConfigurationId: z.string().optional(),
-          }),
-        )
-        .optional()
-        .describe("Form settings (action type, notifications, etc.)"),
-      response: responseModeSchema,
-    },
-    async ({ name, slug, description, fields, settings, response }) => {
-      const input: Record<string, unknown> = { name, slug };
-      if (description) input.description = description;
-      if (fields) input.fields = fields;
-      if (settings) input.settings = settings;
-
-      const data = await client.query<{
-        createForm: {
-          id: string;
-          slug?: string | null;
-          status?: string | null;
-          updatedAt?: string | null;
-        };
-      }>(CREATE_FORM_MUTATION, { input });
-      return jsonText(response, data.createForm, formMinimal);
-    },
-  );
+  bindSharedTool(server, createFormTool, sharedOps);
 
   server.tool(
     "update_form",
@@ -1931,125 +1753,7 @@ export function createServer(client: CmssyClient) {
 
   // ─── Model Tools (Custom Data Models) ────────────────────────
 
-  const propertyFieldTypes = [
-    "string",
-    "richtext",
-    "number",
-    "boolean",
-    "date",
-    "datetime",
-    "email",
-    "url",
-    "media",
-    "relation",
-    "select",
-    "multiselect",
-    "object",
-    "list",
-  ] as const;
-
-  const relationTypes = ["hasOne", "hasMany", "manyToMany"] as const;
-
-  type PropertyFieldInput = {
-    key: string;
-    label: string;
-    type: (typeof propertyFieldTypes)[number];
-    required?: boolean;
-    description?: string;
-    defaultValue?: string;
-    options?: string[];
-    fields?: PropertyFieldInput[];
-    itemType?: (typeof propertyFieldTypes)[number];
-    itemFields?: PropertyFieldInput[];
-    relationTo?: string;
-    relationType?: (typeof relationTypes)[number];
-    acceptedTypes?: (typeof mediaTypeValues)[number][];
-    multiple?: boolean;
-    schemaProperty?: string;
-    minLength?: number;
-    maxLength?: number;
-    minValue?: number;
-    maxValue?: number;
-    pattern?: string;
-  };
-
-  const propertyFieldSchema: z.ZodType<PropertyFieldInput> = z.lazy(() =>
-    z.object({
-      key: z.string().describe("Field key (identifier in record data)"),
-      label: z.string().describe("Human-readable field label"),
-      type: z
-        .enum(propertyFieldTypes)
-        .describe("Field type — controls validation + UI"),
-      required: z.boolean().optional(),
-      description: z.string().optional(),
-      defaultValue: z.string().optional(),
-      options: z
-        .array(z.string())
-        .optional()
-        .describe("For select/multiselect: allowed values"),
-      fields: z
-        .array(propertyFieldSchema)
-        .optional()
-        .describe("For type=object: nested fields"),
-      itemType: z
-        .enum(propertyFieldTypes)
-        .optional()
-        .describe("For type=list: item type"),
-      itemFields: z
-        .array(propertyFieldSchema)
-        .optional()
-        .describe("For type=list of objects: nested field defs"),
-      relationTo: z
-        .string()
-        .optional()
-        .describe("For type=relation: target model slug"),
-      relationType: z.enum(relationTypes).optional(),
-      acceptedTypes: z
-        .array(z.enum(mediaTypeValues))
-        .optional()
-        .describe("For type=media: allowed media kinds (empty = all)"),
-      multiple: z
-        .boolean()
-        .optional()
-        .describe("For type=media: true = gallery, false = single"),
-      schemaProperty: z.string().optional(),
-      minLength: z.number().int().optional(),
-      maxLength: z.number().int().optional(),
-      minValue: z.number().optional(),
-      maxValue: z.number().optional(),
-      pattern: z.string().optional(),
-    }),
-  );
-
-  const statusFieldSchema = z.object({
-    enabled: z.boolean().optional(),
-    values: z
-      .array(z.string())
-      .optional()
-      .describe("Allowed status values (e.g. ['draft','active'])"),
-    defaultValue: z.string().optional(),
-    transitions: z
-      .array(
-        z.object({
-          from: z.string(),
-          to: z.array(z.string()),
-        }),
-      )
-      .optional()
-      .describe("Allowed transitions: from one state to a set of states"),
-  });
-
-  const defaultSortSchema = z.object({
-    field: z.string(),
-    direction: z.enum(["asc", "desc"]),
-  });
-
   const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
-
-  // Match backend: apps/backend/src/models/model-definition.ts
-  const SLUG_RE = /^[a-z][a-z0-9-]*$/;
-  const SLUG_MSG =
-    "Slug must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens";
 
   server.tool(
     "list_models",
@@ -2132,119 +1836,9 @@ export function createServer(client: CmssyClient) {
     },
   );
 
-  server.tool(
-    "create_model",
-    "Create a new Custom Data Model (ModelDefinition). Returns a minimal ack by default; pass response='full' for the full model.",
-    {
-      name: z.string().describe("Display name"),
-      slug: z
-        .string()
-        .trim()
-        .regex(SLUG_RE, SLUG_MSG)
-        .describe("URL-safe slug, lowercase (regex: ^[a-z][a-z0-9-]*$)"),
-      description: z.string().optional(),
-      icon: z
-        .string()
-        .optional()
-        .describe("Lucide icon name, defaults to 'database'"),
-      color: z.string().optional(),
-      displayField: z
-        .string()
-        .optional()
-        .describe("Field key used as the record's display label in UI"),
-      defaultSort: z.preprocess(jsonPreprocess, defaultSortSchema).optional(),
-      fields: z
-        .preprocess(jsonPreprocess, z.array(propertyFieldSchema))
-        .optional()
-        .describe("Field definitions. Validates record data on write."),
-      statusField: z
-        .preprocess(jsonPreprocess, statusFieldSchema)
-        .optional()
-        .describe("Enable record lifecycle states with allowed transitions"),
-      response: responseModeSchema,
-    },
-    async ({
-      name,
-      slug,
-      description,
-      icon,
-      color,
-      displayField,
-      defaultSort,
-      fields,
-      statusField,
-      response,
-    }) => {
-      const input: Record<string, unknown> = { name, slug };
-      if (description !== undefined) input.description = description;
-      if (icon !== undefined) input.icon = icon;
-      if (color !== undefined) input.color = color;
-      if (displayField !== undefined) input.displayField = displayField;
-      if (defaultSort !== undefined) input.defaultSort = defaultSort;
-      if (fields !== undefined) input.fields = fields;
-      if (statusField !== undefined) input.statusField = statusField;
+  bindSharedTool(server, createModelTool, sharedOps);
 
-      const data = await client.query<{
-        createModelDefinition: {
-          id: string;
-          slug?: string | null;
-          updatedAt?: string | null;
-        };
-      }>(CREATE_MODEL_DEFINITION_MUTATION, { input });
-      return jsonText(response, data.createModelDefinition, modelMinimal);
-    },
-  );
-
-  server.tool(
-    "update_model",
-    "Update any field of an existing ModelDefinition. Changing 'fields' migrates the schema - existing records are re-validated on next write. Returns a minimal ack by default; pass response='full' for the full model.",
-    {
-      id: z.string().describe("Model id (ObjectId) to update"),
-      name: z.string().optional(),
-      slug: z.string().trim().regex(SLUG_RE, SLUG_MSG).optional(),
-      description: z.string().optional(),
-      icon: z.string().optional(),
-      color: z.string().optional(),
-      displayField: z.string().optional(),
-      defaultSort: z.preprocess(jsonPreprocess, defaultSortSchema).optional(),
-      fields: z
-        .preprocess(jsonPreprocess, z.array(propertyFieldSchema))
-        .optional(),
-      statusField: z.preprocess(jsonPreprocess, statusFieldSchema).optional(),
-      response: responseModeSchema,
-    },
-    async (args) => {
-      const input: Record<string, unknown> = { id: args.id };
-      for (const key of [
-        "name",
-        "slug",
-        "description",
-        "icon",
-        "color",
-        "displayField",
-        "defaultSort",
-        "fields",
-        "statusField",
-      ] as const) {
-        if (args[key] !== undefined) input[key] = args[key];
-      }
-
-      const data = await client.query<{
-        updateModelDefinition: {
-          id: string;
-          slug?: string | null;
-          updatedAt?: string | null;
-        } | null;
-      }>(UPDATE_MODEL_DEFINITION_MUTATION, { input });
-      if (!data.updateModelDefinition) {
-        return {
-          content: [{ type: "text" as const, text: "Model not found" }],
-          isError: true,
-        };
-      }
-      return jsonText(args.response, data.updateModelDefinition, modelMinimal);
-    },
-  );
+  bindSharedTool(server, updateModelTool, sharedOps);
 
   server.tool(
     "delete_model",
@@ -2342,126 +1936,7 @@ export function createServer(client: CmssyClient) {
   );
 
   bindSharedTool(server, createRecordTool, sharedOps);
-
-  server.tool(
-    "update_record",
-    "Update a record. Pass 'data' for a full data replace. Pass 'status' to transition the record's status (validated against statusField.transitions). At least one of data/status is required. Returns a minimal ack by default; pass response='full' for the full record.",
-    {
-      id: z.string().describe("Record id (ObjectId)"),
-      data: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
-        .optional()
-        .describe("New data (full replace)"),
-      status: z
-        .string()
-        .optional()
-        .describe("New status value (must be allowed by model.statusField)"),
-      response: responseModeSchema,
-    },
-    async ({ id, data: recordData, status, response }) => {
-      if (recordData === undefined && status === undefined) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Provide 'data' and/or 'status' to update",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      type RecordResult = {
-        id: string;
-        status?: string | null;
-        updatedAt?: string | null;
-      };
-      let dataResult: RecordResult | null = null;
-      let statusResult: RecordResult | null = null;
-
-      if (recordData !== undefined) {
-        const res = await client.query<{
-          updateModelRecord: RecordResult | null;
-        }>(UPDATE_MODEL_RECORD_MUTATION, {
-          input: { id, data: recordData },
-        });
-        dataResult = res.updateModelRecord;
-        if (!dataResult) {
-          return {
-            content: [{ type: "text" as const, text: "Record not found" }],
-            isError: true,
-          };
-        }
-      }
-
-      if (status !== undefined) {
-        // Data update (if any) already committed. Wrap status call so a
-        // failed transition reports partial-success clearly instead of
-        // hiding the completed data write behind a bare throw.
-        try {
-          const res = await client.query<{
-            updateModelRecordStatus: RecordResult | null;
-          }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
-            input: { id, status },
-          });
-          statusResult = res.updateModelRecordStatus;
-          if (!statusResult) {
-            if (dataResult) {
-              return {
-                content: [
-                  {
-                    type: "text" as const,
-                    text: JSON.stringify(
-                      {
-                        partialSuccess: true,
-                        message:
-                          "Data updated, but record not found when applying status.",
-                        dataResult,
-                      },
-                      null,
-                      2,
-                    ),
-                  },
-                ],
-                isError: true,
-              };
-            }
-            return {
-              content: [{ type: "text" as const, text: "Record not found" }],
-              isError: true,
-            };
-          }
-        } catch (error) {
-          if (dataResult) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      partialSuccess: true,
-                      message:
-                        "Data updated, but status transition failed. Retry status only.",
-                      dataResult,
-                      statusError:
-                        error instanceof Error ? error.message : String(error),
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
-          throw error;
-        }
-      }
-
-      const finalResult = (statusResult ?? dataResult) as RecordResult;
-      return jsonText(response, finalResult, recordMinimal);
-    },
-  );
+  bindSharedTool(server, updateRecordTool, sharedOps);
 
   server.tool(
     "delete_record",
