@@ -8,15 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@cmssy/ai-tools':
+        specifier: 0.1.0
+        version: 0.1.0(zod@4.4.3)
       '@cmssy/types':
         specifier: ^0.12.0
         version: 0.12.0
       '@modelcontextprotocol/sdk':
-        specifier: ^1.12.1
-        version: 1.27.1(zod@3.25.76)
+        specifier: ^1.29.0
+        version: 1.29.0(zod@4.4.3)
       zod:
-        specifier: ^3.24.0
-        version: 3.25.76
+        specifier: ^4.3.6
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -29,6 +32,11 @@ importers:
         version: 5.7.3
 
 packages:
+
+  '@cmssy/ai-tools@0.1.0':
+    resolution: {integrity: sha512-Jzd8P52OrxoWTJ7GuvBQgDrVGRywDxOkZKj81nBeW9fg7hG3Jx/jTUD1czAQXKFAeMB6tGj7IQystiXrKEZE4Q==}
+    peerDependencies:
+      zod: ^4
 
   '@cmssy/types@0.12.0':
     resolution: {integrity: sha512-tRE9470cSct/+zS9Jnq9I/0KkYHXXgfJUQ7/o46DyIB9kA/g6wSQFsgAyZbOD350fj/7YZqjZyBdDqI68AzITg==}
@@ -195,8 +203,8 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@modelcontextprotocol/sdk@1.27.1':
-    resolution: {integrity: sha512-sr6GbP+4edBwFndLbM60gf07z0FQ79gaExpnsjMGePXqFcSSb7t6iscpjk9DhFhwd+mTEQrzNafGP8/iGGFYaA==}
+  '@modelcontextprotocol/sdk@1.29.0':
+    resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
@@ -584,10 +592,14 @@ packages:
     peerDependencies:
       zod: ^3.25 || ^4
 
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
+
+  '@cmssy/ai-tools@0.1.0(zod@4.4.3)':
+    dependencies:
+      zod: 4.4.3
 
   '@cmssy/types@0.12.0': {}
 
@@ -673,7 +685,7 @@ snapshots:
     dependencies:
       hono: 4.12.3
 
-  '@modelcontextprotocol/sdk@1.27.1(zod@3.25.76)':
+  '@modelcontextprotocol/sdk@1.29.0(zod@4.4.3)':
     dependencies:
       '@hono/node-server': 1.19.9(hono@4.12.3)
       ajv: 8.18.0
@@ -690,8 +702,8 @@ snapshots:
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
       raw-body: 3.0.2
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.1(zod@3.25.76)
+      zod: 4.4.3
+      zod-to-json-schema: 3.25.1(zod@4.4.3)
     transitivePeerDependencies:
       - supports-color
 
@@ -1107,8 +1119,8 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  zod-to-json-schema@3.25.1(zod@3.25.76):
+  zod-to-json-schema@3.25.1(zod@4.4.3):
     dependencies:
-      zod: 3.25.76
+      zod: 4.4.3
 
-  zod@3.25.76: {}
+  zod@4.4.3: {}

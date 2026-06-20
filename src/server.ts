@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { mediaTypeValues } from "@cmssy/types";
 import { CmssyClient } from "./graphql-client.js";
+import { createRecordTool } from "@cmssy/ai-tools";
+import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
+import { bindSharedTool } from "./ai-tools-binder.js";
 
 // Read our own version from package.json so the MCP handshake
 // advertises what the user actually installed, instead of drifting
@@ -71,7 +74,6 @@ import {
   CREATE_MODEL_DEFINITION_MUTATION,
   UPDATE_MODEL_DEFINITION_MUTATION,
   DELETE_MODEL_DEFINITION_MUTATION,
-  CREATE_MODEL_RECORD_MUTATION,
   UPDATE_MODEL_RECORD_MUTATION,
   UPDATE_MODEL_RECORD_STATUS_MUTATION,
   DELETE_MODEL_RECORD_MUTATION,
@@ -130,6 +132,8 @@ export function createServer(client: CmssyClient) {
     name: "cmssy",
     version: PACKAGE_VERSION,
   });
+
+  const sharedOps = createMcpWorkspaceOps(client);
 
   /** Check if value is null, undefined, or empty object */
   const isEmpty = (obj: unknown) =>
@@ -545,7 +549,9 @@ export function createServer(client: CmssyClient) {
           jsonPreprocess,
           z.array(
             z.object({
-              key: z.string().describe("Field key (identifier in customFields)"),
+              key: z
+                .string()
+                .describe("Field key (identifier in customFields)"),
               label: z.string().describe("Human-readable label"),
               type: z
                 .enum([
@@ -2336,29 +2342,7 @@ export function createServer(client: CmssyClient) {
     },
   );
 
-  server.tool(
-    "create_record",
-    "Create a new record in a model. Data keys must match field keys of the model; backend validates against the ModelDefinition. Returns a minimal ack by default; pass response='full' for the full record.",
-    {
-      modelId: z.string().describe("Target model id (ObjectId)"),
-      data: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
-        .describe("Record data keyed by model field keys"),
-      response: responseModeSchema,
-    },
-    async ({ modelId, data: recordData, response }) => {
-      const result = await client.query<{
-        createModelRecord: {
-          id: string;
-          status?: string | null;
-          updatedAt?: string | null;
-        };
-      }>(CREATE_MODEL_RECORD_MUTATION, {
-        input: { modelId, data: recordData },
-      });
-      return jsonText(response, result.createModelRecord, recordMinimal);
-    },
-  );
+  bindSharedTool(server, createRecordTool, sharedOps);
 
   server.tool(
     "update_record",
