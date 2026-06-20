@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { mediaTypeValues } from "@cmssy/types";
 import { CmssyClient } from "./graphql-client.js";
 import {
   createRecordTool,
@@ -11,6 +10,7 @@ import {
   createPageTool,
   createFormTool,
   createModelTool,
+  updateModelTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
@@ -76,7 +76,6 @@ import {
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_RECORDS_QUERY,
   MODEL_RECORD_BY_ID_QUERY,
-  UPDATE_MODEL_DEFINITION_MUTATION,
   DELETE_MODEL_DEFINITION_MUTATION,
   UPDATE_MODEL_RECORD_MUTATION,
   UPDATE_MODEL_RECORD_STATUS_MUTATION,
@@ -123,7 +122,6 @@ import {
   pageMinimal,
   pageBlockMinimal,
   formMinimal,
-  modelMinimal,
   recordMinimal,
   orderMinimal,
   discountMinimal,
@@ -1757,125 +1755,7 @@ export function createServer(client: CmssyClient) {
 
   // ─── Model Tools (Custom Data Models) ────────────────────────
 
-  const propertyFieldTypes = [
-    "string",
-    "richtext",
-    "number",
-    "boolean",
-    "date",
-    "datetime",
-    "email",
-    "url",
-    "media",
-    "relation",
-    "select",
-    "multiselect",
-    "object",
-    "list",
-  ] as const;
-
-  const relationTypes = ["hasOne", "hasMany", "manyToMany"] as const;
-
-  type PropertyFieldInput = {
-    key: string;
-    label: string;
-    type: (typeof propertyFieldTypes)[number];
-    required?: boolean;
-    description?: string;
-    defaultValue?: string;
-    options?: string[];
-    fields?: PropertyFieldInput[];
-    itemType?: (typeof propertyFieldTypes)[number];
-    itemFields?: PropertyFieldInput[];
-    relationTo?: string;
-    relationType?: (typeof relationTypes)[number];
-    acceptedTypes?: (typeof mediaTypeValues)[number][];
-    multiple?: boolean;
-    schemaProperty?: string;
-    minLength?: number;
-    maxLength?: number;
-    minValue?: number;
-    maxValue?: number;
-    pattern?: string;
-  };
-
-  const propertyFieldSchema: z.ZodType<PropertyFieldInput> = z.lazy(() =>
-    z.object({
-      key: z.string().describe("Field key (identifier in record data)"),
-      label: z.string().describe("Human-readable field label"),
-      type: z
-        .enum(propertyFieldTypes)
-        .describe("Field type — controls validation + UI"),
-      required: z.boolean().optional(),
-      description: z.string().optional(),
-      defaultValue: z.string().optional(),
-      options: z
-        .array(z.string())
-        .optional()
-        .describe("For select/multiselect: allowed values"),
-      fields: z
-        .array(propertyFieldSchema)
-        .optional()
-        .describe("For type=object: nested fields"),
-      itemType: z
-        .enum(propertyFieldTypes)
-        .optional()
-        .describe("For type=list: item type"),
-      itemFields: z
-        .array(propertyFieldSchema)
-        .optional()
-        .describe("For type=list of objects: nested field defs"),
-      relationTo: z
-        .string()
-        .optional()
-        .describe("For type=relation: target model slug"),
-      relationType: z.enum(relationTypes).optional(),
-      acceptedTypes: z
-        .array(z.enum(mediaTypeValues))
-        .optional()
-        .describe("For type=media: allowed media kinds (empty = all)"),
-      multiple: z
-        .boolean()
-        .optional()
-        .describe("For type=media: true = gallery, false = single"),
-      schemaProperty: z.string().optional(),
-      minLength: z.number().int().optional(),
-      maxLength: z.number().int().optional(),
-      minValue: z.number().optional(),
-      maxValue: z.number().optional(),
-      pattern: z.string().optional(),
-    }),
-  );
-
-  const statusFieldSchema = z.object({
-    enabled: z.boolean().optional(),
-    values: z
-      .array(z.string())
-      .optional()
-      .describe("Allowed status values (e.g. ['draft','active'])"),
-    defaultValue: z.string().optional(),
-    transitions: z
-      .array(
-        z.object({
-          from: z.string(),
-          to: z.array(z.string()),
-        }),
-      )
-      .optional()
-      .describe("Allowed transitions: from one state to a set of states"),
-  });
-
-  const defaultSortSchema = z.object({
-    field: z.string(),
-    direction: z.enum(["asc", "desc"]),
-  });
-
   const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
-
-  // Match backend: apps/backend/src/models/model-definition.ts
-  const SLUG_RE = /^[a-z][a-z0-9-]*$/;
-  const SLUG_MSG =
-    "Slug must start with a lowercase letter and contain only lowercase letters, numbers, and hyphens";
 
   server.tool(
     "list_models",
@@ -1960,56 +1840,7 @@ export function createServer(client: CmssyClient) {
 
   bindSharedTool(server, createModelTool, sharedOps);
 
-  server.tool(
-    "update_model",
-    "Update any field of an existing ModelDefinition. Changing 'fields' migrates the schema - existing records are re-validated on next write. Returns a minimal ack by default; pass response='full' for the full model.",
-    {
-      id: z.string().describe("Model id (ObjectId) to update"),
-      name: z.string().optional(),
-      slug: z.string().trim().regex(SLUG_RE, SLUG_MSG).optional(),
-      description: z.string().optional(),
-      icon: z.string().optional(),
-      color: z.string().optional(),
-      displayField: z.string().optional(),
-      defaultSort: z.preprocess(jsonPreprocess, defaultSortSchema).optional(),
-      fields: z
-        .preprocess(jsonPreprocess, z.array(propertyFieldSchema))
-        .optional(),
-      statusField: z.preprocess(jsonPreprocess, statusFieldSchema).optional(),
-      response: responseModeSchema,
-    },
-    async (args) => {
-      const input: Record<string, unknown> = { id: args.id };
-      for (const key of [
-        "name",
-        "slug",
-        "description",
-        "icon",
-        "color",
-        "displayField",
-        "defaultSort",
-        "fields",
-        "statusField",
-      ] as const) {
-        if (args[key] !== undefined) input[key] = args[key];
-      }
-
-      const data = await client.query<{
-        updateModelDefinition: {
-          id: string;
-          slug?: string | null;
-          updatedAt?: string | null;
-        } | null;
-      }>(UPDATE_MODEL_DEFINITION_MUTATION, { input });
-      if (!data.updateModelDefinition) {
-        return {
-          content: [{ type: "text" as const, text: "Model not found" }],
-          isError: true,
-        };
-      }
-      return jsonText(args.response, data.updateModelDefinition, modelMinimal);
-    },
-  );
+  bindSharedTool(server, updateModelTool, sharedOps);
 
   server.tool(
     "delete_model",

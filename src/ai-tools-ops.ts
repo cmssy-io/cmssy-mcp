@@ -8,6 +8,7 @@ import {
   SAVE_PAGE_MUTATION,
   CREATE_FORM_MUTATION,
   CREATE_MODEL_DEFINITION_MUTATION,
+  UPDATE_MODEL_DEFINITION_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -100,7 +101,40 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           fieldCount: m.fields?.length ?? 0,
         };
       },
-      update: () => notBound("models.update"),
+      update: async (idOrSlug, patch) => {
+        const model = await resolveModel(client, idOrSlug);
+        if (!model) return null;
+        const input: Record<string, unknown> = { id: model.id };
+        for (const key of [
+          "name",
+          "slug",
+          "description",
+          "icon",
+          "color",
+          "displayField",
+          "defaultSort",
+          "fields",
+          "statusField",
+        ] as const) {
+          if (patch[key] !== undefined) input[key] = patch[key];
+        }
+        const res = await client.query<{
+          updateModelDefinition: {
+            id: string;
+            name: string;
+            slug: string;
+            fields?: unknown[] | null;
+          } | null;
+        }>(UPDATE_MODEL_DEFINITION_MUTATION, { input });
+        if (!res.updateModelDefinition) return null;
+        const m = res.updateModelDefinition;
+        return {
+          id: m.id,
+          name: m.name,
+          slug: m.slug,
+          fieldCount: m.fields?.length ?? 0,
+        };
+      },
       updateRecord: () => notBound("models.updateRecord"),
       createRecord: async (modelIdOrSlug, data) => {
         const model = await resolveModel(client, modelIdOrSlug);
