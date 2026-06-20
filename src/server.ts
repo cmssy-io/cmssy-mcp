@@ -10,6 +10,7 @@ import {
   createDiscountTool,
   createPageTool,
   createFormTool,
+  createModelTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
@@ -75,7 +76,6 @@ import {
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_RECORDS_QUERY,
   MODEL_RECORD_BY_ID_QUERY,
-  CREATE_MODEL_DEFINITION_MUTATION,
   UPDATE_MODEL_DEFINITION_MUTATION,
   DELETE_MODEL_DEFINITION_MUTATION,
   UPDATE_MODEL_RECORD_MUTATION,
@@ -1958,68 +1958,7 @@ export function createServer(client: CmssyClient) {
     },
   );
 
-  server.tool(
-    "create_model",
-    "Create a new Custom Data Model (ModelDefinition). Returns a minimal ack by default; pass response='full' for the full model.",
-    {
-      name: z.string().describe("Display name"),
-      slug: z
-        .string()
-        .trim()
-        .regex(SLUG_RE, SLUG_MSG)
-        .describe("URL-safe slug, lowercase (regex: ^[a-z][a-z0-9-]*$)"),
-      description: z.string().optional(),
-      icon: z
-        .string()
-        .optional()
-        .describe("Lucide icon name, defaults to 'database'"),
-      color: z.string().optional(),
-      displayField: z
-        .string()
-        .optional()
-        .describe("Field key used as the record's display label in UI"),
-      defaultSort: z.preprocess(jsonPreprocess, defaultSortSchema).optional(),
-      fields: z
-        .preprocess(jsonPreprocess, z.array(propertyFieldSchema))
-        .optional()
-        .describe("Field definitions. Validates record data on write."),
-      statusField: z
-        .preprocess(jsonPreprocess, statusFieldSchema)
-        .optional()
-        .describe("Enable record lifecycle states with allowed transitions"),
-      response: responseModeSchema,
-    },
-    async ({
-      name,
-      slug,
-      description,
-      icon,
-      color,
-      displayField,
-      defaultSort,
-      fields,
-      statusField,
-      response,
-    }) => {
-      const input: Record<string, unknown> = { name, slug };
-      if (description !== undefined) input.description = description;
-      if (icon !== undefined) input.icon = icon;
-      if (color !== undefined) input.color = color;
-      if (displayField !== undefined) input.displayField = displayField;
-      if (defaultSort !== undefined) input.defaultSort = defaultSort;
-      if (fields !== undefined) input.fields = fields;
-      if (statusField !== undefined) input.statusField = statusField;
-
-      const data = await client.query<{
-        createModelDefinition: {
-          id: string;
-          slug?: string | null;
-          updatedAt?: string | null;
-        };
-      }>(CREATE_MODEL_DEFINITION_MUTATION, { input });
-      return jsonText(response, data.createModelDefinition, modelMinimal);
-    },
-  );
+  bindSharedTool(server, createModelTool, sharedOps);
 
   server.tool(
     "update_model",

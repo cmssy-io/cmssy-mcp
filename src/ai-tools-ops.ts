@@ -7,9 +7,20 @@ import {
   CREATE_DISCOUNT_MUTATION,
   SAVE_PAGE_MUTATION,
   CREATE_FORM_MUTATION,
+  CREATE_MODEL_DEFINITION_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
+
+function slugify(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/^[0-9]/, "m$&");
+  return slug || "model";
+}
 
 function notBound(name: string): never {
   throw new Error(
@@ -57,7 +68,38 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       list: () => notBound("models.list"),
       get: () => notBound("models.get"),
       listRecords: () => notBound("models.listRecords"),
-      create: () => notBound("models.create"),
+      create: async (input) => {
+        const mutationInput: Record<string, unknown> = {
+          name: input.name,
+          slug: input.slug ?? slugify(input.name),
+          fields: input.fields,
+        };
+        if (input.description !== undefined)
+          mutationInput.description = input.description;
+        if (input.icon !== undefined) mutationInput.icon = input.icon;
+        if (input.color !== undefined) mutationInput.color = input.color;
+        if (input.displayField !== undefined)
+          mutationInput.displayField = input.displayField;
+        if (input.defaultSort !== undefined)
+          mutationInput.defaultSort = input.defaultSort;
+        if (input.statusField !== undefined)
+          mutationInput.statusField = input.statusField;
+        const res = await client.query<{
+          createModelDefinition: {
+            id: string;
+            name: string;
+            slug: string;
+            fields?: unknown[] | null;
+          };
+        }>(CREATE_MODEL_DEFINITION_MUTATION, { input: mutationInput });
+        const m = res.createModelDefinition;
+        return {
+          id: m.id,
+          name: m.name,
+          slug: m.slug,
+          fieldCount: m.fields?.length ?? 0,
+        };
+      },
       update: () => notBound("models.update"),
       updateRecord: () => notBound("models.updateRecord"),
       createRecord: async (modelIdOrSlug, data) => {
