@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { mediaTypeValues } from "@cmssy/types";
 import { CmssyClient } from "./graphql-client.js";
-import { createRecordTool, createDiscountTool } from "@cmssy/ai-tools";
+import {
+  createRecordTool,
+  createDiscountTool,
+  createPageTool,
+} from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
 
@@ -304,71 +308,7 @@ export function createServer(client: CmssyClient) {
 
   // ─── Write Tools ─────────────────────────────────────────────
 
-  server.tool(
-    "create_page",
-    "Create a new page. Returns a minimal ack by default; pass response='full' for the full mutation response.",
-    {
-      name: z.string().describe("Internal page name"),
-      slug: z.string().describe("URL slug (e.g. 'about', 'features')"),
-      parentId: z
-        .string()
-        .optional()
-        .describe("Parent page ID for nested pages"),
-      pageType: z
-        .string()
-        .optional()
-        .default("page")
-        .describe("Page type (default: 'page')"),
-      displayName: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
-        .optional()
-        .describe(
-          "Multilingual display name, e.g. { en: 'About', pl: 'O nas' }",
-        ),
-      seoTitle: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
-        .optional()
-        .describe("Multilingual SEO title"),
-      seoDescription: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.string()))
-        .optional()
-        .describe("Multilingual SEO description"),
-      customFields: z
-        .preprocess(
-          jsonPreprocess,
-          z.array(z.object({ fieldKey: z.string(), value: z.unknown() })),
-        )
-        .optional()
-        .describe(
-          "Custom field values for the page type's schema: [{ fieldKey, value }]. value is JSON.",
-        ),
-      response: responseModeSchema,
-    },
-    async ({
-      name,
-      slug,
-      parentId,
-      pageType,
-      displayName,
-      seoTitle,
-      seoDescription,
-      customFields,
-      response,
-    }) => {
-      const input: Record<string, unknown> = { name, slug };
-      if (parentId) input.parentId = parentId;
-      if (pageType) input.pageType = pageType;
-      if (displayName) input.displayName = displayName;
-      if (seoTitle) input.seoTitle = seoTitle;
-      if (seoDescription) input.seoDescription = seoDescription;
-      if (customFields !== undefined) input.customFields = customFields;
-
-      const data = await client.query<{ savePage: Page }>(SAVE_PAGE_MUTATION, {
-        input,
-      });
-      return jsonText(response, data.savePage, pageMinimal);
-    },
-  );
+  bindSharedTool(server, createPageTool, sharedOps);
 
   server.tool(
     "update_page_blocks",

@@ -5,6 +5,7 @@ import {
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
   CREATE_MODEL_RECORD_MUTATION,
   CREATE_DISCOUNT_MUTATION,
+  SAVE_PAGE_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -80,7 +81,30 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     },
     pages: {
       search: () => notBound("pages.search"),
-      create: () => notBound("pages.create"),
+      create: async (input) => {
+        const mutationInput: Record<string, unknown> = {
+          name: input.name,
+          slug: input.slug,
+        };
+        if (input.description !== undefined)
+          mutationInput.description = input.description;
+        if (input.parentId !== undefined)
+          mutationInput.parentId = input.parentId;
+        if (input.pageType !== undefined)
+          mutationInput.pageType = input.pageType;
+        if (input.displayName !== undefined)
+          mutationInput.displayName = input.displayName;
+        if (input.seoTitle !== undefined)
+          mutationInput.seoTitle = input.seoTitle;
+        if (input.seoDescription !== undefined)
+          mutationInput.seoDescription = input.seoDescription;
+        if (input.customFields !== undefined)
+          mutationInput.customFields = input.customFields;
+        const res = await client.query<{
+          savePage: { id: string; name: string };
+        }>(SAVE_PAGE_MUTATION, { input: mutationInput });
+        return { id: res.savePage.id, name: res.savePage.name };
+      },
     },
     media: { list: () => notBound("media.list") },
     forms: {
