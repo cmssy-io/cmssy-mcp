@@ -9,6 +9,9 @@ import {
   CREATE_FORM_MUTATION,
   CREATE_MODEL_DEFINITION_MUTATION,
   UPDATE_MODEL_DEFINITION_MUTATION,
+  MODEL_RECORD_BY_ID_QUERY,
+  UPDATE_MODEL_RECORD_MUTATION,
+  UPDATE_MODEL_RECORD_STATUS_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -135,7 +138,55 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           fieldCount: m.fields?.length ?? 0,
         };
       },
-      updateRecord: () => notBound("models.updateRecord"),
+      updateRecord: async (recordId, { data, status }) => {
+        const recRes = await client.query<{
+          modelRecord: {
+            id: string;
+            modelId: string;
+            data?: Record<string, unknown> | null;
+          } | null;
+        }>(MODEL_RECORD_BY_ID_QUERY, { id: recordId });
+        if (!recRes.modelRecord) return null;
+        const rec = recRes.modelRecord;
+        const model = await resolveModel(client, rec.modelId);
+        let currentData: Record<string, unknown> = rec.data ?? {};
+        if (status !== undefined) {
+          const res = await client.query<{
+            updateModelRecordStatus: {
+              id: string;
+              data?: Record<string, unknown> | null;
+            } | null;
+          }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
+            input: { id: recordId, status },
+          });
+          if (!res.updateModelRecordStatus) return null;
+          currentData = res.updateModelRecordStatus.data ?? currentData;
+        }
+        if (data !== undefined) {
+          const merged = { ...currentData, ...data };
+          const res = await client.query<{
+            updateModelRecord: {
+              id: string;
+              data?: Record<string, unknown> | null;
+            } | null;
+          }>(UPDATE_MODEL_RECORD_MUTATION, {
+            input: { id: recordId, data: merged },
+          });
+          if (!res.updateModelRecord) return null;
+          currentData = res.updateModelRecord.data ?? merged;
+        }
+        const display = model?.displayField;
+        const label =
+          display && typeof currentData[display] === "string"
+            ? (currentData[display] as string)
+            : (model?.name ?? "Record");
+        return {
+          id: recordId,
+          label,
+          modelName: model?.name ?? "Record",
+          modelId: rec.modelId,
+        };
+      },
       createRecord: async (modelIdOrSlug, data) => {
         const model = await resolveModel(client, modelIdOrSlug);
         if (!model) return null;

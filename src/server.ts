@@ -11,6 +11,7 @@ import {
   createFormTool,
   createModelTool,
   updateModelTool,
+  updateRecordTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
@@ -77,8 +78,6 @@ import {
   MODEL_RECORDS_QUERY,
   MODEL_RECORD_BY_ID_QUERY,
   DELETE_MODEL_DEFINITION_MUTATION,
-  UPDATE_MODEL_RECORD_MUTATION,
-  UPDATE_MODEL_RECORD_STATUS_MUTATION,
   DELETE_MODEL_RECORD_MUTATION,
   IMPORT_MODEL_RECORDS_MUTATION,
   ORDERS_QUERY,
@@ -122,7 +121,6 @@ import {
   pageMinimal,
   pageBlockMinimal,
   formMinimal,
-  recordMinimal,
   orderMinimal,
   discountMinimal,
   jsonText,
@@ -1938,126 +1936,7 @@ export function createServer(client: CmssyClient) {
   );
 
   bindSharedTool(server, createRecordTool, sharedOps);
-
-  server.tool(
-    "update_record",
-    "Update a record. Pass 'data' for a full data replace. Pass 'status' to transition the record's status (validated against statusField.transitions). At least one of data/status is required. Returns a minimal ack by default; pass response='full' for the full record.",
-    {
-      id: z.string().describe("Record id (ObjectId)"),
-      data: z
-        .preprocess(jsonPreprocess, z.record(z.string(), z.unknown()))
-        .optional()
-        .describe("New data (full replace)"),
-      status: z
-        .string()
-        .optional()
-        .describe("New status value (must be allowed by model.statusField)"),
-      response: responseModeSchema,
-    },
-    async ({ id, data: recordData, status, response }) => {
-      if (recordData === undefined && status === undefined) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Provide 'data' and/or 'status' to update",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      type RecordResult = {
-        id: string;
-        status?: string | null;
-        updatedAt?: string | null;
-      };
-      let dataResult: RecordResult | null = null;
-      let statusResult: RecordResult | null = null;
-
-      if (recordData !== undefined) {
-        const res = await client.query<{
-          updateModelRecord: RecordResult | null;
-        }>(UPDATE_MODEL_RECORD_MUTATION, {
-          input: { id, data: recordData },
-        });
-        dataResult = res.updateModelRecord;
-        if (!dataResult) {
-          return {
-            content: [{ type: "text" as const, text: "Record not found" }],
-            isError: true,
-          };
-        }
-      }
-
-      if (status !== undefined) {
-        // Data update (if any) already committed. Wrap status call so a
-        // failed transition reports partial-success clearly instead of
-        // hiding the completed data write behind a bare throw.
-        try {
-          const res = await client.query<{
-            updateModelRecordStatus: RecordResult | null;
-          }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
-            input: { id, status },
-          });
-          statusResult = res.updateModelRecordStatus;
-          if (!statusResult) {
-            if (dataResult) {
-              return {
-                content: [
-                  {
-                    type: "text" as const,
-                    text: JSON.stringify(
-                      {
-                        partialSuccess: true,
-                        message:
-                          "Data updated, but record not found when applying status.",
-                        dataResult,
-                      },
-                      null,
-                      2,
-                    ),
-                  },
-                ],
-                isError: true,
-              };
-            }
-            return {
-              content: [{ type: "text" as const, text: "Record not found" }],
-              isError: true,
-            };
-          }
-        } catch (error) {
-          if (dataResult) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    {
-                      partialSuccess: true,
-                      message:
-                        "Data updated, but status transition failed. Retry status only.",
-                      dataResult,
-                      statusError:
-                        error instanceof Error ? error.message : String(error),
-                    },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
-          throw error;
-        }
-      }
-
-      const finalResult = (statusResult ?? dataResult) as RecordResult;
-      return jsonText(response, finalResult, recordMinimal);
-    },
-  );
+  bindSharedTool(server, updateRecordTool, sharedOps);
 
   server.tool(
     "delete_record",
