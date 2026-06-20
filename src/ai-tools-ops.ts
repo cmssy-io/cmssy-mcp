@@ -38,19 +38,10 @@ interface ResolvedModel {
   displayField: string | null;
 }
 
-async function resolveModel(
+async function fetchModelById(
   client: CmssyClient,
-  idOrSlug: string,
+  id: string,
 ): Promise<ResolvedModel | null> {
-  let id = idOrSlug;
-  if (!OBJECT_ID_RE.test(idOrSlug)) {
-    const index = await client.query<{
-      modelDefinitions: Array<{ id: string; slug: string }>;
-    }>(MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY);
-    const match = index.modelDefinitions.find((m) => m.slug === idOrSlug);
-    if (!match) return null;
-    id = match.id;
-  }
   const data = await client.query<{
     modelDefinition: {
       id: string;
@@ -64,6 +55,22 @@ async function resolveModel(
     name: data.modelDefinition.name,
     displayField: data.modelDefinition.displayField ?? null,
   };
+}
+
+async function resolveModel(
+  client: CmssyClient,
+  idOrSlug: string,
+): Promise<ResolvedModel | null> {
+  if (OBJECT_ID_RE.test(idOrSlug)) {
+    const byId = await fetchModelById(client, idOrSlug);
+    if (byId) return byId;
+  }
+  const index = await client.query<{
+    modelDefinitions: Array<{ id: string; slug: string }>;
+  }>(MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY);
+  const match = index.modelDefinitions.find((m) => m.slug === idOrSlug);
+  if (!match) return null;
+  return fetchModelById(client, match.id);
 }
 
 export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
