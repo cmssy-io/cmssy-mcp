@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { mediaTypeValues } from "@cmssy/types";
 import { CmssyClient } from "./graphql-client.js";
-import { createRecordTool } from "@cmssy/ai-tools";
+import { createRecordTool, createDiscountTool } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
 
@@ -94,7 +94,6 @@ import {
   ADMIN_CARTS_QUERY,
   DISCOUNTS_QUERY,
   DISCOUNT_BY_ID_QUERY,
-  CREATE_DISCOUNT_MUTATION,
   UPDATE_DISCOUNT_MUTATION,
   SET_DISCOUNT_ENABLED_MUTATION,
   WEBHOOK_ENDPOINTS_QUERY,
@@ -3004,50 +3003,7 @@ export function createServer(client: CmssyClient) {
     },
   );
 
-  server.tool(
-    "create_discount",
-    "Create a discount code. For type='fixed', value and currency are required (value in minor units). For 'percentage', value is the percent and currency must be omitted. minSubtotal is in minor units. Dates are ISO date-time strings.",
-    {
-      code: z.string(),
-      type: z.enum(DISCOUNT_TYPE),
-      value: z
-        .number()
-        .describe("Percent for 'percentage'; minor units for 'fixed'"),
-      currency: z
-        .string()
-        .optional()
-        .describe("Required for 'fixed'; omit otherwise"),
-      minSubtotal: z
-        .number()
-        .optional()
-        .describe("Minimum order subtotal in minor units"),
-      maxUses: z.number().int().optional(),
-      maxUsesPerUser: z.number().int().optional(),
-      startsAt: z.string().optional().describe("ISO date-time"),
-      endsAt: z.string().optional().describe("ISO date-time"),
-      enabled: z.boolean(),
-      response: responseModeSchema,
-    },
-    async ({ response, ...input }) => {
-      const currencyError =
-        input.type === "fixed" && !input.currency
-          ? "currency is required for type 'fixed'"
-          : input.type !== "fixed" && input.currency
-            ? `currency must be omitted for type '${input.type}'`
-            : null;
-      if (currencyError) {
-        return {
-          content: [{ type: "text" as const, text: currencyError }],
-          isError: true,
-        };
-      }
-      const result = await client.query<{ createDiscount: DiscountResult }>(
-        CREATE_DISCOUNT_MUTATION,
-        { workspaceId: client.workspaceId, input },
-      );
-      return jsonText(response, result.createDiscount, discountMinimal);
-    },
-  );
+  bindSharedTool(server, createDiscountTool, sharedOps);
 
   server.tool(
     "update_discount",
