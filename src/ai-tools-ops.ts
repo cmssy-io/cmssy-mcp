@@ -4,6 +4,7 @@ import {
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
   CREATE_MODEL_RECORD_MUTATION,
+  CREATE_DISCOUNT_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -89,7 +90,15 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     orders: { list: () => notBound("orders.list") },
     discounts: {
       list: () => notBound("discounts.list"),
-      create: () => notBound("discounts.create"),
+      create: async (input) => {
+        const res = await client.query<{
+          createDiscount: { id: string; code: string };
+        }>(CREATE_DISCOUNT_MUTATION, {
+          workspaceId: client.workspaceId,
+          input,
+        });
+        return { id: res.createDiscount.id, code: res.createDiscount.code };
+      },
     },
   };
 }
