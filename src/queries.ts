@@ -128,11 +128,7 @@ export const CURRENT_WORKSPACE_QUERY = `
         maxStorageMb
         maxAiTokensMonth
         maxWorkspacesOwned
-        canUseCustomDomain
         canRemoveBranding
-        canUseCustomScripts
-        maxCustomBlocks
-        maxCustomBlocksStorageMb
       }
     }
   }
