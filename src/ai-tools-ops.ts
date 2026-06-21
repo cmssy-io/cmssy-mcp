@@ -641,11 +641,39 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         };
       },
       publish: async (pageId) => {
+        const page = await client.query<{
+          page: {
+            id: string;
+            published?: boolean;
+            hasUnpublishedContentChanges?: boolean;
+            hasUnpublishedLayoutChanges?: boolean;
+          } | null;
+        }>(PAGE_BY_ID_QUERY, { pageId });
+        if (!page.page) throw new Error("Page not found");
+        if (
+          page.page.published &&
+          !page.page.hasUnpublishedContentChanges &&
+          !page.page.hasUnpublishedLayoutChanges
+        ) {
+          return { id: pageId };
+        }
         await client.query(PUBLISH_PAGE_CONTENT_MUTATION, { id: pageId });
-        const res = await client.query<{
-          publishPageLayout: { id: string } | null;
-        }>(PUBLISH_PAGE_LAYOUT_MUTATION, { id: pageId });
-        if (!res.publishPageLayout) throw new Error("Page not found");
+        let res: { publishPageLayout: { id: string } | null };
+        try {
+          res = await client.query<{
+            publishPageLayout: { id: string } | null;
+          }>(PUBLISH_PAGE_LAYOUT_MUTATION, { id: pageId });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(
+            `Content published, but the layout axis failed and is still unpublished: ${message}. Note: re-running publish also re-publishes the current content draft, so publish any pending content edits first.`,
+          );
+        }
+        if (!res.publishPageLayout) {
+          throw new Error(
+            "Content published, but the layout axis returned no result and is still unpublished. Note: re-running publish also re-publishes the current content draft, so publish any pending content edits first.",
+          );
+        }
         return { id: res.publishPageLayout.id };
       },
       unpublish: async (pageId) => {
