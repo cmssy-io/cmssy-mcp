@@ -1,8 +1,14 @@
 import type { CmssyClient } from "./graphql-client.js";
-import type { WorkspaceOps } from "@cmssy/ai-tools";
+import type { WorkspaceOps, ModelSummary, ModelDetail } from "@cmssy/ai-tools";
 import {
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
+  MODEL_DEFINITIONS_QUERY,
+  MODEL_RECORDS_QUERY,
+  MEDIA_ASSETS_QUERY,
+  FORMS_QUERY,
+  ORDERS_QUERY,
+  DISCOUNTS_QUERY,
   CREATE_MODEL_RECORD_MUTATION,
   CREATE_DISCOUNT_MUTATION,
   SAVE_PAGE_MUTATION,
@@ -12,6 +18,57 @@ import {
   MODEL_RECORD_BY_ID_QUERY,
   UPDATE_MODEL_RECORD_MUTATION,
   UPDATE_MODEL_RECORD_STATUS_MUTATION,
+  DELETE_MODEL_DEFINITION_MUTATION,
+  DELETE_MODEL_RECORD_MUTATION,
+  IMPORT_MODEL_RECORDS_MUTATION,
+  PAGES_QUERY,
+  PAGE_BY_ID_QUERY,
+  PAGE_TYPES_QUERY,
+  CREATE_PAGE_TYPE_MUTATION,
+  UPDATE_PAGE_SETTINGS_MUTATION,
+  UPDATE_PAGE_LAYOUT_MUTATION,
+  PUBLISH_PAGE_CONTENT_MUTATION,
+  PUBLISH_PAGE_LAYOUT_MUTATION,
+  TOGGLE_PUBLISH_MUTATION,
+  REVERT_CONTENT_TO_PUBLISHED_MUTATION,
+  REVERT_LAYOUT_TO_PUBLISHED_MUTATION,
+  REMOVE_PAGE_MUTATION,
+  PATCH_BLOCK_CONTENT_MUTATION,
+  SITE_CONFIG_QUERY,
+  CURRENT_WORKSPACE_QUERY,
+  FORM_BY_ID_QUERY,
+  UPDATE_FORM_MUTATION,
+  DELETE_FORM_MUTATION,
+  FORM_SUBMISSIONS_QUERY,
+  FORM_SUBMISSION_BY_ID_QUERY,
+  UPDATE_FORM_SUBMISSION_STATUS_MUTATION,
+  DELETE_FORM_SUBMISSION_MUTATION,
+  ORDER_BY_ID_QUERY,
+  ORDER_PIPELINE_QUERY,
+  CREATE_MANUAL_ORDER_MUTATION,
+  EDIT_ORDER_MUTATION,
+  UPDATE_ORDER_DETAILS_MUTATION,
+  MARK_ORDER_PAID_MUTATION,
+  RECORD_ORDER_PAYMENT_MUTATION,
+  REFUND_ORDER_MUTATION,
+  CANCEL_ORDER_MUTATION,
+  TRANSITION_ORDER_FULFILLMENT_MUTATION,
+  SET_ORDER_PIPELINE_STAGE_MUTATION,
+  RECORD_ORDER_INVOICE_MUTATION,
+  DISCOUNT_BY_ID_QUERY,
+  UPDATE_DISCOUNT_MUTATION,
+  SET_DISCOUNT_ENABLED_MUTATION,
+  WEBHOOK_ENDPOINTS_QUERY,
+  WEBHOOK_DELIVERIES_QUERY,
+  WEBHOOK_EVENT_TYPES_QUERY,
+  CREATE_WEBHOOK_ENDPOINT_MUTATION,
+  UPDATE_WEBHOOK_ENDPOINT_MUTATION,
+  ROTATE_WEBHOOK_SECRET_MUTATION,
+  DELETE_WEBHOOK_ENDPOINT_MUTATION,
+  ADMIN_CARTS_QUERY,
+  PRODUCT_CATALOG_QUERY,
+  BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
+  BULK_DELETE_PRODUCT_RECORDS_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -26,10 +83,44 @@ function slugify(value: string): string {
   return slug || "model";
 }
 
-function notBound(name: string): never {
-  throw new Error(
-    `@cmssy/ai-tools op "${name}" is not bound on the MCP server yet`,
-  );
+const isEmpty = (obj: unknown) =>
+  obj == null ||
+  (typeof obj === "object" && Object.keys(obj as object).length === 0);
+
+function toRelativeSlug(slug: string): string {
+  if (slug === "/") return "/";
+  return "/" + slug.split("/").filter(Boolean).pop();
+}
+
+function expectedVersionOf(page: {
+  version?: string | number | null;
+}): number | undefined {
+  return page?.version != null ? Number(page.version) : undefined;
+}
+
+interface PageDoc {
+  id: string;
+  name: string;
+  slug: string;
+  published?: boolean;
+  pageType?: string | null;
+  parentId?: string | null;
+  blocks?: Array<Record<string, unknown> & { id: string }>;
+  layoutBlocks?: Array<Record<string, unknown> & { id: string }>;
+  customFields?: unknown;
+  version?: number | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+async function loadPage(
+  client: CmssyClient,
+  pageId: string,
+): Promise<PageDoc | null> {
+  const data = await client.query<{ page: PageDoc | null }>(PAGE_BY_ID_QUERY, {
+    pageId,
+  });
+  return data.page;
 }
 
 interface ResolvedModel {
@@ -73,12 +164,125 @@ async function resolveModel(
   return fetchModelById(client, match.id);
 }
 
+interface RawModelDefinition {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  displayField?: string | null;
+  recordCount?: number | null;
+  defaultSort?: { field: string; direction: "asc" | "desc" } | null;
+  statusField?: {
+    enabled?: boolean;
+    values?: string[];
+    defaultValue?: string | null;
+    transitions?: Array<{ from: string; to: string[] }>;
+  } | null;
+  fields?: Array<{
+    key: string;
+    label: string;
+    type: string;
+    required?: boolean | null;
+  }> | null;
+}
+
+function toModelSummary(m: RawModelDefinition): ModelSummary {
+  return {
+    id: m.id,
+    name: m.name,
+    slug: m.slug,
+    description: m.description ?? null,
+    fieldCount: m.fields?.length ?? 0,
+  };
+}
+
+function toModelDetail(m: RawModelDefinition): ModelDetail {
+  return {
+    id: m.id,
+    name: m.name,
+    slug: m.slug,
+    description: m.description ?? null,
+    displayField: m.displayField ?? null,
+    icon: m.icon ?? null,
+    color: m.color ?? null,
+    recordCount: m.recordCount ?? null,
+    defaultSort: m.defaultSort ?? null,
+    statusField: m.statusField
+      ? {
+          enabled: m.statusField.enabled,
+          values: m.statusField.values,
+          defaultValue: m.statusField.defaultValue ?? undefined,
+          transitions: m.statusField.transitions,
+        }
+      : null,
+    fields: (m.fields ?? []).map((f) => ({
+      key: f.key,
+      label: f.label,
+      type: f.type,
+      required: f.required ?? false,
+    })),
+  };
+}
+
 export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
+  const ws = client.workspaceId;
   return {
     models: {
-      list: () => notBound("models.list"),
-      get: () => notBound("models.get"),
-      listRecords: () => notBound("models.listRecords"),
+      list: async () => {
+        const res = await client.query<{
+          modelDefinitions: RawModelDefinition[];
+        }>(MODEL_DEFINITIONS_QUERY);
+        return res.modelDefinitions.map(toModelSummary);
+      },
+      get: async (idOrSlug) => {
+        const resolved = await resolveModel(client, idOrSlug);
+        if (!resolved) return null;
+        const res = await client.query<{
+          modelDefinition: RawModelDefinition | null;
+        }>(MODEL_DEFINITION_BY_ID_QUERY, { id: resolved.id });
+        if (!res.modelDefinition) return null;
+        return toModelDetail(res.modelDefinition);
+      },
+      listRecords: async (modelIdOrSlug, options) => {
+        const model = await resolveModel(client, modelIdOrSlug);
+        if (!model) return null;
+        const res = await client.query<{
+          modelRecords: {
+            items: Array<{
+              id: string;
+              modelId: string;
+              status?: string | null;
+              data?: Record<string, unknown> | null;
+              createdAt?: string | null;
+              updatedAt?: string | null;
+            }>;
+            total: number;
+            hasMore: boolean;
+          };
+        }>(MODEL_RECORDS_QUERY, {
+          modelId: model.id,
+          filter: options?.filter,
+          sort: options?.sort,
+          limit: options?.limit,
+          offset: options?.offset,
+          populate: options?.populate,
+        });
+        return {
+          modelId: model.id,
+          items: res.modelRecords.items.map((r) => ({
+            id: r.id,
+            modelId: r.modelId,
+            status: r.status ?? null,
+            data: r.data ?? {},
+            createdAt: r.createdAt ?? null,
+            updatedAt: r.updatedAt ?? null,
+          })),
+          total: res.modelRecords.total,
+          hasMore: res.modelRecords.hasMore,
+        };
+      },
       create: async (input) => {
         const mutationInput: Record<string, unknown> = {
           name: input.name,
@@ -213,9 +417,75 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           modelId: model.id,
         };
       },
+      getRecord: async (recordId) => {
+        const res = await client.query<{
+          modelRecord: {
+            id: string;
+            modelId: string;
+            status?: string | null;
+            data?: Record<string, unknown> | null;
+            createdAt?: string | null;
+            updatedAt?: string | null;
+          } | null;
+        }>(MODEL_RECORD_BY_ID_QUERY, { id: recordId });
+        const r = res.modelRecord;
+        if (!r) return null;
+        return {
+          id: r.id,
+          modelId: r.modelId,
+          status: r.status ?? null,
+          data: r.data ?? {},
+          createdAt: r.createdAt ?? null,
+          updatedAt: r.updatedAt ?? null,
+        };
+      },
+      delete: async (idOrSlug) => {
+        const model = await resolveModel(client, idOrSlug);
+        if (!model) return { deleted: false };
+        const res = await client.query<{ deleteModelDefinition: boolean }>(
+          DELETE_MODEL_DEFINITION_MUTATION,
+          { id: model.id },
+        );
+        return { deleted: Boolean(res.deleteModelDefinition) };
+      },
+      deleteRecord: async (recordId) => {
+        const res = await client.query<{ deleteModelRecord: boolean }>(
+          DELETE_MODEL_RECORD_MUTATION,
+          { id: recordId },
+        );
+        return { deleted: Boolean(res.deleteModelRecord) };
+      },
+      importRecords: async (modelIdOrSlug, rows) => {
+        const model = await resolveModel(client, modelIdOrSlug);
+        if (!model) throw new Error(`Model "${modelIdOrSlug}" not found`);
+        const res = await client.query<{
+          importModelRecords: {
+            importedCount: number;
+            errors: Array<{ row: number; message: string }>;
+          };
+        }>(IMPORT_MODEL_RECORDS_MUTATION, {
+          input: { modelId: model.id, rows },
+        });
+        return res.importModelRecords;
+      },
     },
     pages: {
-      search: () => notBound("pages.search"),
+      search: async (query) => {
+        const res = await client.query<{
+          pages: Array<{
+            id: string;
+            name: string;
+            slug: string;
+            published: boolean;
+          }>;
+        }>(PAGES_QUERY, { search: query });
+        return res.pages.map((p) => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          published: p.published,
+        }));
+      },
       create: async (input) => {
         const mutationInput: Record<string, unknown> = {
           name: input.name,
@@ -240,10 +510,481 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         }>(SAVE_PAGE_MUTATION, { input: mutationInput });
         return { id: res.savePage.id, name: res.savePage.name };
       },
+      get: async (idOrSlug) => {
+        const page = await loadPage(client, idOrSlug);
+        if (!page) return null;
+        return {
+          id: page.id,
+          name: page.name,
+          slug: page.slug,
+          published: Boolean(page.published),
+          pageType: page.pageType ?? null,
+          parentId: page.parentId ?? null,
+          blocks: page.blocks ?? null,
+          layoutBlocks: page.layoutBlocks ?? null,
+          customFields: page.customFields ?? null,
+          createdAt: page.createdAt ?? null,
+          updatedAt: page.updatedAt ?? null,
+        };
+      },
+      list: async (search) => {
+        const res = await client.query<{
+          pages: Array<{
+            id: string;
+            name: string;
+            slug: string;
+            published?: boolean;
+          }>;
+        }>(PAGES_QUERY, search ? { search } : {});
+        return res.pages.map((p) => ({
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          published: Boolean(p.published),
+        }));
+      },
+      listTypes: async () => {
+        const res = await client.query<{
+          pageTypes: Array<{
+            id: string;
+            name: string;
+            slug: string;
+            urlPrefix?: string | null;
+            allowChildren?: boolean;
+          }>;
+        }>(PAGE_TYPES_QUERY);
+        return res.pageTypes.map((t) => ({
+          id: t.id,
+          name: t.name,
+          slug: t.slug,
+          urlPrefix: t.urlPrefix ?? null,
+          allowChildren: Boolean(t.allowChildren),
+        }));
+      },
+      updateBlocks: async (pageId, blocks) => {
+        const page = await loadPage(client, pageId);
+        if (!page) throw new Error("Page not found");
+        const existing = page.blocks ?? [];
+        const merged = (
+          blocks as Array<Record<string, unknown> & { id: string }>
+        ).map((block) => {
+          const prev = existing.find((b) => b.id === block.id);
+          if (!prev) return block;
+          return {
+            ...block,
+            content: isEmpty(block.content) ? prev.content : block.content,
+            settings: isEmpty(block.settings) ? prev.settings : block.settings,
+            style: block.style ?? prev.style,
+            advanced: block.advanced ?? prev.advanced,
+            translations: isEmpty(block.translations)
+              ? prev.translations
+              : block.translations,
+            defaultLanguage: block.defaultLanguage ?? prev.defaultLanguage,
+            metadata: block.metadata ?? prev.metadata,
+            blockVersion: block.blockVersion ?? prev.blockVersion,
+          };
+        });
+        const res = await client.query<{ savePage: { id: string } }>(
+          SAVE_PAGE_MUTATION,
+          {
+            input: {
+              id: pageId,
+              name: page.name,
+              slug: toRelativeSlug(page.slug),
+              parentId: page.parentId ?? undefined,
+              blocks: merged,
+              expectedVersion: expectedVersionOf(page),
+            },
+          },
+        );
+        return { id: res.savePage.id };
+      },
+      updateSettings: async (pageId, settings) => {
+        const input: Record<string, unknown> = { id: pageId };
+        for (const key of [
+          "name",
+          "slug",
+          "displayName",
+          "seoTitle",
+          "seoDescription",
+          "seoKeywords",
+          "customFields",
+        ] as const) {
+          if (settings[key] !== undefined) input[key] = settings[key];
+        }
+        const res = await client.query<{
+          updatePageSettings: { id: string } | null;
+        }>(UPDATE_PAGE_SETTINGS_MUTATION, { input });
+        if (!res.updatePageSettings) throw new Error("Page not found");
+        return { id: res.updatePageSettings.id };
+      },
+      createType: async (input) => {
+        const mutationInput: Record<string, unknown> = {
+          name: input.name,
+          slug: input.slug,
+        };
+        if (input.description !== undefined)
+          mutationInput.description = input.description;
+        if (input.icon !== undefined) mutationInput.icon = input.icon;
+        if (input.urlPrefix !== undefined)
+          mutationInput.urlPrefix = input.urlPrefix;
+        if (input.allowChildren !== undefined)
+          mutationInput.allowChildren = input.allowChildren;
+        if (input.fields !== undefined) mutationInput.fields = input.fields;
+        const res = await client.query<{
+          createPageType: { id: string; name: string; slug: string };
+        }>(CREATE_PAGE_TYPE_MUTATION, { input: mutationInput });
+        return {
+          id: res.createPageType.id,
+          name: res.createPageType.name,
+          slug: res.createPageType.slug,
+        };
+      },
+      publish: async (pageId) => {
+        await client.query(PUBLISH_PAGE_CONTENT_MUTATION, { id: pageId });
+        const res = await client.query<{
+          publishPageLayout: { id: string } | null;
+        }>(PUBLISH_PAGE_LAYOUT_MUTATION, { id: pageId });
+        if (!res.publishPageLayout) throw new Error("Page not found");
+        return { id: res.publishPageLayout.id };
+      },
+      unpublish: async (pageId) => {
+        const res = await client.query<{
+          togglePublish: { id: string } | null;
+        }>(TOGGLE_PUBLISH_MUTATION, { id: pageId });
+        if (!res.togglePublish) throw new Error("Page not found");
+        return { id: res.togglePublish.id };
+      },
+      revert: async (pageId) => {
+        await client.query(REVERT_CONTENT_TO_PUBLISHED_MUTATION, {
+          id: pageId,
+        });
+        await client.query(REVERT_LAYOUT_TO_PUBLISHED_MUTATION, { id: pageId });
+        return { id: pageId };
+      },
+      deletePage: async (pageId) => {
+        const res = await client.query<{ removePage: boolean }>(
+          REMOVE_PAGE_MUTATION,
+          { id: pageId },
+        );
+        return { deleted: Boolean(res.removePage) };
+      },
+      updateLayout: async (pageId, layout) => {
+        let mergedLayoutBlocks = layout.layoutBlocks;
+        if (layout.layoutBlocks) {
+          const page = await loadPage(client, pageId);
+          const existing = page?.layoutBlocks ?? [];
+          mergedLayoutBlocks = layout.layoutBlocks.map((block) => {
+            const prev = existing.find(
+              (b) => b.id === (block as { id?: string }).id,
+            );
+            if (!prev) return block;
+            return {
+              ...block,
+              content: isEmpty(block.content) ? prev.content : block.content,
+              settings: isEmpty(block.settings)
+                ? prev.settings
+                : block.settings,
+              translations: isEmpty(block.translations)
+                ? prev.translations
+                : block.translations,
+            };
+          });
+        }
+        const input: Record<string, unknown> = { pageId };
+        if (mergedLayoutBlocks !== undefined)
+          input.layoutBlocks = mergedLayoutBlocks;
+        if (layout.layoutOverrides !== undefined)
+          input.layoutOverrides = layout.layoutOverrides;
+        if (layout.inheritsLayout !== undefined)
+          input.inheritsLayout = layout.inheritsLayout;
+        const res = await client.query<{
+          updatePageLayout: { id: string } | null;
+        }>(UPDATE_PAGE_LAYOUT_MUTATION, { input });
+        if (!res.updatePageLayout) throw new Error("Page not found");
+        return { id: res.updatePageLayout.id };
+      },
+      addBlock: async (pageId, block, layoutPosition, position) => {
+        const page = await loadPage(client, pageId);
+        if (!page) throw new Error("Page not found");
+        const configData = await client.query<{
+          siteConfig: {
+            defaultLanguage?: string;
+            enabledLanguages?: string[];
+          } | null;
+        }>(SITE_CONFIG_QUERY);
+        const defaultLanguage = configData.siteConfig?.defaultLanguage ?? "en";
+        const enabledLanguages = configData.siteConfig?.enabledLanguages ?? [
+          defaultLanguage,
+        ];
+        const content = block.content as Record<string, unknown>;
+        const translations: Record<string, { status: string }> = {};
+        for (const lang of enabledLanguages) {
+          translations[lang] = {
+            status: content[lang] ? "completed" : "pending",
+          };
+        }
+        const newBlockId = crypto.randomUUID();
+        if (layoutPosition) {
+          const existingLayout = page.layoutBlocks ?? [];
+          const maxOrder = existingLayout
+            .filter(
+              (b) => (b as { position?: string }).position === layoutPosition,
+            )
+            .reduce(
+              (max, b) => Math.max(max, (b as { order?: number }).order ?? -1),
+              -1,
+            );
+          const newLayoutBlock = {
+            id: newBlockId,
+            type: block.type,
+            position: layoutPosition,
+            order: maxOrder + 1,
+            isActive: true,
+            content: block.content,
+            settings: block.settings,
+            style: block.style,
+            translations,
+            defaultLanguage,
+          };
+          const res = await client.query<{
+            updatePageLayout: { id: string } | null;
+          }>(UPDATE_PAGE_LAYOUT_MUTATION, {
+            input: {
+              pageId,
+              layoutBlocks: [...existingLayout, newLayoutBlock],
+            },
+          });
+          if (!res.updatePageLayout) throw new Error("Failed to add block");
+          return { pageId, blockId: newBlockId };
+        }
+        const newBlock = {
+          id: newBlockId,
+          type: block.type,
+          content: block.content,
+          settings: block.settings,
+          style: block.style,
+          translations,
+          defaultLanguage,
+        };
+        const blocks = [...(page.blocks ?? [])];
+        if (
+          position !== undefined &&
+          position >= 0 &&
+          position < blocks.length
+        ) {
+          blocks.splice(position, 0, newBlock);
+        } else {
+          blocks.push(newBlock);
+        }
+        await client.query(SAVE_PAGE_MUTATION, {
+          input: {
+            id: pageId,
+            name: page.name,
+            slug: toRelativeSlug(page.slug),
+            parentId: page.parentId ?? undefined,
+            blocks,
+            expectedVersion: expectedVersionOf(page),
+          },
+        });
+        return { pageId, blockId: newBlockId };
+      },
+      updateBlock: async (pageId, blockId, content, settings) => {
+        const page = await loadPage(client, pageId);
+        if (!page) throw new Error("Page not found");
+        const contentIdx = (page.blocks ?? []).findIndex(
+          (b) => b.id === blockId,
+        );
+        const layoutIdx =
+          contentIdx === -1
+            ? (page.layoutBlocks ?? []).findIndex((b) => b.id === blockId)
+            : -1;
+        if (contentIdx === -1 && layoutIdx === -1) {
+          throw new Error("Block not found on page");
+        }
+        const isLayout = layoutIdx !== -1;
+        const targetArray = isLayout
+          ? [...(page.layoutBlocks ?? [])]
+          : [...(page.blocks ?? [])];
+        const targetIndex = isLayout ? layoutIdx : contentIdx;
+        const existingBlock = {
+          ...targetArray[targetIndex],
+        } as Record<string, unknown> & { id: string };
+        const mergedContent = {
+          ...((existingBlock.content as Record<string, unknown>) ?? {}),
+        };
+        for (const [lang, langContent] of Object.entries(content)) {
+          if (
+            typeof langContent === "object" &&
+            langContent !== null &&
+            typeof mergedContent[lang] === "object" &&
+            mergedContent[lang] !== null
+          ) {
+            mergedContent[lang] = {
+              ...(mergedContent[lang] as Record<string, unknown>),
+              ...(langContent as Record<string, unknown>),
+            };
+          } else {
+            mergedContent[lang] = langContent;
+          }
+        }
+        existingBlock.content = mergedContent;
+        if (settings) {
+          existingBlock.settings = {
+            ...((existingBlock.settings as Record<string, unknown>) ?? {}),
+            ...settings,
+          };
+        }
+        const trans = existingBlock.translations as
+          | Record<string, { status: string }>
+          | undefined;
+        if (trans) {
+          for (const lang of Object.keys(content)) {
+            if (trans[lang]) trans[lang] = { status: "completed" };
+          }
+        }
+        targetArray[targetIndex] = existingBlock;
+        if (isLayout) {
+          const res = await client.query<{
+            updatePageLayout: { id: string } | null;
+          }>(UPDATE_PAGE_LAYOUT_MUTATION, {
+            input: { pageId, layoutBlocks: targetArray },
+          });
+          if (!res.updatePageLayout) throw new Error("Failed to update block");
+        } else {
+          await client.query(SAVE_PAGE_MUTATION, {
+            input: {
+              id: pageId,
+              name: page.name,
+              slug: toRelativeSlug(page.slug),
+              parentId: page.parentId ?? undefined,
+              blocks: targetArray,
+              expectedVersion: expectedVersionOf(page),
+            },
+          });
+        }
+        return { pageId, blockId };
+      },
+      patchBlock: async (
+        pageId,
+        blockId,
+        locale,
+        operations,
+        fieldPath,
+        expectedVersion,
+      ) => {
+        const res = await client.query<{
+          patchBlockContent: { id: string } | null;
+        }>(PATCH_BLOCK_CONTENT_MUTATION, {
+          input: {
+            pageId,
+            blockId,
+            locale,
+            ...(fieldPath ? { fieldPath } : {}),
+            ...(expectedVersion !== undefined ? { expectedVersion } : {}),
+            operations,
+          },
+        });
+        if (!res.patchBlockContent) {
+          throw new Error("Page not found or patch failed");
+        }
+        return { pageId, blockId };
+      },
+      removeBlock: async (pageId, blockId) => {
+        const page = await loadPage(client, pageId);
+        if (!page) throw new Error("Page not found");
+        const contentBlocks = (page.blocks ?? []).filter(
+          (b) => b.id !== blockId,
+        );
+        if (contentBlocks.length < (page.blocks ?? []).length) {
+          await client.query(SAVE_PAGE_MUTATION, {
+            input: {
+              id: pageId,
+              name: page.name,
+              slug: toRelativeSlug(page.slug),
+              parentId: page.parentId ?? undefined,
+              blocks: contentBlocks,
+              expectedVersion: expectedVersionOf(page),
+            },
+          });
+          return { pageId, blockId };
+        }
+        const layoutBlocks = (page.layoutBlocks ?? []).filter(
+          (b) => b.id !== blockId,
+        );
+        if (layoutBlocks.length < (page.layoutBlocks ?? []).length) {
+          const res = await client.query<{
+            updatePageLayout: { id: string } | null;
+          }>(UPDATE_PAGE_LAYOUT_MUTATION, {
+            input: { pageId, layoutBlocks },
+          });
+          if (!res.updatePageLayout) throw new Error("Failed to remove block");
+          return { pageId, blockId };
+        }
+        throw new Error("Block not found on page");
+      },
     },
-    media: { list: () => notBound("media.list") },
+    media: {
+      list: async (limit, offset) => {
+        const res = await client.query<{
+          mediaAssets: {
+            items: Array<{
+              id: string;
+              filename: string;
+              type: string;
+              url?: string | null;
+              mimeType?: string | null;
+              size?: number | null;
+            }>;
+            total: number;
+            hasMore: boolean;
+          };
+        }>(MEDIA_ASSETS_QUERY, { limit, offset });
+        return {
+          items: res.mediaAssets.items.map((m) => ({
+            id: m.id,
+            filename: m.filename,
+            type: m.type,
+            url: m.url ?? null,
+            mimeType: m.mimeType ?? null,
+            size: m.size ?? null,
+          })),
+          total: res.mediaAssets.total,
+          hasMore: res.mediaAssets.hasMore,
+        };
+      },
+    },
     forms: {
-      list: () => notBound("forms.list"),
+      list: async (options) => {
+        const res = await client.query<{
+          forms: {
+            forms: Array<{
+              id: string;
+              name: string;
+              slug?: string | null;
+              status: string;
+              submissionCount?: number | null;
+            }>;
+            total: number;
+            hasMore: boolean;
+          };
+        }>(FORMS_QUERY, {
+          status: options?.status,
+          skip: options?.skip,
+          limit: options?.limit,
+        });
+        return {
+          items: res.forms.forms.map((f) => ({
+            id: f.id,
+            name: f.name,
+            slug: f.slug ?? null,
+            status: f.status,
+            submissionCount: f.submissionCount ?? null,
+          })),
+          total: res.forms.total,
+          hasMore: res.forms.hasMore,
+        };
+      },
       create: async (input) => {
         const mutationInput: Record<string, unknown> = {
           name: input.name,
@@ -259,18 +1000,558 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         }>(CREATE_FORM_MUTATION, { input: mutationInput });
         return { id: res.createForm.id, name: res.createForm.name };
       },
+      get: async (idOrSlug) => {
+        const res = await client.query<{
+          form: {
+            id: string;
+            name: string;
+            slug: string;
+            status?: string | null;
+            fields?: unknown;
+            settings?: unknown;
+            submissionCount?: number | null;
+          } | null;
+        }>(FORM_BY_ID_QUERY, { formId: idOrSlug });
+        const f = res.form;
+        if (!f) return null;
+        return {
+          id: f.id,
+          name: f.name,
+          slug: f.slug,
+          status: f.status ?? null,
+          fields: f.fields ?? null,
+          settings: f.settings ?? null,
+          submissionCount: f.submissionCount ?? null,
+        };
+      },
+      update: async (idOrSlug, patch) => {
+        const input: Record<string, unknown> = {};
+        for (const key of [
+          "name",
+          "slug",
+          "description",
+          "status",
+          "fields",
+          "settings",
+        ] as const) {
+          if (patch[key] !== undefined) input[key] = patch[key];
+        }
+        const res = await client.query<{
+          updateForm: { id: string } | null;
+        }>(UPDATE_FORM_MUTATION, { formId: idOrSlug, input });
+        return res.updateForm ? { id: res.updateForm.id } : null;
+      },
+      delete: async (idOrSlug) => {
+        const res = await client.query<{ deleteForm: boolean }>(
+          DELETE_FORM_MUTATION,
+          { formId: idOrSlug },
+        );
+        return { deleted: Boolean(res.deleteForm) };
+      },
+      listSubmissions: async (options) => {
+        const res = await client.query<{ formSubmissions: unknown }>(
+          FORM_SUBMISSIONS_QUERY,
+          {
+            ...(options?.formIdOrSlug ? { formId: options.formIdOrSlug } : {}),
+            ...(options?.status ? { status: options.status } : {}),
+            skip: options?.skip ?? 0,
+            limit: options?.limit ?? 50,
+          },
+        );
+        return res.formSubmissions;
+      },
+      getSubmission: async (submissionId) => {
+        const res = await client.query<{ formSubmission: unknown }>(
+          FORM_SUBMISSION_BY_ID_QUERY,
+          { submissionId },
+        );
+        return res.formSubmission;
+      },
+      updateSubmissionStatus: async (submissionId, status) => {
+        const res = await client.query<{
+          updateFormSubmissionStatus: boolean;
+        }>(UPDATE_FORM_SUBMISSION_STATUS_MUTATION, { submissionId, status });
+        return { ok: Boolean(res.updateFormSubmissionStatus) };
+      },
+      deleteSubmission: async (submissionId) => {
+        const res = await client.query<{ deleteFormSubmission: boolean }>(
+          DELETE_FORM_SUBMISSION_MUTATION,
+          { submissionId },
+        );
+        return { deleted: Boolean(res.deleteFormSubmission) };
+      },
     },
-    orders: { list: () => notBound("orders.list") },
+    orders: {
+      list: async (options) => {
+        const res = await client.query<{
+          orders: {
+            items: Array<{
+              id: string;
+              orderNumber?: number | null;
+              customerEmail?: string | null;
+              status?: string | null;
+              paymentStatus?: string | null;
+              fulfillmentStatus?: string | null;
+              total?: number | null;
+              currency?: string | null;
+              createdAt?: string | null;
+            }>;
+            total: number;
+            hasMore: boolean;
+          };
+        }>(ORDERS_QUERY, {
+          workspaceId: ws,
+          paymentStatus: options?.paymentStatus,
+          fulfillmentStatus: options?.fulfillmentStatus,
+          customerId: options?.customerId,
+          search: options?.search,
+          pipelineStageId: options?.pipelineStageId,
+          dateFrom: options?.dateFrom,
+          dateTo: options?.dateTo,
+          skip: options?.skip,
+          limit: options?.limit,
+        });
+        return {
+          items: res.orders.items.map((o) => ({
+            id: o.id,
+            orderNumber: o.orderNumber ?? null,
+            customerEmail: o.customerEmail ?? null,
+            status: o.status ?? null,
+            paymentStatus: o.paymentStatus ?? null,
+            fulfillmentStatus: o.fulfillmentStatus ?? null,
+            total: o.total ?? null,
+            currency: o.currency ?? null,
+            createdAt: o.createdAt ?? null,
+          })),
+          total: res.orders.total,
+          hasMore: res.orders.hasMore,
+        };
+      },
+      get: async (id) => {
+        const res = await client.query<{
+          order: {
+            id: string;
+            orderNumber?: number | null;
+            paymentStatus?: string | null;
+            fulfillmentStatus?: string | null;
+            customerEmail?: string | null;
+            total?: number | null;
+            currency?: string | null;
+            items?: unknown;
+            payments?: unknown;
+            createdAt?: string | null;
+          } | null;
+        }>(ORDER_BY_ID_QUERY, { workspaceId: ws, id });
+        const o = res.order;
+        if (!o) return null;
+        return {
+          id: o.id,
+          orderNumber: o.orderNumber ?? null,
+          paymentStatus: o.paymentStatus ?? null,
+          fulfillmentStatus: o.fulfillmentStatus ?? null,
+          customerEmail: o.customerEmail ?? null,
+          total: o.total ?? null,
+          currency: o.currency ?? null,
+          items: o.items ?? null,
+          payments: o.payments ?? null,
+          createdAt: o.createdAt ?? null,
+        };
+      },
+      getPipeline: async () => {
+        const res = await client.query<{ orderPipeline: unknown }>(
+          ORDER_PIPELINE_QUERY,
+          { workspaceId: ws },
+        );
+        return res.orderPipeline;
+      },
+      createManual: async (customerEmail, items, customerId) => {
+        const res = await client.query<{
+          createManualOrder: { id: string; orderNumber?: number | null };
+        }>(CREATE_MANUAL_ORDER_MUTATION, {
+          input: { workspaceId: ws, customerEmail, customerId, items },
+        });
+        const o = res.createManualOrder;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      edit: async (orderId, items) => {
+        const res = await client.query<{
+          editOrder: { id: string; orderNumber?: number | null };
+        }>(EDIT_ORDER_MUTATION, {
+          input: { workspaceId: ws, orderId, items },
+        });
+        const o = res.editOrder;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      updateDetails: async (orderId, details) => {
+        const res = await client.query<{
+          updateOrderDetails: { id: string; orderNumber?: number | null };
+        }>(UPDATE_ORDER_DETAILS_MUTATION, {
+          input: { workspaceId: ws, orderId, ...details },
+        });
+        const o = res.updateOrderDetails;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      markPaid: async (orderId, payment) => {
+        const res = await client.query<{
+          markOrderPaid: { id: string; orderNumber?: number | null };
+        }>(MARK_ORDER_PAID_MUTATION, {
+          input: {
+            workspaceId: ws,
+            orderId,
+            amount: payment.amount,
+            reference: payment.reference,
+            provider: payment.provider ?? "manual",
+          },
+        });
+        const o = res.markOrderPaid;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      recordPayment: async (orderId, payment) => {
+        const res = await client.query<{
+          recordOrderPayment: { id: string; orderNumber?: number | null };
+        }>(RECORD_ORDER_PAYMENT_MUTATION, {
+          input: {
+            workspaceId: ws,
+            orderId,
+            amount: payment.amount,
+            reference: payment.reference,
+            provider: payment.provider,
+          },
+        });
+        const o = res.recordOrderPayment;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      refund: async (orderId, reference, amount) => {
+        const res = await client.query<{
+          refundOrder: { id: string; orderNumber?: number | null };
+        }>(REFUND_ORDER_MUTATION, {
+          input: { workspaceId: ws, orderId, reference, amount },
+        });
+        const o = res.refundOrder;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      cancel: async (orderId) => {
+        const res = await client.query<{
+          cancelOrder: { id: string; orderNumber?: number | null };
+        }>(CANCEL_ORDER_MUTATION, {
+          input: { workspaceId: ws, orderId },
+        });
+        const o = res.cancelOrder;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      transitionFulfillment: async (
+        orderId,
+        status,
+        trackingNumber,
+        trackingCarrier,
+      ) => {
+        const res = await client.query<{
+          transitionOrderFulfillment: {
+            id: string;
+            orderNumber?: number | null;
+          };
+        }>(TRANSITION_ORDER_FULFILLMENT_MUTATION, {
+          input: {
+            workspaceId: ws,
+            orderId,
+            status,
+            trackingNumber,
+            trackingCarrier,
+          },
+        });
+        const o = res.transitionOrderFulfillment;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      setPipelineStage: async (orderId, stageId) => {
+        const res = await client.query<{
+          setOrderPipelineStage: { id: string; orderNumber?: number | null };
+        }>(SET_ORDER_PIPELINE_STAGE_MUTATION, {
+          input: { workspaceId: ws, orderId, stageId },
+        });
+        const o = res.setOrderPipelineStage;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      recordInvoice: async (orderId, invoice) => {
+        const res = await client.query<{
+          recordOrderInvoice: { id: string; orderNumber?: number | null };
+        }>(RECORD_ORDER_INVOICE_MUTATION, {
+          input: {
+            workspaceId: ws,
+            orderId,
+            number: invoice.number,
+            url: invoice.url,
+            provider: invoice.provider,
+          },
+        });
+        const o = res.recordOrderInvoice;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+    },
     discounts: {
-      list: () => notBound("discounts.list"),
+      list: async (options) => {
+        const res = await client.query<{
+          discounts: {
+            items: Array<{
+              id: string;
+              code: string;
+              type: string;
+              value?: number | null;
+              enabled: boolean;
+              currentUses?: number | null;
+            }>;
+            total: number;
+            hasMore: boolean;
+          };
+        }>(DISCOUNTS_QUERY, {
+          workspaceId: ws,
+          enabled: options?.enabled,
+          type: options?.type,
+          search: options?.search,
+          limit: options?.limit,
+          offset: options?.offset,
+        });
+        return {
+          items: res.discounts.items.map((d) => ({
+            id: d.id,
+            code: d.code,
+            type: d.type,
+            value: d.value ?? null,
+            enabled: d.enabled,
+            currentUses: d.currentUses ?? null,
+          })),
+          total: res.discounts.total,
+          hasMore: res.discounts.hasMore,
+        };
+      },
       create: async (input) => {
         const res = await client.query<{
           createDiscount: { id: string; code: string };
-        }>(CREATE_DISCOUNT_MUTATION, {
-          workspaceId: client.workspaceId,
-          input,
-        });
+        }>(CREATE_DISCOUNT_MUTATION, { workspaceId: ws, input });
         return { id: res.createDiscount.id, code: res.createDiscount.code };
+      },
+      get: async (idOrSlug) => {
+        const res = await client.query<{
+          discount: {
+            id: string;
+            code: string;
+            type: string;
+            value: number;
+            enabled: boolean;
+            currency?: string | null;
+            minSubtotal?: number | null;
+            maxUses?: number | null;
+            maxUsesPerUser?: number | null;
+            currentUses?: number | null;
+            startsAt?: string | null;
+            endsAt?: string | null;
+          } | null;
+        }>(DISCOUNT_BY_ID_QUERY, { workspaceId: ws, id: idOrSlug });
+        const d = res.discount;
+        if (!d) return null;
+        return {
+          id: d.id,
+          code: d.code,
+          type: d.type,
+          value: d.value,
+          enabled: d.enabled,
+          currency: d.currency ?? null,
+          minSubtotal: d.minSubtotal ?? null,
+          maxUses: d.maxUses ?? null,
+          maxUsesPerUser: d.maxUsesPerUser ?? null,
+          currentUses: d.currentUses ?? null,
+          startsAt: d.startsAt ?? null,
+          endsAt: d.endsAt ?? null,
+        };
+      },
+      update: async (idOrSlug, patch) => {
+        const input: Record<string, unknown> = {};
+        for (const key of [
+          "code",
+          "type",
+          "value",
+          "currency",
+          "minSubtotal",
+          "maxUses",
+          "maxUsesPerUser",
+          "startsAt",
+          "endsAt",
+          "enabled",
+        ] as const) {
+          if (patch[key] !== undefined) input[key] = patch[key];
+        }
+        const res = await client.query<{
+          updateDiscount: {
+            id: string;
+            code: string;
+            enabled: boolean;
+          } | null;
+        }>(UPDATE_DISCOUNT_MUTATION, { workspaceId: ws, id: idOrSlug, input });
+        if (!res.updateDiscount) return null;
+        return {
+          id: res.updateDiscount.id,
+          code: res.updateDiscount.code,
+          enabled: res.updateDiscount.enabled,
+        };
+      },
+      setEnabled: async (idOrSlug, enabled) => {
+        const res = await client.query<{
+          setDiscountEnabled: {
+            id: string;
+            code: string;
+            enabled: boolean;
+          } | null;
+        }>(SET_DISCOUNT_ENABLED_MUTATION, {
+          workspaceId: ws,
+          id: idOrSlug,
+          enabled,
+        });
+        if (!res.setDiscountEnabled) return null;
+        return {
+          id: res.setDiscountEnabled.id,
+          code: res.setDiscountEnabled.code,
+          enabled: res.setDiscountEnabled.enabled,
+        };
+      },
+    },
+    workspace: {
+      info: async () => {
+        const res = await client.query<{
+          currentWorkspace: {
+            id: string;
+            name: string;
+            slug: string;
+            plan?: string | null;
+            limits?: Record<string, unknown> | null;
+          } | null;
+        }>(CURRENT_WORKSPACE_QUERY);
+        const w = res.currentWorkspace;
+        if (!w) throw new Error("Workspace not found");
+        return {
+          id: w.id,
+          name: w.name,
+          slug: w.slug,
+          plan: w.plan ?? null,
+          limits: w.limits ?? null,
+        };
+      },
+      siteConfig: async () => {
+        const res = await client.query<{
+          siteConfig: {
+            id?: string | null;
+            defaultLanguage?: string | null;
+            enabledLanguages?: string[];
+            siteName?: string | null;
+            enabledFeatures?: string[];
+            header?: unknown;
+            footer?: unknown;
+          } | null;
+        }>(SITE_CONFIG_QUERY);
+        const c = res.siteConfig;
+        if (!c) return null;
+        return {
+          id: c.id ?? null,
+          defaultLanguage: c.defaultLanguage ?? null,
+          enabledLanguages: c.enabledLanguages ?? [],
+          siteName: c.siteName ?? null,
+          enabledFeatures: c.enabledFeatures ?? [],
+          header: c.header ?? null,
+          footer: c.footer ?? null,
+        };
+      },
+    },
+    webhooks: {
+      list: async () => {
+        const res = await client.query<{ webhookEndpoints: unknown }>(
+          WEBHOOK_ENDPOINTS_QUERY,
+          { workspaceId: ws },
+        );
+        return res.webhookEndpoints;
+      },
+      listDeliveries: async (limit) => {
+        const res = await client.query<{ webhookDeliveries: unknown }>(
+          WEBHOOK_DELIVERIES_QUERY,
+          { workspaceId: ws, limit: limit ?? 50 },
+        );
+        return res.webhookDeliveries;
+      },
+      listEventTypes: async () => {
+        const res = await client.query<{ webhookEventTypes: string[] }>(
+          WEBHOOK_EVENT_TYPES_QUERY,
+          { workspaceId: ws },
+        );
+        return res.webhookEventTypes;
+      },
+      create: async (input) => {
+        const res = await client.query<{ createWebhookEndpoint: unknown }>(
+          CREATE_WEBHOOK_ENDPOINT_MUTATION,
+          {
+            input: {
+              workspaceId: ws,
+              url: input.url,
+              events: input.events,
+              description: input.description,
+            },
+          },
+        );
+        return res.createWebhookEndpoint;
+      },
+      update: async (id, patch) => {
+        const res = await client.query<{ updateWebhookEndpoint: unknown }>(
+          UPDATE_WEBHOOK_ENDPOINT_MUTATION,
+          { input: { workspaceId: ws, id, ...patch } },
+        );
+        return res.updateWebhookEndpoint;
+      },
+      rotateSecret: async (id) => {
+        const res = await client.query<{ rotateWebhookSecret: unknown }>(
+          ROTATE_WEBHOOK_SECRET_MUTATION,
+          { workspaceId: ws, id },
+        );
+        return res.rotateWebhookSecret;
+      },
+      delete: async (id) => {
+        const res = await client.query<{ deleteWebhookEndpoint: boolean }>(
+          DELETE_WEBHOOK_ENDPOINT_MUTATION,
+          { workspaceId: ws, id },
+        );
+        return { deleted: Boolean(res.deleteWebhookEndpoint) };
+      },
+    },
+    carts: {
+      list: async (status, skip, limit) => {
+        const res = await client.query<{ adminCarts: unknown }>(
+          ADMIN_CARTS_QUERY,
+          {
+            workspaceId: ws,
+            ...(status ? { status } : {}),
+            skip: skip ?? 0,
+            limit: limit ?? 20,
+          },
+        );
+        return res.adminCarts;
+      },
+    },
+    products: {
+      list: async (modelId, filter, limit, offset, sort) => {
+        const res = await client.query<{ productCatalog: unknown }>(
+          PRODUCT_CATALOG_QUERY,
+          { modelId, filter, limit, offset, sort },
+        );
+        return res.productCatalog;
+      },
+      bulkUpdate: async (modelId, selection, patch) => {
+        const res = await client.query<{ bulkUpdateProductRecords: number }>(
+          BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
+          { modelId, selection, patch },
+        );
+        return { count: res.bulkUpdateProductRecords };
+      },
+      bulkDelete: async (modelId, selection) => {
+        const res = await client.query<{ bulkDeleteProductRecords: number }>(
+          BULK_DELETE_PRODUCT_RECORDS_MUTATION,
+          { modelId, selection },
+        );
+        return { count: res.bulkDeleteProductRecords };
       },
     },
   };
