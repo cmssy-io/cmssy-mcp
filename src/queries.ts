@@ -899,7 +899,6 @@ const DISCOUNT_FRAGMENT = `
   minSubtotal
   maxUses
   currentUses
-  maxUsesPerUser
   startsAt
   endsAt
   enabled
