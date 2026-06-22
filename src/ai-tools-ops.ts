@@ -1368,7 +1368,6 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             currency?: string | null;
             minSubtotal?: number | null;
             maxUses?: number | null;
-            maxUsesPerUser?: number | null;
             currentUses?: number | null;
             startsAt?: string | null;
             endsAt?: string | null;
@@ -1385,7 +1384,6 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           currency: d.currency ?? null,
           minSubtotal: d.minSubtotal ?? null,
           maxUses: d.maxUses ?? null,
-          maxUsesPerUser: d.maxUsesPerUser ?? null,
           currentUses: d.currentUses ?? null,
           startsAt: d.startsAt ?? null,
           endsAt: d.endsAt ?? null,
@@ -1400,7 +1398,6 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "currency",
           "minSubtotal",
           "maxUses",
-          "maxUsesPerUser",
           "startsAt",
           "endsAt",
           "enabled",
