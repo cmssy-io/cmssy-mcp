@@ -1585,7 +1585,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const res = await client.query<{
           users: Array<{
             id: string;
-            email: string;
+            email?: string | null;
             username?: string | null;
             profile?: { displayName?: string | null } | null;
             membershipStatus?: string | null;
