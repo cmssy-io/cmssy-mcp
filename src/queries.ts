@@ -1093,3 +1093,37 @@ export const BULK_DELETE_PRODUCT_RECORDS_MUTATION = `
     bulkDeleteProductRecords(modelId: $modelId, selection: $selection)
   }
 `;
+
+export const MEMBERS_QUERY = `
+  query Members {
+    users {
+      id
+      email
+      username
+      profile {
+        displayName
+      }
+      membershipStatus
+      isWorkspaceOwner
+      invitedAt
+      joinedAt
+      workspaceRole {
+        id
+        name
+      }
+    }
+  }
+`;
+
+export const ROLES_QUERY = `
+  query WorkspaceRoles {
+    workspaceRoles {
+      id
+      name
+      slug
+      permissions
+      isDefault
+      isSystem
+    }
+  }
+`;

@@ -6,6 +6,8 @@ import {
   MODEL_DEFINITIONS_QUERY,
   MODEL_RECORDS_QUERY,
   MEDIA_ASSETS_QUERY,
+  MEMBERS_QUERY,
+  ROLES_QUERY,
   FORMS_QUERY,
   ORDERS_QUERY,
   DISCOUNTS_QUERY,
@@ -864,8 +866,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           };
         }
         const trans = existingBlock.translations as
-          | Record<string, { status: string }>
-          | undefined;
+          Record<string, { status: string }> | undefined;
         if (trans) {
           for (const lang of Object.keys(content)) {
             if (trans[lang]) trans[lang] = { status: "completed" };
@@ -1577,6 +1578,69 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           { modelId, selection },
         );
         return { count: res.bulkDeleteProductRecords };
+      },
+    },
+    members: {
+      list: async (options) => {
+        const res = await client.query<{
+          users: Array<{
+            id: string;
+            email: string;
+            username?: string | null;
+            profile?: { displayName?: string | null } | null;
+            membershipStatus?: string | null;
+            isWorkspaceOwner?: boolean | null;
+            invitedAt?: string | null;
+            joinedAt?: string | null;
+            workspaceRole?: { id: string; name: string } | null;
+          }>;
+        }>(MEMBERS_QUERY);
+        let items = res.users.map((u) => ({
+          userId: u.id,
+          email: u.email ?? null,
+          name: u.profile?.displayName ?? u.username ?? null,
+          roleId: u.workspaceRole?.id ?? "",
+          roleName: u.workspaceRole?.name ?? null,
+          status: u.membershipStatus ?? "",
+          isOwner: u.isWorkspaceOwner ?? false,
+          invitedAt: u.invitedAt ?? null,
+          joinedAt: u.joinedAt ?? null,
+        }));
+        const status = options?.status;
+        const search = options?.search?.toLowerCase();
+        if (status) items = items.filter((m) => m.status === status);
+        if (search)
+          items = items.filter(
+            (m) =>
+              m.email?.toLowerCase().includes(search) ||
+              m.name?.toLowerCase().includes(search),
+          );
+        const total = items.length;
+        const skip = options?.skip ?? 0;
+        const paged = items.slice(skip, skip + (options?.limit ?? 50));
+        return { items: paged, total, hasMore: skip + paged.length < total };
+      },
+    },
+    roles: {
+      list: async () => {
+        const res = await client.query<{
+          workspaceRoles: Array<{
+            id: string;
+            name: string;
+            slug: string;
+            permissions: string[];
+            isDefault: boolean;
+            isSystem: boolean;
+          }>;
+        }>(ROLES_QUERY);
+        return res.workspaceRoles.map((r) => ({
+          id: r.id,
+          name: r.name,
+          slug: r.slug,
+          permissions: r.permissions,
+          isDefault: r.isDefault,
+          isSystem: r.isSystem,
+        }));
       },
     },
   };
