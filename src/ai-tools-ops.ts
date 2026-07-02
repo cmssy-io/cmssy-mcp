@@ -819,7 +819,13 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         });
         return { pageId, blockId: newBlockId };
       },
-      updateBlock: async (pageId, blockId, content, settings) => {
+      updateBlock: async (
+        pageId,
+        blockId,
+        content,
+        settings,
+        mode = "merge",
+      ) => {
         const page = await loadPage(client, pageId);
         if (!page) throw new Error("Page not found");
         const contentIdx = (page.blocks ?? []).findIndex(
@@ -840,30 +846,38 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const existingBlock = {
           ...targetArray[targetIndex],
         } as Record<string, unknown> & { id: string };
-        const mergedContent = {
-          ...((existingBlock.content as Record<string, unknown>) ?? {}),
-        };
-        for (const [lang, langContent] of Object.entries(content)) {
-          if (
-            typeof langContent === "object" &&
-            langContent !== null &&
-            typeof mergedContent[lang] === "object" &&
-            mergedContent[lang] !== null
-          ) {
-            mergedContent[lang] = {
-              ...(mergedContent[lang] as Record<string, unknown>),
-              ...(langContent as Record<string, unknown>),
-            };
-          } else {
-            mergedContent[lang] = langContent;
-          }
-        }
-        existingBlock.content = mergedContent;
-        if (settings) {
-          existingBlock.settings = {
-            ...((existingBlock.settings as Record<string, unknown>) ?? {}),
-            ...settings,
+        if (mode === "replace") {
+          existingBlock.content = content;
+        } else {
+          const mergedContent = {
+            ...((existingBlock.content as Record<string, unknown>) ?? {}),
           };
+          for (const [lang, langContent] of Object.entries(content)) {
+            if (
+              typeof langContent === "object" &&
+              langContent !== null &&
+              typeof mergedContent[lang] === "object" &&
+              mergedContent[lang] !== null
+            ) {
+              mergedContent[lang] = {
+                ...(mergedContent[lang] as Record<string, unknown>),
+                ...(langContent as Record<string, unknown>),
+              };
+            } else {
+              mergedContent[lang] = langContent;
+            }
+          }
+          existingBlock.content = mergedContent;
+        }
+        if (settings) {
+          existingBlock.settings =
+            mode === "replace"
+              ? settings
+              : {
+                  ...((existingBlock.settings as Record<string, unknown>) ??
+                    {}),
+                  ...settings,
+                };
         }
         const trans = existingBlock.translations as
           Record<string, { status: string }> | undefined;
