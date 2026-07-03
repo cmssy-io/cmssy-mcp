@@ -25,6 +25,7 @@ import {
   IMPORT_MODEL_RECORDS_MUTATION,
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
+  PAGE_VERSION_QUERY,
   PAGE_TYPES_QUERY,
   CREATE_PAGE_TYPE_MUTATION,
   UPDATE_PAGE_SETTINGS_MUTATION,
@@ -122,6 +123,18 @@ async function loadPage(
   const data = await client.query<{ page: PageDoc | null }>(PAGE_BY_ID_QUERY, {
     pageId,
   });
+  return data.page;
+}
+
+// Lightweight read for version-only guards - skips the full blocks/layout
+// payload PAGE_BY_ID_QUERY pulls in.
+async function loadPageVersion(
+  client: CmssyClient,
+  pageId: string,
+): Promise<{ id: string; version?: number | null } | null> {
+  const data = await client.query<{
+    page: { id: string; version?: number | null } | null;
+  }>(PAGE_VERSION_QUERY, { pageId });
   return data.page;
 }
 
@@ -602,6 +615,11 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         return { id: res.savePage.id };
       },
       updateSettings: async (pageId, settings) => {
+        // Read-modify-write: carry the current version as expectedVersion so the
+        // write honors the optimistic-concurrency guard (required once the
+        // backend's ENFORCE_PAGE_VERSION_GUARD is on). Version-only read.
+        const page = await loadPageVersion(client, pageId);
+        if (!page) throw new Error("Page not found");
         const input: Record<string, unknown> = { id: pageId };
         for (const key of [
           "name",
@@ -614,6 +632,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         ] as const) {
           if (settings[key] !== undefined) input[key] = settings[key];
         }
+        const ev = expectedVersionOf(page);
+        if (ev !== undefined) input.expectedVersion = ev;
         const res = await client.query<{
           updatePageSettings: { id: string } | null;
         }>(UPDATE_PAGE_SETTINGS_MUTATION, { input });
@@ -700,10 +720,17 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         return { deleted: Boolean(res.removePage) };
       },
       updateLayout: async (pageId, layout) => {
+        // Need the version for the guard either way; only pull the full page
+        // (heavy) when there are layoutBlocks to merge against the draft. An
+        // empty array still clears the layout but needs no merge/full fetch.
+        const hasBlocksToMerge = (layout.layoutBlocks?.length ?? 0) > 0;
+        const page = hasBlocksToMerge
+          ? await loadPage(client, pageId)
+          : await loadPageVersion(client, pageId);
+        if (!page) throw new Error("Page not found");
         let mergedLayoutBlocks = layout.layoutBlocks;
-        if (layout.layoutBlocks) {
-          const page = await loadPage(client, pageId);
-          const existing = page?.layoutBlocks ?? [];
+        if (hasBlocksToMerge && layout.layoutBlocks) {
+          const existing = (page as PageDoc).layoutBlocks ?? [];
           mergedLayoutBlocks = layout.layoutBlocks.map((block) => {
             const prev = existing.find(
               (b) => b.id === (block as { id?: string }).id,
@@ -728,6 +755,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           input.layoutOverrides = layout.layoutOverrides;
         if (layout.inheritsLayout !== undefined)
           input.inheritsLayout = layout.inheritsLayout;
+        const ev = expectedVersionOf(page);
+        if (ev !== undefined) input.expectedVersion = ev;
         const res = await client.query<{
           updatePageLayout: { id: string } | null;
         }>(UPDATE_PAGE_LAYOUT_MUTATION, { input });
@@ -737,6 +766,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       addBlock: async (pageId, block, layoutPosition, position) => {
         const page = await loadPage(client, pageId);
         if (!page) throw new Error("Page not found");
+        const ev = expectedVersionOf(page);
         const configData = await client.query<{
           siteConfig: {
             defaultLanguage?: string;
@@ -783,6 +813,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             input: {
               pageId,
               layoutBlocks: [...existingLayout, newLayoutBlock],
+              ...(ev !== undefined ? { expectedVersion: ev } : {}),
             },
           });
           if (!res.updatePageLayout) throw new Error("Failed to add block");
@@ -814,7 +845,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             slug: toRelativeSlug(page.slug),
             parentId: page.parentId ?? undefined,
             blocks,
-            expectedVersion: expectedVersionOf(page),
+            expectedVersion: ev,
           },
         });
         return { pageId, blockId: newBlockId };
@@ -828,6 +859,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       ) => {
         const page = await loadPage(client, pageId);
         if (!page) throw new Error("Page not found");
+        const ev = expectedVersionOf(page);
         const contentIdx = (page.blocks ?? []).findIndex(
           (b) => b.id === blockId,
         );
@@ -891,7 +923,11 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           const res = await client.query<{
             updatePageLayout: { id: string } | null;
           }>(UPDATE_PAGE_LAYOUT_MUTATION, {
-            input: { pageId, layoutBlocks: targetArray },
+            input: {
+              pageId,
+              layoutBlocks: targetArray,
+              ...(ev !== undefined ? { expectedVersion: ev } : {}),
+            },
           });
           if (!res.updatePageLayout) throw new Error("Failed to update block");
         } else {
@@ -902,7 +938,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               slug: toRelativeSlug(page.slug),
               parentId: page.parentId ?? undefined,
               blocks: targetArray,
-              expectedVersion: expectedVersionOf(page),
+              expectedVersion: ev,
             },
           });
         }
@@ -916,6 +952,15 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         fieldPath,
         expectedVersion,
       ) => {
+        // Read-modify-write fallback: when the caller didn't pin a version,
+        // load the current one so the guarded patch still lands (required once
+        // the backend's ENFORCE_PAGE_VERSION_GUARD is on).
+        let ev = expectedVersion;
+        if (ev === undefined) {
+          const page = await loadPageVersion(client, pageId);
+          if (!page) throw new Error("Page not found");
+          ev = expectedVersionOf(page);
+        }
         const res = await client.query<{
           patchBlockContent: { id: string } | null;
         }>(PATCH_BLOCK_CONTENT_MUTATION, {
@@ -924,7 +969,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             blockId,
             locale,
             ...(fieldPath ? { fieldPath } : {}),
-            ...(expectedVersion !== undefined ? { expectedVersion } : {}),
+            ...(ev !== undefined ? { expectedVersion: ev } : {}),
             operations,
           },
         });
@@ -936,6 +981,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       removeBlock: async (pageId, blockId) => {
         const page = await loadPage(client, pageId);
         if (!page) throw new Error("Page not found");
+        const ev = expectedVersionOf(page);
         const contentBlocks = (page.blocks ?? []).filter(
           (b) => b.id !== blockId,
         );
@@ -947,7 +993,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               slug: toRelativeSlug(page.slug),
               parentId: page.parentId ?? undefined,
               blocks: contentBlocks,
-              expectedVersion: expectedVersionOf(page),
+              expectedVersion: ev,
             },
           });
           return { pageId, blockId };
@@ -959,7 +1005,11 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           const res = await client.query<{
             updatePageLayout: { id: string } | null;
           }>(UPDATE_PAGE_LAYOUT_MUTATION, {
-            input: { pageId, layoutBlocks },
+            input: {
+              pageId,
+              layoutBlocks,
+              ...(ev !== undefined ? { expectedVersion: ev } : {}),
+            },
           });
           if (!res.updatePageLayout) throw new Error("Failed to remove block");
           return { pageId, blockId };
