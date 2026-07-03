@@ -721,13 +721,15 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       },
       updateLayout: async (pageId, layout) => {
         // Need the version for the guard either way; only pull the full page
-        // (heavy) when there are layoutBlocks to merge against the draft.
-        const page = layout.layoutBlocks
+        // (heavy) when there are layoutBlocks to merge against the draft. An
+        // empty array still clears the layout but needs no merge/full fetch.
+        const hasBlocksToMerge = (layout.layoutBlocks?.length ?? 0) > 0;
+        const page = hasBlocksToMerge
           ? await loadPage(client, pageId)
           : await loadPageVersion(client, pageId);
         if (!page) throw new Error("Page not found");
         let mergedLayoutBlocks = layout.layoutBlocks;
-        if (layout.layoutBlocks) {
+        if (hasBlocksToMerge && layout.layoutBlocks) {
           const existing = (page as PageDoc).layoutBlocks ?? [];
           mergedLayoutBlocks = layout.layoutBlocks.map((block) => {
             const prev = existing.find(
