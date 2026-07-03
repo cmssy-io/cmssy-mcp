@@ -23,6 +23,17 @@ export const PAGES_QUERY = `
   }
 `;
 
+// Minimal selection for read-modify-write version guards: avoids fetching the
+// full blocks/layout payload when a writer only needs the current version.
+export const PAGE_VERSION_QUERY = `
+  query PageVersion($pageId: ID!) {
+    page(pageId: $pageId) {
+      id
+      version
+    }
+  }
+`;
+
 export const PAGE_BY_ID_QUERY = `
   query PageById($pageId: ID!) {
     page(pageId: $pageId) {
