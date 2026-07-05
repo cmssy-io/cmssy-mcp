@@ -1566,60 +1566,56 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     },
     webhooks: {
       list: async () => {
-        const res = await client.query<{ webhookEndpoints: unknown }>(
+        const res = await client.query<{ webhook: { list: unknown } }>(
           WEBHOOK_ENDPOINTS_QUERY,
-          { workspaceId: ws },
         );
-        return res.webhookEndpoints;
+        return res.webhook.list;
       },
       listDeliveries: async (limit) => {
-        const res = await client.query<{ webhookDeliveries: unknown }>(
+        const res = await client.query<{ webhook: { deliveries: unknown } }>(
           WEBHOOK_DELIVERIES_QUERY,
-          { workspaceId: ws, limit: limit ?? 50 },
+          { limit: limit ?? 50 },
         );
-        return res.webhookDeliveries;
+        return res.webhook.deliveries;
       },
       listEventTypes: async () => {
-        const res = await client.query<{ webhookEventTypes: string[] }>(
+        const res = await client.query<{ webhook: { eventTypes: string[] } }>(
           WEBHOOK_EVENT_TYPES_QUERY,
-          { workspaceId: ws },
         );
-        return res.webhookEventTypes;
+        return res.webhook.eventTypes;
       },
       create: async (input) => {
-        const res = await client.query<{ createWebhookEndpoint: unknown }>(
+        const res = await client.query<{ webhook: { create: unknown } }>(
           CREATE_WEBHOOK_ENDPOINT_MUTATION,
           {
             input: {
-              workspaceId: ws,
               url: input.url,
               events: input.events,
               description: input.description,
             },
           },
         );
-        return res.createWebhookEndpoint;
+        return res.webhook.create;
       },
       update: async (id, patch) => {
-        const res = await client.query<{ updateWebhookEndpoint: unknown }>(
+        const res = await client.query<{ webhook: { update: unknown } }>(
           UPDATE_WEBHOOK_ENDPOINT_MUTATION,
-          { input: { workspaceId: ws, id, ...patch } },
+          { input: { id, ...patch } },
         );
-        return res.updateWebhookEndpoint;
+        return res.webhook.update;
       },
       rotateSecret: async (id) => {
-        const res = await client.query<{ rotateWebhookSecret: unknown }>(
+        const res = await client.query<{ webhook: { rotateSecret: unknown } }>(
           ROTATE_WEBHOOK_SECRET_MUTATION,
-          { workspaceId: ws, id },
+          { id },
         );
-        return res.rotateWebhookSecret;
+        return res.webhook.rotateSecret;
       },
       delete: async (id) => {
-        const res = await client.query<{ deleteWebhookEndpoint: boolean }>(
-          DELETE_WEBHOOK_ENDPOINT_MUTATION,
-          { workspaceId: ws, id },
-        );
-        return { deleted: Boolean(res.deleteWebhookEndpoint) };
+        const res = await client.query<{
+          webhook: { delete: { deleted: boolean } };
+        }>(DELETE_WEBHOOK_ENDPOINT_MUTATION, { id });
+        return { deleted: Boolean(res.webhook.delete.deleted) };
       },
     },
     carts: {

@@ -572,7 +572,6 @@ input CreateWebhookEndpointInput {
   description: String
   events: [String!]!
   url: String!
-  workspaceId: ID!
 }
 
 input CreateWorkspaceInput {
@@ -1424,11 +1423,7 @@ type Mutation {
   """Create a newsletter subscriber (admin)"""
   createNewsletterSubscriber(input: CreateNewsletterSubscriberInput!): NewsletterSubscriber!
   createOrganization(input: CreateOrganizationInput!): Organization!
-
-  """Create a new property definition"""
-  createPropertyDefinition(input: CreatePropertyDefinitionInput!): PropertyDefinition!
   createUser(input: CreateUserInput!): User!
-  createWebhookEndpoint(input: CreateWebhookEndpointInput!): WebhookEndpointSecret!
   createWorkspace(input: CreateWorkspaceInput!): Workspace!
   createWorkspaceRole(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
   deleteApiToken(id: ID!): Boolean!
@@ -1450,11 +1445,7 @@ type Mutation {
   """Delete a newsletter subscriber (admin)"""
   deleteNewsletterSubscriber(id: ID!): Boolean!
   deleteOrganization(id: ID!): Boolean!
-
-  """Delete a property definition"""
-  deletePropertyDefinition(id: ID!): Boolean!
   deleteUser(id: ID!): Boolean!
-  deleteWebhookEndpoint(id: ID!, workspaceId: ID!): Boolean!
   deleteWorkspace(id: ID!): Boolean!
   deleteWorkspaceRole(fallbackRoleId: ID, roleId: ID!): WorkspaceRoleResult!
   grantScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
@@ -1477,6 +1468,7 @@ type Mutation {
   pageComment: PageCommentMutations!
   pageTask: PageTaskMutations!
   pageType: PageTypeMutations!
+  property: PropertyMutations!
   recalculateAllUsage: Workspace!
   recalculateBlockUsage: Workspace!
   refreshToken(refreshToken: String!): AuthResponse!
@@ -1497,7 +1489,6 @@ type Mutation {
   resetAiTokenUsage: Boolean!
   resetUserPassword(newPassword: String!, token: String!): UserAuthResponse!
   revokeScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
-  rotateWebhookSecret(id: ID!, workspaceId: ID!): WebhookEndpointSecret!
 
   """Send a test email to verify email configuration"""
   sendTestEmail(email: String!): TestEmailResult!
@@ -1568,13 +1559,9 @@ type Mutation {
   updateNewsletterSubscriber(id: ID!, input: UpdateNewsletterSubscriberInput!): NewsletterSubscriber!
   updateOrganization(id: ID!, input: UpdateOrganizationInput!): Organization!
   updateOrganizationMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
-
-  """Update a property definition"""
-  updatePropertyDefinition(id: ID!, input: UpdatePropertyDefinitionInput!): PropertyDefinition!
   updateSiteConfig(input: UpdateSiteConfigInput!): SiteConfig!
   updateSiteVerification(code: String, provider: String!): SiteConfig!
   updateUser(id: ID!, input: UpdateUserInput!): User!
-  updateWebhookEndpoint(input: UpdateWebhookEndpointInput!): WebhookEndpoint!
   updateWorkspace(id: ID!, input: UpdateWorkspaceInput!): Workspace!
   updateWorkspaceBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
 
@@ -1583,6 +1570,7 @@ type Mutation {
   updateWorkspaceRole(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
   uploadMedia(input: UploadMediaInput!): MediaAsset!
   verifyUserEmail(token: String!): UserAuthResponse!
+  webhook: WebhookMutations!
 }
 
 type MyScopedGrant {
@@ -2280,6 +2268,28 @@ type PropertyFieldTypeDefinition {
   type: String!
 }
 
+type PropertyMutations {
+  """Create a new property definition"""
+  create(input: CreatePropertyDefinitionInput!): PropertyDefinition!
+
+  """Delete a property definition"""
+  delete(id: ID!): DeletionResult!
+
+  """Update a property definition"""
+  update(id: ID!, input: UpdatePropertyDefinitionInput!): PropertyDefinition!
+}
+
+type PropertyQueries {
+  """Get all available property field types with metadata"""
+  fieldTypes: [PropertyFieldTypeDefinition!]!
+
+  """Get a property definition by ID"""
+  get(propertyDefinitionId: ID!): PropertyDefinition
+
+  """List property definitions in a workspace"""
+  list(appliesTo: String): [PropertyDefinition!]!
+}
+
 """Per-workspace cart configuration (public surface, no server-side TTLs)"""
 type PublicCartConfig {
   defaultCurrency: String!
@@ -2460,15 +2470,7 @@ type Query {
   pageType: PageTypeQueries!
   pendingInvitations: [PendingInvitation!]!
   productCatalog(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
-
-  """Get a property definition by ID"""
-  propertyDefinition(propertyDefinitionId: ID!): PropertyDefinition
-
-  """List property definitions in a workspace"""
-  propertyDefinitions(appliesTo: String): [PropertyDefinition!]!
-
-  """Get all available property field types with metadata"""
-  propertyFieldTypes: [PropertyFieldTypeDefinition!]!
+  property: PropertyQueries!
   public: PublicQueries!
   publicForm(formId: ID!): Form
   publicFormSubmissionsForContext(formId: ID!, limit: Int = 20, offset: Int = 0, status: String): PublicFormSubmissionListResult!
@@ -2482,9 +2484,7 @@ type Query {
   user(id: ID!): User
   users: [User!]!
   version: String!
-  webhookDeliveries(limit: Int, workspaceId: ID!): [WebhookDelivery!]!
-  webhookEndpoints(workspaceId: ID!): [WebhookEndpoint!]!
-  webhookEventTypes(workspaceId: ID!): [String!]!
+  webhook: WebhookQueries!
   workspace(id: ID, slug: String): Workspace
 
   """
@@ -3023,7 +3023,6 @@ input UpdateWebhookEndpointInput {
   events: [String!]
   id: ID!
   url: String
-  workspaceId: ID!
 }
 
 input UpdateWorkspaceBrandingInput {
@@ -3159,6 +3158,19 @@ Endpoint plus its signing secret. The secret is returned ONCE here (creation / r
 type WebhookEndpointSecret {
   endpoint: WebhookEndpoint!
   secret: String!
+}
+
+type WebhookMutations {
+  create(input: CreateWebhookEndpointInput!): WebhookEndpointSecret!
+  delete(id: ID!): DeletionResult!
+  rotateSecret(id: ID!): WebhookEndpointSecret!
+  update(input: UpdateWebhookEndpointInput!): WebhookEndpoint!
+}
+
+type WebhookQueries {
+  deliveries(limit: Int): [WebhookDelivery!]!
+  eventTypes: [String!]!
+  list: [WebhookEndpoint!]!
 }
 
 type Workspace {
