@@ -1424,7 +1424,6 @@ type Mutation {
   """Create a newsletter subscriber (admin)"""
   createNewsletterSubscriber(input: CreateNewsletterSubscriberInput!): NewsletterSubscriber!
   createOrganization(input: CreateOrganizationInput!): Organization!
-  createPageType(input: CreatePageTypeInput!): PageTypeGraphQL!
 
   """Create a new property definition"""
   createPropertyDefinition(input: CreatePropertyDefinitionInput!): PropertyDefinition!
@@ -1451,7 +1450,6 @@ type Mutation {
   """Delete a newsletter subscriber (admin)"""
   deleteNewsletterSubscriber(id: ID!): Boolean!
   deleteOrganization(id: ID!): Boolean!
-  deletePageType(id: ID!): Boolean!
 
   """Delete a property definition"""
   deletePropertyDefinition(id: ID!): Boolean!
@@ -1478,6 +1476,7 @@ type Mutation {
   page: PageMutations!
   pageComment: PageCommentMutations!
   pageTask: PageTaskMutations!
+  pageType: PageTypeMutations!
   recalculateAllUsage: Workspace!
   recalculateBlockUsage: Workspace!
   refreshToken(refreshToken: String!): AuthResponse!
@@ -1569,7 +1568,6 @@ type Mutation {
   updateNewsletterSubscriber(id: ID!, input: UpdateNewsletterSubscriberInput!): NewsletterSubscriber!
   updateOrganization(id: ID!, input: UpdateOrganizationInput!): Organization!
   updateOrganizationMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
-  updatePageType(input: UpdatePageTypeInput!): PageTypeGraphQL
 
   """Update a property definition"""
   updatePropertyDefinition(id: ID!, input: UpdatePropertyDefinitionInput!): PropertyDefinition!
@@ -2064,6 +2062,17 @@ type PageTypeGraphQL {
   workspaceId: String!
 }
 
+type PageTypeMutations {
+  create(input: CreatePageTypeInput!): PageTypeGraphQL!
+  delete(id: ID!): DeletionResult!
+  update(input: UpdatePageTypeInput!): PageTypeGraphQL
+}
+
+type PageTypeQueries {
+  get(pageTypeId: ID!): PageTypeGraphQL
+  list: [PageTypeGraphQL!]!
+}
+
 input PatchBlockContentInput {
   blockId: String!
   expectedVersion: Int
@@ -2448,8 +2457,7 @@ type Query {
   page: PageQueries!
   pageComment: PageCommentQueries!
   pageTask: PageTaskQueries!
-  pageType(pageTypeId: ID!): PageTypeGraphQL
-  pageTypes: [PageTypeGraphQL!]!
+  pageType: PageTypeQueries!
   pendingInvitations: [PendingInvitation!]!
   productCatalog(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
 

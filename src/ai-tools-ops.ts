@@ -565,15 +565,17 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       },
       listTypes: async () => {
         const res = await client.query<{
-          pageTypes: Array<{
-            id: string;
-            name: string;
-            slug: string;
-            urlPrefix?: string | null;
-            allowChildren?: boolean;
-          }>;
+          pageType: {
+            list: Array<{
+              id: string;
+              name: string;
+              slug: string;
+              urlPrefix?: string | null;
+              allowChildren?: boolean;
+            }>;
+          };
         }>(PAGE_TYPES_QUERY);
-        return res.pageTypes.map((t) => ({
+        return res.pageType.list.map((t) => ({
           id: t.id,
           name: t.name,
           slug: t.slug,
@@ -659,12 +661,12 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           mutationInput.allowChildren = input.allowChildren;
         if (input.fields !== undefined) mutationInput.fields = input.fields;
         const res = await client.query<{
-          createPageType: { id: string; name: string; slug: string };
+          pageType: { create: { id: string; name: string; slug: string } };
         }>(CREATE_PAGE_TYPE_MUTATION, { input: mutationInput });
         return {
-          id: res.createPageType.id,
-          name: res.createPageType.name,
-          slug: res.createPageType.slug,
+          id: res.pageType.create.id,
+          name: res.pageType.create.name,
+          slug: res.pageType.create.slug,
         };
       },
       publish: async (pageId) => {

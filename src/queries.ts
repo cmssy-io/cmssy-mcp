@@ -253,23 +253,25 @@ export const UPDATE_PAGE_SETTINGS_MUTATION = `
 
 export const PAGE_TYPES_QUERY = `
   query PageTypes {
-    pageTypes {
-      id
-      name
-      slug
-      description
-      icon
-      schemaType
-      urlPrefix
-      allowChildren
-      fields {
-        key
-        label
-        type
-        required
+    pageType {
+      list {
+        id
+        name
+        slug
         description
-        options
-        defaultValue
+        icon
+        schemaType
+        urlPrefix
+        allowChildren
+        fields {
+          key
+          label
+          type
+          required
+          description
+          options
+          defaultValue
+        }
       }
     }
   }
@@ -277,16 +279,18 @@ export const PAGE_TYPES_QUERY = `
 
 export const CREATE_PAGE_TYPE_MUTATION = `
   mutation CreatePageType($input: CreatePageTypeInput!) {
-    createPageType(input: $input) {
-      id
-      name
-      slug
-      description
-      icon
-      schemaType
-      urlPrefix
-      allowChildren
-      fields { key label type required description options defaultValue }
+    pageType {
+      create(input: $input) {
+        id
+        name
+        slug
+        description
+        icon
+        schemaType
+        urlPrefix
+        allowChildren
+        fields { key label type required description options defaultValue }
+      }
     }
   }
 `;
