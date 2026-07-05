@@ -2,7 +2,7 @@
 
 export const PAGES_QUERY = `
   query Pages($search: String) {
-    pages(search: $search) {
+    page { list(search: $search) {
       id
       name
       slug
@@ -19,7 +19,7 @@ export const PAGES_QUERY = `
       version
       createdAt
       updatedAt
-    }
+    } }
   }
 `;
 
@@ -27,16 +27,16 @@ export const PAGES_QUERY = `
 // full blocks/layout payload when a writer only needs the current version.
 export const PAGE_VERSION_QUERY = `
   query PageVersion($pageId: ID!) {
-    page(pageId: $pageId) {
+    page { get(pageId: $pageId) {
       id
       version
-    }
+    } }
   }
 `;
 
 export const PAGE_BY_ID_QUERY = `
   query PageById($pageId: ID!) {
-    page(pageId: $pageId) {
+    page { get(pageId: $pageId) {
       id
       name
       slug
@@ -106,7 +106,7 @@ export const PAGE_BY_ID_QUERY = `
       inheritsLayout
       createdAt
       updatedAt
-    }
+    } }
   }
 `;
 
@@ -172,7 +172,7 @@ export const MEDIA_ASSETS_QUERY = `
 
 export const SAVE_PAGE_MUTATION = `
   mutation SavePage($input: SavePageInput!) {
-    savePage(input: $input) {
+    page { save(input: $input) {
       id
       version
       name
@@ -207,7 +207,7 @@ export const SAVE_PAGE_MUTATION = `
       }
       createdAt
       updatedAt
-    }
+    } }
   }
 `;
 
@@ -218,19 +218,19 @@ export const SAVE_PAGE_MUTATION = `
 // PAGE_BY_ID_QUERY afterwards.
 export const PATCH_BLOCK_CONTENT_MUTATION = `
   mutation PatchBlockContent($input: PatchBlockContentInput!) {
-    patchBlockContent(input: $input) {
+    page { patchBlockContent(input: $input) {
       id
       slug
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
       updatedAt
-    }
+    } }
   }
 `;
 
 export const UPDATE_PAGE_SETTINGS_MUTATION = `
   mutation UpdatePageSettings($input: UpdatePageSettingsInput!) {
-    updatePageSettings(input: $input) {
+    page { updateSettings(input: $input) {
       id
       name
       slug
@@ -245,7 +245,7 @@ export const UPDATE_PAGE_SETTINGS_MUTATION = `
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
       updatedAt
-    }
+    } }
   }
 `;
 
@@ -293,7 +293,7 @@ export const CREATE_PAGE_TYPE_MUTATION = `
 
 export const TOGGLE_PUBLISH_MUTATION = `
   mutation TogglePublish($id: ID!) {
-    togglePublish(id: $id) {
+    page { togglePublish(id: $id) {
       id
       slug
       published
@@ -301,13 +301,13 @@ export const TOGGLE_PUBLISH_MUTATION = `
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
       updatedAt
-    }
+    } }
   }
 `;
 
 export const PUBLISH_PAGE_CONTENT_MUTATION = `
   mutation PublishPageContent($id: ID!) {
-    publishPageContent(id: $id) {
+    page { publishContent(id: $id) {
       id
       slug
       published
@@ -332,13 +332,13 @@ export const PUBLISH_PAGE_CONTENT_MUTATION = `
         }
         blockVersion
       }
-    }
+    } }
   }
 `;
 
 export const PUBLISH_PAGE_LAYOUT_MUTATION = `
   mutation PublishPageLayout($id: ID!) {
-    publishPageLayout(id: $id) {
+    page { publishLayout(id: $id) {
       id
       slug
       published
@@ -346,13 +346,13 @@ export const PUBLISH_PAGE_LAYOUT_MUTATION = `
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
       updatedAt
-    }
+    } }
   }
 `;
 
 export const REVERT_CONTENT_TO_PUBLISHED_MUTATION = `
   mutation RevertContentToPublished($id: ID!) {
-    revertContentToPublished(id: $id) {
+    page { revertContentToPublished(id: $id) {
       id
       name
       slug
@@ -363,32 +363,32 @@ export const REVERT_CONTENT_TO_PUBLISHED_MUTATION = `
         id type content settings style advanced
         translations defaultLanguage blockVersion
       }
-    }
+    } }
   }
 `;
 
 export const REVERT_LAYOUT_TO_PUBLISHED_MUTATION = `
   mutation RevertLayoutToPublished($id: ID!) {
-    revertLayoutToPublished(id: $id) {
+    page { revertLayoutToPublished(id: $id) {
       id
       name
       slug
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
       updatedAt
-    }
+    } }
   }
 `;
 
 export const REMOVE_PAGE_MUTATION = `
   mutation RemovePage($id: ID!) {
-    removePage(id: $id)
+    page { delete(id: $id) { deleted } }
   }
 `;
 
 export const UPDATE_PAGE_LAYOUT_MUTATION = `
   mutation UpdatePageLayout($input: UpdatePageLayoutInput!) {
-    updatePageLayout(input: $input) {
+    page { updateLayout(input: $input) {
       id
       slug
       hasUnpublishedContentChanges
@@ -403,7 +403,7 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
       }
       layoutOverrides { position action blockId }
       inheritsLayout
-    }
+    } }
   }
 `;
 

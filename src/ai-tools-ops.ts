@@ -120,10 +120,11 @@ async function loadPage(
   client: CmssyClient,
   pageId: string,
 ): Promise<PageDoc | null> {
-  const data = await client.query<{ page: PageDoc | null }>(PAGE_BY_ID_QUERY, {
-    pageId,
-  });
-  return data.page;
+  const data = await client.query<{ page: { get: PageDoc | null } }>(
+    PAGE_BY_ID_QUERY,
+    { pageId },
+  );
+  return data.page.get;
 }
 
 // Lightweight read for version-only guards - skips the full blocks/layout
@@ -133,9 +134,9 @@ async function loadPageVersion(
   pageId: string,
 ): Promise<{ id: string; version?: number | null } | null> {
   const data = await client.query<{
-    page: { id: string; version?: number | null } | null;
+    page: { get: { id: string; version?: number | null } | null };
   }>(PAGE_VERSION_QUERY, { pageId });
-  return data.page;
+  return data.page.get;
 }
 
 interface ResolvedModel {
@@ -487,14 +488,16 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     pages: {
       search: async (query) => {
         const res = await client.query<{
-          pages: Array<{
-            id: string;
-            name: string;
-            slug: string;
-            published: boolean;
-          }>;
+          page: {
+            list: Array<{
+              id: string;
+              name: string;
+              slug: string;
+              published: boolean;
+            }>;
+          };
         }>(PAGES_QUERY, { search: query });
-        return res.pages.map((p) => ({
+        return res.page.list.map((p) => ({
           id: p.id,
           name: p.name,
           slug: p.slug,
@@ -521,9 +524,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (input.customFields !== undefined)
           mutationInput.customFields = input.customFields;
         const res = await client.query<{
-          savePage: { id: string; name: string };
+          page: { save: { id: string; name: string } };
         }>(SAVE_PAGE_MUTATION, { input: mutationInput });
-        return { id: res.savePage.id, name: res.savePage.name };
+        return { id: res.page.save.id, name: res.page.save.name };
       },
       get: async (idOrSlug) => {
         const page = await loadPage(client, idOrSlug);
@@ -544,14 +547,16 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       },
       list: async (search) => {
         const res = await client.query<{
-          pages: Array<{
-            id: string;
-            name: string;
-            slug: string;
-            published?: boolean;
-          }>;
+          page: {
+            list: Array<{
+              id: string;
+              name: string;
+              slug: string;
+              published?: boolean;
+            }>;
+          };
         }>(PAGES_QUERY, search ? { search } : {});
-        return res.pages.map((p) => ({
+        return res.page.list.map((p) => ({
           id: p.id,
           name: p.name,
           slug: p.slug,
@@ -599,7 +604,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             blockVersion: block.blockVersion ?? prev.blockVersion,
           };
         });
-        const res = await client.query<{ savePage: { id: string } }>(
+        const res = await client.query<{ page: { save: { id: string } } }>(
           SAVE_PAGE_MUTATION,
           {
             input: {
@@ -612,7 +617,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             },
           },
         );
-        return { id: res.savePage.id };
+        return { id: res.page.save.id };
       },
       updateSettings: async (pageId, settings) => {
         // Read-modify-write: carry the current version as expectedVersion so the
@@ -635,10 +640,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const ev = expectedVersionOf(page);
         if (ev !== undefined) input.expectedVersion = ev;
         const res = await client.query<{
-          updatePageSettings: { id: string } | null;
+          page: { updateSettings: { id: string } | null };
         }>(UPDATE_PAGE_SETTINGS_MUTATION, { input });
-        if (!res.updatePageSettings) throw new Error("Page not found");
-        return { id: res.updatePageSettings.id };
+        if (!res.page.updateSettings) throw new Error("Page not found");
+        return { id: res.page.updateSettings.id };
       },
       createType: async (input) => {
         const mutationInput: Record<string, unknown> = {
@@ -665,25 +670,27 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       publish: async (pageId) => {
         const page = await client.query<{
           page: {
-            id: string;
-            published?: boolean;
-            hasUnpublishedContentChanges?: boolean;
-            hasUnpublishedLayoutChanges?: boolean;
-          } | null;
+            get: {
+              id: string;
+              published?: boolean;
+              hasUnpublishedContentChanges?: boolean;
+              hasUnpublishedLayoutChanges?: boolean;
+            } | null;
+          };
         }>(PAGE_BY_ID_QUERY, { pageId });
-        if (!page.page) throw new Error("Page not found");
+        if (!page.page.get) throw new Error("Page not found");
         if (
-          page.page.published &&
-          !page.page.hasUnpublishedContentChanges &&
-          !page.page.hasUnpublishedLayoutChanges
+          page.page.get.published &&
+          !page.page.get.hasUnpublishedContentChanges &&
+          !page.page.get.hasUnpublishedLayoutChanges
         ) {
           return { id: pageId };
         }
         await client.query(PUBLISH_PAGE_CONTENT_MUTATION, { id: pageId });
-        let res: { publishPageLayout: { id: string } | null };
+        let res: { page: { publishLayout: { id: string } | null } };
         try {
           res = await client.query<{
-            publishPageLayout: { id: string } | null;
+            page: { publishLayout: { id: string } | null };
           }>(PUBLISH_PAGE_LAYOUT_MUTATION, { id: pageId });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -691,19 +698,19 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             `Content published, but the layout axis failed and is still unpublished: ${message}. Note: re-running publish also re-publishes the current content draft, so publish any pending content edits first.`,
           );
         }
-        if (!res.publishPageLayout) {
+        if (!res.page.publishLayout) {
           throw new Error(
             "Content published, but the layout axis returned no result and is still unpublished. Note: re-running publish also re-publishes the current content draft, so publish any pending content edits first.",
           );
         }
-        return { id: res.publishPageLayout.id };
+        return { id: res.page.publishLayout.id };
       },
       unpublish: async (pageId) => {
         const res = await client.query<{
-          togglePublish: { id: string } | null;
+          page: { togglePublish: { id: string } | null };
         }>(TOGGLE_PUBLISH_MUTATION, { id: pageId });
-        if (!res.togglePublish) throw new Error("Page not found");
-        return { id: res.togglePublish.id };
+        if (!res.page.togglePublish) throw new Error("Page not found");
+        return { id: res.page.togglePublish.id };
       },
       revert: async (pageId) => {
         await client.query(REVERT_CONTENT_TO_PUBLISHED_MUTATION, {
@@ -713,11 +720,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         return { id: pageId };
       },
       deletePage: async (pageId) => {
-        const res = await client.query<{ removePage: boolean }>(
-          REMOVE_PAGE_MUTATION,
-          { id: pageId },
-        );
-        return { deleted: Boolean(res.removePage) };
+        const res = await client.query<{
+          page: { delete: { deleted: boolean } };
+        }>(REMOVE_PAGE_MUTATION, { id: pageId });
+        return { deleted: Boolean(res.page.delete.deleted) };
       },
       updateLayout: async (pageId, layout) => {
         // Need the version for the guard either way; only pull the full page
@@ -758,10 +764,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const ev = expectedVersionOf(page);
         if (ev !== undefined) input.expectedVersion = ev;
         const res = await client.query<{
-          updatePageLayout: { id: string } | null;
+          page: { updateLayout: { id: string } | null };
         }>(UPDATE_PAGE_LAYOUT_MUTATION, { input });
-        if (!res.updatePageLayout) throw new Error("Page not found");
-        return { id: res.updatePageLayout.id };
+        if (!res.page.updateLayout) throw new Error("Page not found");
+        return { id: res.page.updateLayout.id };
       },
       addBlock: async (pageId, block, layoutPosition, position) => {
         const page = await loadPage(client, pageId);
@@ -808,7 +814,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             defaultLanguage,
           };
           const res = await client.query<{
-            updatePageLayout: { id: string } | null;
+            page: { updateLayout: { id: string } | null };
           }>(UPDATE_PAGE_LAYOUT_MUTATION, {
             input: {
               pageId,
@@ -816,7 +822,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               ...(ev !== undefined ? { expectedVersion: ev } : {}),
             },
           });
-          if (!res.updatePageLayout) throw new Error("Failed to add block");
+          if (!res.page.updateLayout) throw new Error("Failed to add block");
           return { pageId, blockId: newBlockId };
         }
         const newBlock = {
@@ -921,7 +927,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         targetArray[targetIndex] = existingBlock;
         if (isLayout) {
           const res = await client.query<{
-            updatePageLayout: { id: string } | null;
+            page: { updateLayout: { id: string } | null };
           }>(UPDATE_PAGE_LAYOUT_MUTATION, {
             input: {
               pageId,
@@ -929,7 +935,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               ...(ev !== undefined ? { expectedVersion: ev } : {}),
             },
           });
-          if (!res.updatePageLayout) throw new Error("Failed to update block");
+          if (!res.page.updateLayout) throw new Error("Failed to update block");
         } else {
           await client.query(SAVE_PAGE_MUTATION, {
             input: {
@@ -962,7 +968,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           ev = expectedVersionOf(page);
         }
         const res = await client.query<{
-          patchBlockContent: { id: string } | null;
+          page: { patchBlockContent: { id: string } | null };
         }>(PATCH_BLOCK_CONTENT_MUTATION, {
           input: {
             pageId,
@@ -973,7 +979,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             operations,
           },
         });
-        if (!res.patchBlockContent) {
+        if (!res.page.patchBlockContent) {
           throw new Error("Page not found or patch failed");
         }
         return { pageId, blockId };
@@ -1003,7 +1009,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         );
         if (layoutBlocks.length < (page.layoutBlocks ?? []).length) {
           const res = await client.query<{
-            updatePageLayout: { id: string } | null;
+            page: { updateLayout: { id: string } | null };
           }>(UPDATE_PAGE_LAYOUT_MUTATION, {
             input: {
               pageId,
@@ -1011,7 +1017,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               ...(ev !== undefined ? { expectedVersion: ev } : {}),
             },
           });
-          if (!res.updatePageLayout) throw new Error("Failed to remove block");
+          if (!res.page.updateLayout) throw new Error("Failed to remove block");
           return { pageId, blockId };
         }
         throw new Error("Block not found on page");

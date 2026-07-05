@@ -220,13 +220,13 @@ export function createServer(client: CmssyClient) {
       mimeType: "application/json",
     },
     async (uri) => {
-      const data = await client.query<{ pages: Page[] }>(PAGES_QUERY);
+      const data = await client.query<{ page: { list: Page[] } }>(PAGES_QUERY);
       return {
         contents: [
           {
             uri: uri.href,
             mimeType: "application/json",
-            text: JSON.stringify(data.pages, null, 2),
+            text: JSON.stringify(data.page.list, null, 2),
           },
         ],
       };
