@@ -774,7 +774,6 @@ const ORDER_LIST_FRAGMENT = `
 
 export const ORDERS_QUERY = `
   query Orders(
-    $workspaceId: ID!
     $paymentStatus: String
     $fulfillmentStatus: String
     $customerId: ID
@@ -785,96 +784,99 @@ export const ORDERS_QUERY = `
     $skip: Int
     $limit: Int
   ) {
-    orders(
-      workspaceId: $workspaceId
-      paymentStatus: $paymentStatus
-      fulfillmentStatus: $fulfillmentStatus
-      customerId: $customerId
-      search: $search
-      pipelineStageId: $pipelineStageId
-      dateFrom: $dateFrom
-      dateTo: $dateTo
-      skip: $skip
-      limit: $limit
-    ) {
-      items { ${ORDER_LIST_FRAGMENT} }
-      total
-      hasMore
+    order {
+      list(
+        paymentStatus: $paymentStatus
+        fulfillmentStatus: $fulfillmentStatus
+        customerId: $customerId
+        search: $search
+        pipelineStageId: $pipelineStageId
+        dateFrom: $dateFrom
+        dateTo: $dateTo
+        skip: $skip
+        limit: $limit
+      ) {
+        items { ${ORDER_LIST_FRAGMENT} }
+        total
+        hasMore
+      }
     }
   }
 `;
 
 export const ORDER_BY_ID_QUERY = `
-  query Order($workspaceId: ID!, $id: ID!) {
-    order(workspaceId: $workspaceId, id: $id) { ${ORDER_FRAGMENT} }
+  query Order($id: ID!) {
+    order { get(id: $id) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const ORDER_PIPELINE_QUERY = `
-  query OrderPipeline($workspaceId: ID!) {
-    orderPipeline(workspaceId: $workspaceId) {
-      stages { id label color position isDefault isTerminal }
+  query OrderPipeline {
+    order {
+      pipeline {
+        stages { id label color position isDefault isTerminal }
+      }
     }
   }
 `;
 
 export const CREATE_MANUAL_ORDER_MUTATION = `
   mutation CreateManualOrder($input: CreateManualOrderInput!) {
-    createManualOrder(input: $input) { ${ORDER_FRAGMENT} }
+    order { create(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const EDIT_ORDER_MUTATION = `
   mutation EditOrder($input: EditOrderInput!) {
-    editOrder(input: $input) { ${ORDER_FRAGMENT} }
+    order { updateItems(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const UPDATE_ORDER_DETAILS_MUTATION = `
   mutation UpdateOrderDetails($input: UpdateOrderDetailsInput!) {
-    updateOrderDetails(input: $input) { ${ORDER_FRAGMENT} }
+    order { updateDetails(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const MARK_ORDER_PAID_MUTATION = `
   mutation MarkOrderPaid($input: MarkOrderPaidInput!) {
-    markOrderPaid(input: $input) { ${ORDER_FRAGMENT} }
+    order { markPaid(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const RECORD_ORDER_PAYMENT_MUTATION = `
   mutation RecordOrderPayment($input: RecordOrderPaymentInput!) {
-    recordOrderPayment(input: $input) { ${ORDER_FRAGMENT} }
+    order { recordPayment(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const REFUND_ORDER_MUTATION = `
   mutation RefundOrder($input: RefundOrderInput!) {
-    refundOrder(input: $input) { ${ORDER_FRAGMENT} }
+    order { refund(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const CANCEL_ORDER_MUTATION = `
   mutation CancelOrder($input: CancelOrderInput!) {
-    cancelOrder(input: $input) { ${ORDER_FRAGMENT} }
+    order { cancel(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const TRANSITION_ORDER_FULFILLMENT_MUTATION = `
   mutation TransitionOrderFulfillment($input: FulfillOrderInput!) {
-    transitionOrderFulfillment(input: $input) { ${ORDER_FRAGMENT} }
+    order { transitionFulfillment(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const SET_ORDER_PIPELINE_STAGE_MUTATION = `
   mutation SetOrderPipelineStage($input: SetOrderPipelineStageInput!) {
-    setOrderPipelineStage(input: $input) { ${ORDER_FRAGMENT} }
+    order { setPipelineStage(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 
 export const RECORD_ORDER_INVOICE_MUTATION = `
   mutation RecordOrderInvoice($input: RecordOrderInvoiceInput!) {
-    recordOrderInvoice(input: $input) { ${ORDER_FRAGMENT} }
+    order { recordInvoice(input: $input) { ${ORDER_FRAGMENT} } }
   }
 `;
 

@@ -1183,23 +1183,24 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     orders: {
       list: async (options) => {
         const res = await client.query<{
-          orders: {
-            items: Array<{
-              id: string;
-              orderNumber?: number | null;
-              customerEmail?: string | null;
-              status?: string | null;
-              paymentStatus?: string | null;
-              fulfillmentStatus?: string | null;
-              total?: number | null;
-              currency?: string | null;
-              createdAt?: string | null;
-            }>;
-            total: number;
-            hasMore: boolean;
+          order: {
+            list: {
+              items: Array<{
+                id: string;
+                orderNumber?: number | null;
+                customerEmail?: string | null;
+                status?: string | null;
+                paymentStatus?: string | null;
+                fulfillmentStatus?: string | null;
+                total?: number | null;
+                currency?: string | null;
+                createdAt?: string | null;
+              }>;
+              total: number;
+              hasMore: boolean;
+            };
           };
         }>(ORDERS_QUERY, {
-          workspaceId: ws,
           paymentStatus: options?.paymentStatus,
           fulfillmentStatus: options?.fulfillmentStatus,
           customerId: options?.customerId,
@@ -1211,7 +1212,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           limit: options?.limit,
         });
         return {
-          items: res.orders.items.map((o) => ({
+          items: res.order.list.items.map((o) => ({
             id: o.id,
             orderNumber: o.orderNumber ?? null,
             customerEmail: o.customerEmail ?? null,
@@ -1222,26 +1223,28 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             currency: o.currency ?? null,
             createdAt: o.createdAt ?? null,
           })),
-          total: res.orders.total,
-          hasMore: res.orders.hasMore,
+          total: res.order.list.total,
+          hasMore: res.order.list.hasMore,
         };
       },
       get: async (id) => {
         const res = await client.query<{
           order: {
-            id: string;
-            orderNumber?: number | null;
-            paymentStatus?: string | null;
-            fulfillmentStatus?: string | null;
-            customerEmail?: string | null;
-            total?: number | null;
-            currency?: string | null;
-            items?: unknown;
-            payments?: unknown;
-            createdAt?: string | null;
-          } | null;
-        }>(ORDER_BY_ID_QUERY, { workspaceId: ws, id });
-        const o = res.order;
+            get: {
+              id: string;
+              orderNumber?: number | null;
+              paymentStatus?: string | null;
+              fulfillmentStatus?: string | null;
+              customerEmail?: string | null;
+              total?: number | null;
+              currency?: string | null;
+              items?: unknown;
+              payments?: unknown;
+              createdAt?: string | null;
+            } | null;
+          };
+        }>(ORDER_BY_ID_QUERY, { id });
+        const o = res.order.get;
         if (!o) return null;
         return {
           id: o.id,
@@ -1257,85 +1260,85 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         };
       },
       getPipeline: async () => {
-        const res = await client.query<{ orderPipeline: unknown }>(
+        const res = await client.query<{ order: { pipeline: unknown } }>(
           ORDER_PIPELINE_QUERY,
-          { workspaceId: ws },
+          {},
         );
-        return res.orderPipeline;
+        return res.order.pipeline;
       },
       createManual: async (customerEmail, items, customerId) => {
         const res = await client.query<{
-          createManualOrder: { id: string; orderNumber?: number | null };
+          order: { create: { id: string; orderNumber?: number | null } };
         }>(CREATE_MANUAL_ORDER_MUTATION, {
-          input: { workspaceId: ws, customerEmail, customerId, items },
+          input: { customerEmail, customerId, items },
         });
-        const o = res.createManualOrder;
+        const o = res.order.create;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       edit: async (orderId, items) => {
         const res = await client.query<{
-          editOrder: { id: string; orderNumber?: number | null };
+          order: { updateItems: { id: string; orderNumber?: number | null } };
         }>(EDIT_ORDER_MUTATION, {
-          input: { workspaceId: ws, orderId, items },
+          input: { orderId, items },
         });
-        const o = res.editOrder;
+        const o = res.order.updateItems;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       updateDetails: async (orderId, details) => {
         const res = await client.query<{
-          updateOrderDetails: { id: string; orderNumber?: number | null };
+          order: { updateDetails: { id: string; orderNumber?: number | null } };
         }>(UPDATE_ORDER_DETAILS_MUTATION, {
-          input: { workspaceId: ws, orderId, ...details },
+          input: { orderId, ...details },
         });
-        const o = res.updateOrderDetails;
+        const o = res.order.updateDetails;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       markPaid: async (orderId, payment) => {
         const res = await client.query<{
-          markOrderPaid: { id: string; orderNumber?: number | null };
+          order: { markPaid: { id: string; orderNumber?: number | null } };
         }>(MARK_ORDER_PAID_MUTATION, {
           input: {
-            workspaceId: ws,
             orderId,
             amount: payment.amount,
             reference: payment.reference,
             provider: payment.provider ?? "manual",
           },
         });
-        const o = res.markOrderPaid;
+        const o = res.order.markPaid;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       recordPayment: async (orderId, payment) => {
         const res = await client.query<{
-          recordOrderPayment: { id: string; orderNumber?: number | null };
+          order: {
+            recordPayment: { id: string; orderNumber?: number | null };
+          };
         }>(RECORD_ORDER_PAYMENT_MUTATION, {
           input: {
-            workspaceId: ws,
             orderId,
             amount: payment.amount,
             reference: payment.reference,
             provider: payment.provider,
           },
         });
-        const o = res.recordOrderPayment;
+        const o = res.order.recordPayment;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       refund: async (orderId, reference, amount) => {
         const res = await client.query<{
-          refundOrder: { id: string; orderNumber?: number | null };
+          order: { refund: { id: string; orderNumber?: number | null } };
         }>(REFUND_ORDER_MUTATION, {
-          input: { workspaceId: ws, orderId, reference, amount },
+          input: { orderId, reference, amount },
         });
-        const o = res.refundOrder;
+        const o = res.order.refund;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       cancel: async (orderId) => {
         const res = await client.query<{
-          cancelOrder: { id: string; orderNumber?: number | null };
+          order: { cancel: { id: string; orderNumber?: number | null } };
         }>(CANCEL_ORDER_MUTATION, {
-          input: { workspaceId: ws, orderId },
+          input: { orderId },
         });
-        const o = res.cancelOrder;
+        const o = res.order.cancel;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       transitionFulfillment: async (
@@ -1345,44 +1348,48 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         trackingCarrier,
       ) => {
         const res = await client.query<{
-          transitionOrderFulfillment: {
-            id: string;
-            orderNumber?: number | null;
+          order: {
+            transitionFulfillment: {
+              id: string;
+              orderNumber?: number | null;
+            };
           };
         }>(TRANSITION_ORDER_FULFILLMENT_MUTATION, {
           input: {
-            workspaceId: ws,
             orderId,
             status,
             trackingNumber,
             trackingCarrier,
           },
         });
-        const o = res.transitionOrderFulfillment;
+        const o = res.order.transitionFulfillment;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       setPipelineStage: async (orderId, stageId) => {
         const res = await client.query<{
-          setOrderPipelineStage: { id: string; orderNumber?: number | null };
+          order: {
+            setPipelineStage: { id: string; orderNumber?: number | null };
+          };
         }>(SET_ORDER_PIPELINE_STAGE_MUTATION, {
-          input: { workspaceId: ws, orderId, stageId },
+          input: { orderId, stageId },
         });
-        const o = res.setOrderPipelineStage;
+        const o = res.order.setPipelineStage;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       recordInvoice: async (orderId, invoice) => {
         const res = await client.query<{
-          recordOrderInvoice: { id: string; orderNumber?: number | null };
+          order: {
+            recordInvoice: { id: string; orderNumber?: number | null };
+          };
         }>(RECORD_ORDER_INVOICE_MUTATION, {
           input: {
-            workspaceId: ws,
             orderId,
             number: invoice.number,
             url: invoice.url,
             provider: invoice.provider,
           },
         });
-        const o = res.recordOrderInvoice;
+        const o = res.order.recordInvoice;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
     },
