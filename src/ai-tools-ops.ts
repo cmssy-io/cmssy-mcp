@@ -1398,20 +1398,21 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     discounts: {
       list: async (options) => {
         const res = await client.query<{
-          discounts: {
-            items: Array<{
-              id: string;
-              code: string;
-              type: string;
-              value?: number | null;
-              enabled: boolean;
-              currentUses?: number | null;
-            }>;
-            total: number;
-            hasMore: boolean;
+          discount: {
+            list: {
+              items: Array<{
+                id: string;
+                code: string;
+                type: string;
+                value?: number | null;
+                enabled: boolean;
+                currentUses?: number | null;
+              }>;
+              total: number;
+              hasMore: boolean;
+            };
           };
         }>(DISCOUNTS_QUERY, {
-          workspaceId: ws,
           enabled: options?.enabled,
           type: options?.type,
           search: options?.search,
@@ -1419,7 +1420,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           offset: options?.offset,
         });
         return {
-          items: res.discounts.items.map((d) => ({
+          items: res.discount.list.items.map((d) => ({
             id: d.id,
             code: d.code,
             type: d.type,
@@ -1427,33 +1428,38 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             enabled: d.enabled,
             currentUses: d.currentUses ?? null,
           })),
-          total: res.discounts.total,
-          hasMore: res.discounts.hasMore,
+          total: res.discount.list.total,
+          hasMore: res.discount.list.hasMore,
         };
       },
       create: async (input) => {
         const res = await client.query<{
-          createDiscount: { id: string; code: string };
-        }>(CREATE_DISCOUNT_MUTATION, { workspaceId: ws, input });
-        return { id: res.createDiscount.id, code: res.createDiscount.code };
+          discount: { create: { id: string; code: string } };
+        }>(CREATE_DISCOUNT_MUTATION, { input });
+        return {
+          id: res.discount.create.id,
+          code: res.discount.create.code,
+        };
       },
       get: async (idOrSlug) => {
         const res = await client.query<{
           discount: {
-            id: string;
-            code: string;
-            type: string;
-            value: number;
-            enabled: boolean;
-            currency?: string | null;
-            minSubtotal?: number | null;
-            maxUses?: number | null;
-            currentUses?: number | null;
-            startsAt?: string | null;
-            endsAt?: string | null;
-          } | null;
-        }>(DISCOUNT_BY_ID_QUERY, { workspaceId: ws, id: idOrSlug });
-        const d = res.discount;
+            get: {
+              id: string;
+              code: string;
+              type: string;
+              value: number;
+              enabled: boolean;
+              currency?: string | null;
+              minSubtotal?: number | null;
+              maxUses?: number | null;
+              currentUses?: number | null;
+              startsAt?: string | null;
+              endsAt?: string | null;
+            } | null;
+          };
+        }>(DISCOUNT_BY_ID_QUERY, { id: idOrSlug });
+        const d = res.discount.get;
         if (!d) return null;
         return {
           id: d.id,
@@ -1485,36 +1491,39 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           if (patch[key] !== undefined) input[key] = patch[key];
         }
         const res = await client.query<{
-          updateDiscount: {
-            id: string;
-            code: string;
-            enabled: boolean;
-          } | null;
-        }>(UPDATE_DISCOUNT_MUTATION, { workspaceId: ws, id: idOrSlug, input });
-        if (!res.updateDiscount) return null;
+          discount: {
+            update: {
+              id: string;
+              code: string;
+              enabled: boolean;
+            } | null;
+          };
+        }>(UPDATE_DISCOUNT_MUTATION, { id: idOrSlug, input });
+        if (!res.discount.update) return null;
         return {
-          id: res.updateDiscount.id,
-          code: res.updateDiscount.code,
-          enabled: res.updateDiscount.enabled,
+          id: res.discount.update.id,
+          code: res.discount.update.code,
+          enabled: res.discount.update.enabled,
         };
       },
       setEnabled: async (idOrSlug, enabled) => {
         const res = await client.query<{
-          setDiscountEnabled: {
-            id: string;
-            code: string;
-            enabled: boolean;
-          } | null;
+          discount: {
+            setEnabled: {
+              id: string;
+              code: string;
+              enabled: boolean;
+            } | null;
+          };
         }>(SET_DISCOUNT_ENABLED_MUTATION, {
-          workspaceId: ws,
           id: idOrSlug,
           enabled,
         });
-        if (!res.setDiscountEnabled) return null;
+        if (!res.discount.setEnabled) return null;
         return {
-          id: res.setDiscountEnabled.id,
-          code: res.setDiscountEnabled.code,
-          enabled: res.setDiscountEnabled.enabled,
+          id: res.discount.setEnabled.id,
+          code: res.discount.setEnabled.code,
+          enabled: res.discount.setEnabled.enabled,
         };
       },
     },
