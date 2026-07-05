@@ -883,20 +883,22 @@ export const RECORD_ORDER_INVOICE_MUTATION = `
 // ─── Commerce: Carts ─────────────────────────────────────────
 
 export const ADMIN_CARTS_QUERY = `
-  query AdminCarts($workspaceId: ID!, $status: String, $skip: Int, $limit: Int) {
-    adminCarts(workspaceId: $workspaceId, status: $status, skip: $skip, limit: $limit) {
-      items {
-        id
-        status
-        customerId
-        itemCount
-        totalValue
-        currency
-        createdAt
-        updatedAt
+  query AdminCarts($status: String, $skip: Int, $limit: Int) {
+    adminCart {
+      list(status: $status, skip: $skip, limit: $limit) {
+        items {
+          id
+          status
+          customerId
+          itemCount
+          totalValue
+          currency
+          createdAt
+          updatedAt
+        }
+        total
+        hasMore
       }
-      total
-      hasMore
     }
   }
 `;

@@ -1622,16 +1622,15 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     },
     carts: {
       list: async (status, skip, limit) => {
-        const res = await client.query<{ adminCarts: unknown }>(
+        const res = await client.query<{ adminCart: { list: unknown } }>(
           ADMIN_CARTS_QUERY,
           {
-            workspaceId: ws,
             ...(status ? { status } : {}),
             skip: skip ?? 0,
             limit: limit ?? 20,
           },
         );
-        return res.adminCarts;
+        return res.adminCart.list;
       },
     },
     products: {
