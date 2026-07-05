@@ -253,23 +253,25 @@ export const UPDATE_PAGE_SETTINGS_MUTATION = `
 
 export const PAGE_TYPES_QUERY = `
   query PageTypes {
-    pageTypes {
-      id
-      name
-      slug
-      description
-      icon
-      schemaType
-      urlPrefix
-      allowChildren
-      fields {
-        key
-        label
-        type
-        required
+    pageType {
+      list {
+        id
+        name
+        slug
         description
-        options
-        defaultValue
+        icon
+        schemaType
+        urlPrefix
+        allowChildren
+        fields {
+          key
+          label
+          type
+          required
+          description
+          options
+          defaultValue
+        }
       }
     }
   }
@@ -277,16 +279,18 @@ export const PAGE_TYPES_QUERY = `
 
 export const CREATE_PAGE_TYPE_MUTATION = `
   mutation CreatePageType($input: CreatePageTypeInput!) {
-    createPageType(input: $input) {
-      id
-      name
-      slug
-      description
-      icon
-      schemaType
-      urlPrefix
-      allowChildren
-      fields { key label type required description options defaultValue }
+    pageType {
+      create(input: $input) {
+        id
+        name
+        slug
+        description
+        icon
+        schemaType
+        urlPrefix
+        allowChildren
+        fields { key label type required description options defaultValue }
+      }
     }
   }
 `;
@@ -982,63 +986,69 @@ const WEBHOOK_ENDPOINT_FRAGMENT = `
 `;
 
 export const WEBHOOK_ENDPOINTS_QUERY = `
-  query WebhookEndpoints($workspaceId: ID!) {
-    webhookEndpoints(workspaceId: $workspaceId) { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+  query WebhookEndpoints {
+    webhook { list { ${WEBHOOK_ENDPOINT_FRAGMENT} } }
   }
 `;
 
 export const WEBHOOK_DELIVERIES_QUERY = `
-  query WebhookDeliveries($workspaceId: ID!, $limit: Int) {
-    webhookDeliveries(workspaceId: $workspaceId, limit: $limit) {
-      id
-      endpointId
-      webhookId
-      event
-      url
-      status
-      attempts
-      responseCode
-      error
-      nextAttemptAt
-      deliveredAt
-      createdAt
+  query WebhookDeliveries($limit: Int) {
+    webhook {
+      deliveries(limit: $limit) {
+        id
+        endpointId
+        webhookId
+        event
+        url
+        status
+        attempts
+        responseCode
+        error
+        nextAttemptAt
+        deliveredAt
+        createdAt
+      }
     }
   }
 `;
 
 export const WEBHOOK_EVENT_TYPES_QUERY = `
-  query WebhookEventTypes($workspaceId: ID!) {
-    webhookEventTypes(workspaceId: $workspaceId)
+  query WebhookEventTypes {
+    webhook { eventTypes }
   }
 `;
 
 export const CREATE_WEBHOOK_ENDPOINT_MUTATION = `
   mutation CreateWebhookEndpoint($input: CreateWebhookEndpointInput!) {
-    createWebhookEndpoint(input: $input) {
-      secret
-      endpoint { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+    webhook {
+      create(input: $input) {
+        secret
+        endpoint { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+      }
     }
   }
 `;
 
 export const UPDATE_WEBHOOK_ENDPOINT_MUTATION = `
   mutation UpdateWebhookEndpoint($input: UpdateWebhookEndpointInput!) {
-    updateWebhookEndpoint(input: $input) { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+    webhook { update(input: $input) { ${WEBHOOK_ENDPOINT_FRAGMENT} } }
   }
 `;
 
 export const ROTATE_WEBHOOK_SECRET_MUTATION = `
-  mutation RotateWebhookSecret($workspaceId: ID!, $id: ID!) {
-    rotateWebhookSecret(workspaceId: $workspaceId, id: $id) {
-      secret
-      endpoint { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+  mutation RotateWebhookSecret($id: ID!) {
+    webhook {
+      rotateSecret(id: $id) {
+        secret
+        endpoint { ${WEBHOOK_ENDPOINT_FRAGMENT} }
+      }
     }
   }
 `;
 
 export const DELETE_WEBHOOK_ENDPOINT_MUTATION = `
-  mutation DeleteWebhookEndpoint($workspaceId: ID!, $id: ID!) {
-    deleteWebhookEndpoint(workspaceId: $workspaceId, id: $id)
+  mutation DeleteWebhookEndpoint($id: ID!) {
+    webhook { delete(id: $id) { id deleted } }
   }
 `;
 
