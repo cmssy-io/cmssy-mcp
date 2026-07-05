@@ -1,0 +1,3094 @@
+type AcceptInvitationResult {
+  message: String!
+  success: Boolean!
+  workspaceId: String
+  workspaceSlug: String
+}
+
+"""Input for addToCart mutation"""
+input AddToCartInput {
+  notes: String
+  quantity: Int!
+
+  """ModelRecord ID (product)"""
+  recordId: ID!
+  variantSelections: JSON
+  workspaceId: ID!
+}
+
+input AddWorkspaceMemberInput {
+  roleId: String
+  userId: String!
+}
+
+type AdminCart {
+  createdAt: DateTime!
+  currency: String
+  customerId: String
+  id: String!
+  itemCount: Int!
+  status: String!
+  totalValue: Int!
+  updatedAt: DateTime!
+}
+
+type AdminCartList {
+  hasMore: Boolean!
+  items: [AdminCart!]!
+  total: Int!
+}
+
+"""
+Workspace-scoped discount (promo code) row for the admin UI. Mirrors the storage shape - code/type/currency are immutable after first apply (currentUses > 0).
+"""
+type AdminDiscount {
+  code: String!
+  createdAt: DateTime!
+  currency: String
+  currentUses: Int!
+  enabled: Boolean!
+  endsAt: DateTime
+  id: String!
+  maxUses: Int
+  minSubtotal: Int
+  startsAt: DateTime
+  type: String!
+  updatedAt: DateTime!
+  value: Float!
+}
+
+type AdminDiscountListResult {
+  hasMore: Boolean!
+  items: [AdminDiscount!]!
+  total: Int!
+}
+
+"""AI configuration status"""
+type AiConfiguration {
+  isConfigured: Boolean!
+}
+
+"""AI generation history entry"""
+type AiGenerationHistory {
+  createdAt: DateTime!
+  id: String!
+  model: String!
+  prompt: String!
+  result: String!
+  tokensUsed: Int!
+}
+
+"""Result of AI text generation"""
+type AiGenerationResult {
+  model: String!
+  text: String!
+  tokensUsed: Int!
+}
+
+"""AI provider configuration for a workspace"""
+type AiProvider {
+  activeProvider: AiProviderType
+  anthropicModel: String!
+  brandContextEnabled: Boolean!
+  brandContextLastAnalyzed: DateTime
+  brandKeywords: [String!]!
+  brandSummary: String
+  brandTone: String
+  configuredProviders: [AiProviderType!]!
+  googleModel: String!
+  groqModel: String!
+  mistralModel: String!
+  openaiModel: String!
+  useOwnProvider: Boolean!
+}
+
+"""Result of validating an AI provider API key"""
+type AiProviderTestResult {
+  error: String
+  success: Boolean!
+}
+
+enum AiProviderType {
+  ANTHROPIC
+  GOOGLE
+  GROQ
+  MISTRAL
+  OPENAI
+}
+
+"""AI status for a workspace"""
+type AiStatus {
+  activeProvider: AiProviderType
+  brandContextEnabled: Boolean!
+  canUseAi: Boolean!
+  hasOwnProvider: Boolean!
+  isConfigured: Boolean!
+  tokensRemaining: Int!
+}
+
+"""AI token usage information for a workspace"""
+type AiUsage {
+  available: Int!
+  currentUsed: Int!
+  isConfigured: Boolean!
+  maxAllowed: Int!
+  percentUsed: Float!
+  resetAt: DateTime!
+}
+
+type ApiToken {
+  createdAt: DateTime!
+  expiresAt: DateTime
+  id: String!
+  lastUsedAt: DateTime
+  name: String!
+  prefix: String!
+}
+
+type ApiTokenWithSecret {
+  createdAt: DateTime!
+  id: String!
+  name: String!
+  prefix: String!
+  token: String!
+}
+
+enum AuditLogAction {
+  PAGE_STAGE_CHANGED
+  ROLE_CREATED
+  ROLE_DELETED
+  ROLE_UPDATED
+  TOKEN_CREATED
+  TOKEN_REVOKED
+  USER_INVITED
+  USER_OWNERSHIP_TRANSFERRED
+  USER_REMOVED
+  USER_ROLE_CHANGED
+  USER_SCOPED_GRANT_ADDED
+  USER_SCOPED_GRANT_REVOKED
+  USER_STATUS_CHANGED
+  WORKSPACE_DRAFT_SECRET_REGENERATED
+  WORKSPACE_PLAN_CHANGED
+  WORKSPACE_SETTINGS_UPDATED
+}
+
+enum AuditLogEntityType {
+  PAGE
+  ROLE
+  TOKEN
+  USER
+  WORKSPACE
+}
+
+type AuthResponse {
+  accessToken: String!
+  accessTokenExpiresIn: Int!
+  refreshToken: String
+}
+
+type BlockData {
+  advanced: JSON
+  blockVersion: String
+  content: JSON!
+  defaultLanguage: String!
+  id: String!
+  metadata: BlockMetadata
+  settings: JSON!
+  style: JSON
+  translations: JSON!
+  type: String!
+}
+
+input BlockDataInput {
+  advanced: JSON
+  blockVersion: String
+  content: JSON
+  defaultLanguage: String
+  id: String!
+  metadata: JSON
+  settings: JSON
+  style: JSON
+  translations: JSON
+  type: String!
+}
+
+type BlockMetadata {
+  createdAt: DateTime!
+  createdBy: String!
+  updatedAt: DateTime!
+  version: Int!
+}
+
+type BlockTranslation {
+  status: String!
+  translatedAt: DateTime
+  translatedBy: String
+}
+
+input CancelOrderInput {
+  orderId: ID!
+  workspaceId: ID!
+}
+
+"""Shopping cart for a session, scoped to a workspace"""
+type Cart {
+  """Discount snapshot if a code is currently applied"""
+  appliedDiscount: CartAppliedDiscount
+  createdAt: DateTime!
+
+  """Currency from the first item's snapshot, or null when empty"""
+  currency: String
+
+  """
+  subtotal - discount amount (re-derived from appliedDiscount type/value against the CURRENT subtotal, clamped to >= 0). Equals subtotal when no code is applied. free_shipping contributes 0 here; shipping handling lives downstream. computedAmount on the stored snapshot is informational only - the live total always uses fresh derivation so cart edits after apply (add/remove items) can't lock in over-discounts. Eligibility guards (minSubtotal / currency) are re-checked against the snapshot so a cart that drops out of eligibility post-apply contributes 0 discount until the shopper removes and re-applies the code.
+  """
+  discountedTotal: Int!
+  id: String!
+
+  """Sum of quantities across all items"""
+  itemCount: Int!
+  items: [CartItem!]!
+  sessionId: String!
+  status: String!
+
+  """Sum of snapshot.price * quantity across all items"""
+  subtotal: Int!
+  updatedAt: DateTime!
+  userId: String
+  workspaceId: String!
+}
+
+"""
+Discount snapshot captured when a code was applied to the cart. Frozen at apply-time so workspace admins editing the source discount cannot retroactively change a cart's total.
+"""
+type CartAppliedDiscount {
+  code: String!
+
+  """
+  Resolved discount amount in the cart's currency at apply-time. Clamped to subtotal so the cart total never goes negative.
+  """
+  computedAmount: Int!
+  discountId: String!
+
+  """percentage | fixed | free_shipping"""
+  type: String!
+  value: Float!
+}
+
+"""Per-workspace cart configuration (admin surface)"""
+type CartConfig {
+  defaultCurrency: String!
+  defaultTaxRateId: String
+  enableQuoteRequests: Boolean!
+  enableSavedCarts: Boolean!
+  fieldMapping: CartFieldMapping!
+  loggedInTTLDays: Int!
+  lowStockThreshold: Int
+  maxItemsPerCart: Int!
+  maxQuantityPerItem: Int!
+  pricesIncludeTax: Boolean!
+  productModelSlug: String
+  reservationTtlMinutes: Int
+  sessionTTLDays: Int!
+  taxRates: [TaxRate!]!
+}
+
+input CartConfigInput {
+  defaultCurrency: String
+  defaultTaxRateId: String
+  enableQuoteRequests: Boolean
+  enableSavedCarts: Boolean
+  fieldMapping: CartFieldMappingInput
+  loggedInTTLDays: Int
+  lowStockThreshold: Int
+  maxItemsPerCart: Int
+  maxQuantityPerItem: Int
+  pricesIncludeTax: Boolean
+  productModelSlug: String
+  reservationTtlMinutes: Int
+  sessionTTLDays: Int
+  taxRates: [TaxRateInput!]
+}
+
+"""Per-workspace field-name overrides for product records"""
+type CartFieldMapping {
+  currency: String!
+  imageUrl: String!
+  name: String!
+  price: String!
+  sku: String!
+  taxRate: String!
+}
+
+input CartFieldMappingInput {
+  currency: String
+  imageUrl: String
+  name: String
+  price: String
+  sku: String
+  taxRate: String
+}
+
+"""Single line item in a shopping cart"""
+type CartItem {
+  addedAt: DateTime!
+  currentPrice: Int
+  id: String!
+  modelId: String!
+  notes: String
+
+  """
+  True when currentPrice differs from snapshot.price. Frontend should show a 'price updated' badge.
+  """
+  priceMismatch: Boolean!
+  quantity: Int!
+  recordId: String!
+  snapshot: CartItemSnapshot!
+  variantSelections: JSON!
+}
+
+"""Snapshot of product data captured at add-to-cart time"""
+type CartItemSnapshot {
+  currency: String!
+  imageUrl: String
+  name: String!
+  price: Int!
+  sku: String
+}
+
+type CatalogItem {
+  available: Int
+  createdAt: DateTime!
+  data: JSON!
+  hasVariants: Boolean!
+  id: String!
+  onHand: Int
+  reserved: Int!
+  status: String
+  updatedAt: DateTime!
+  variants: [CatalogVariantStock!]!
+}
+
+type CatalogVariantSelection {
+  name: String!
+  value: String!
+}
+
+type CatalogVariantStock {
+  available: Int
+  key: String!
+  onHand: Int
+  price: Int!
+  reserved: Int!
+  selectedOptions: [CatalogVariantSelection!]!
+  sku: String
+}
+
+input CheckoutInput {
+  customerEmail: String!
+  workspaceId: ID!
+}
+
+input CreateApiTokenInput {
+  expiresInDays: Int
+  name: String!
+}
+
+"""
+Payload for creating a discount. `code` is canonicalized to upper-case before storage. `currency` must be set for fixed-type, null for percentage / free_shipping (cross-field invariants enforced by the Zod schema in DiscountRepository.create).
+"""
+input CreateDiscountInput {
+  code: String!
+  currency: String
+  enabled: Boolean!
+  endsAt: DateTime
+  maxUses: Int
+  minSubtotal: Float
+  startsAt: DateTime
+  type: String!
+  value: Float!
+}
+
+input CreateEmailConfigurationInput {
+  apiKey: String
+  description: String
+  fromEmail: String
+  fromName: String
+  isActive: Boolean
+  isDefault: Boolean
+  mailgunDomain: String
+  mailgunRegion: String
+  name: String!
+  provider: EmailConfigurationProviderType
+  recipients: [EmailRecipientInput!]
+  replyTo: String
+  smtpHost: String
+  smtpPassword: String
+  smtpPort: Int
+  smtpUseTls: Boolean
+  smtpUsername: String
+}
+
+input CreateFormInput {
+  description: String
+  fields: [FormFieldInput!]
+  name: String!
+  settings: FormSettingsInput
+  slug: String!
+}
+
+input CreateManualOrderInput {
+  customerEmail: String!
+  customerId: ID
+  items: [ManualOrderItemInput!]!
+  workspaceId: ID!
+}
+
+input CreateMediaFolderInput {
+  name: String!
+  parentId: String
+}
+
+input CreateModelDefinitionInput {
+  auth: ModelAuthConfigInput
+  color: String
+  defaultSort: DefaultSortInput
+  description: String
+  displayField: String
+  fields: [PropertyFieldInput!]
+  icon: String
+  name: String!
+  product: ModelProductConfigInput
+  slug: String!
+  statusField: StatusFieldConfigInput
+}
+
+input CreateModelRecordInput {
+  data: JSON!
+  modelId: ID!
+}
+
+"""Input for creating a newsletter subscriber"""
+input CreateNewsletterSubscriberInput {
+  customFields: JSON
+  email: String!
+  name: String
+  source: SubscriptionSource
+  tags: [String!]
+}
+
+input CreatePageTypeInput {
+  allowChildren: Boolean
+  allowedChildTypes: [String!]
+  defaultPublished: Boolean
+  description: String
+  fields: [PropertyFieldInput!]
+  icon: String
+  name: String!
+  schemaType: String
+  slug: String!
+  urlPrefix: String
+}
+
+"""Input for creating a property definition"""
+input CreatePropertyDefinitionInput {
+  appliesTo: [String!]
+  description: String
+  fields: [PropertyFieldInput!]
+  isList: Boolean = false
+  name: String!
+  slug: String!
+}
+
+input CreateUserInput {
+  customFields: [UserCustomFieldInput!]
+  email: String!
+  password: String!
+  profile: UserProfileInput
+  roleId: String
+  username: String
+}
+
+input CreateWebhookEndpointInput {
+  description: String
+  events: [String!]!
+  url: String!
+  workspaceId: ID!
+}
+
+input CreateWorkspaceInput {
+  name: String!
+  slug: String
+}
+
+input CreateWorkspaceRoleInput {
+  color: String
+  description: String
+  isDefault: Boolean = false
+  name: String!
+  permissions: [String!]
+}
+
+scalar DateTime
+
+type DefaultSort {
+  direction: SortDirection!
+  field: String!
+}
+
+input DefaultSortInput {
+  direction: SortDirection!
+  field: String!
+}
+
+type DeleteMediaResponse {
+  deletedCount: Int!
+  success: Boolean!
+}
+
+input EditOrderInput {
+  items: [EditOrderItemInput!]!
+  orderId: ID!
+  workspaceId: ID!
+}
+
+input EditOrderItemInput {
+  name: String
+  price: Int
+  quantity: Int!
+  recordId: ID
+  variantSelections: JSON
+}
+
+type EditorialWorkflow {
+  enabled: Boolean!
+  stages: [EditorialWorkflowStage!]!
+}
+
+type EditorialWorkflowStage {
+  allowsPublish: Boolean!
+  color: String
+  id: String!
+  name: String!
+  order: Int!
+}
+
+input EditorialWorkflowStageInput {
+  allowsPublish: Boolean
+  color: String
+  id: String
+  name: String!
+}
+
+"""List of email configurations"""
+type EmailConfigurationListType {
+  items: [EmailConfigurationType!]!
+  total: Int!
+}
+
+enum EmailConfigurationProviderType {
+  mailgun
+  resend
+  sendgrid
+  smtp
+}
+
+"""Email configuration"""
+type EmailConfigurationType {
+  apiKeyMasked: String
+  createdAt: DateTime!
+  createdBy: String
+  description: String
+  fromEmail: String
+  fromName: String
+  hasApiKey: Boolean!
+  hasSmtpPassword: Boolean!
+  id: String!
+  isActive: Boolean!
+  isDefault: Boolean!
+  mailgunDomain: String
+  mailgunRegion: String!
+  name: String!
+  provider: EmailConfigurationProviderType!
+  recipients: [EmailRecipient!]!
+  recipientsCount: Int!
+  replyTo: String
+  slug: String!
+  smtpHost: String
+  smtpPort: Int
+  smtpUseTls: Boolean!
+  smtpUsername: String
+  updatedAt: DateTime!
+  updatedBy: String
+  workspaceId: String!
+}
+
+"""Email service integration settings"""
+type EmailIntegration {
+  apiKeyMasked: String
+  fromEmail: String
+  fromName: String
+  hasApiKey: Boolean!
+  hasSmtpPassword: Boolean!
+  mailgunDomain: String
+  mailgunRegion: String!
+  provider: EmailProviderType!
+  replyTo: String
+  smtpHost: String
+  smtpPort: Int
+  smtpUseTls: Boolean!
+  smtpUsername: String
+}
+
+"""Input for updating email integration"""
+input EmailIntegrationInput {
+  apiKey: String
+  fromEmail: String
+  fromName: String
+  mailgunDomain: String
+  mailgunRegion: String
+  provider: EmailProviderType
+  replyTo: String
+  smtpHost: String
+  smtpPassword: String
+  smtpPort: Int
+  smtpUseTls: Boolean
+  smtpUsername: String
+}
+
+"""Paginated list of email logs"""
+type EmailLogConnection {
+  hasMore: Boolean!
+  items: [EmailLogType!]!
+  total: Int!
+}
+
+"""Email log entry"""
+type EmailLogType {
+  createdAt: String!
+  emailConfigurationId: String
+  emailConfigurationName: String
+  error: String
+  formData: JSON
+  fromEmail: String
+  fromName: String
+  id: String!
+  messageId: String
+  provider: String
+  replyTo: String
+  sentAt: String
+  status: EmailStatusGQL!
+  subject: String!
+  to: [String!]!
+  workspaceId: String!
+}
+
+"""Information about an email provider"""
+type EmailProviderInfo {
+  description: String!
+  id: String!
+  name: String!
+  requiresApiKey: Boolean!
+  setupUrl: String
+  supportsCustomFrom: Boolean!
+}
+
+enum EmailProviderType {
+  mailgun
+  resend
+  sendgrid
+  smtp
+}
+
+"""Email recipient"""
+type EmailRecipient {
+  email: String!
+  name: String
+}
+
+input EmailRecipientInput {
+  email: String!
+  name: String
+}
+
+"""Email statistics for workspace"""
+type EmailStats {
+  byConfiguration: JSON!
+  failed: Int!
+  pending: Int!
+  sent: Int!
+  total: Int!
+}
+
+enum EmailStatusGQL {
+  BOUNCED
+  DELIVERED
+  FAILED
+  PENDING
+  SENT
+}
+
+"""Block field type definition"""
+type FieldType {
+  allowsDefaultValue: Boolean!
+  description: String!
+  label: String!
+  supportsValidation: Boolean!
+  type: String!
+  validationRules: ValidationRules
+
+  """
+  TypeScript type for the field value (e.g., 'string', 'number', 'boolean')
+  """
+  valueType: String!
+}
+
+type Form {
+  createdAt: DateTime!
+  createdBy: String
+  description: String
+  fields: [FormFieldDefinition!]!
+  id: String!
+  name: String!
+  settings: FormSettings!
+  slug: String!
+  status: FormStatus!
+  submissionCount: Int!
+  updatedAt: DateTime!
+  updatedBy: String
+  workspaceId: String!
+}
+
+enum FormActionType {
+  contact
+  custom
+  newsletter
+}
+
+type FormFieldDefinition {
+  defaultValue: String
+  fieldType: FormFieldType!
+  helpText: JSON!
+  id: String!
+  label: JSON!
+  name: String!
+  options: [FormFieldOption!]!
+  order: Int!
+  placeholder: JSON!
+  requiredWhen: JSON
+  showWhen: JSON
+  validation: FormFieldValidation!
+  width: String!
+}
+
+input FormFieldInput {
+  defaultValue: String
+  fieldType: FormFieldType = text
+  helpText: JSON
+  id: String!
+  label: JSON
+  name: String!
+  options: [FormFieldOptionInput!]
+  order: Int = 0
+  placeholder: JSON
+  requiredWhen: JSON
+  showWhen: JSON
+  validation: FormFieldValidationInput
+  width: String = "full"
+}
+
+type FormFieldOption {
+  disabled: Boolean!
+  label: JSON!
+  value: String!
+}
+
+input FormFieldOptionInput {
+  disabled: Boolean = false
+  label: JSON
+  value: String!
+}
+
+enum FormFieldType {
+  boolean
+  date
+  datetime
+  email
+  file
+  hidden
+  multiselect
+  number
+  password
+  phone
+  radio
+  select
+  text
+  textarea
+  url
+}
+
+type FormFieldValidation {
+  customMessage: String
+  maxLength: Int
+  maxValue: Float
+  minLength: Int
+  minValue: Float
+  pattern: String
+  required: Boolean!
+}
+
+input FormFieldValidationInput {
+  customMessage: String
+  maxLength: Int
+  maxValue: Float
+  minLength: Int
+  minValue: Float
+  pattern: String
+  required: Boolean = false
+}
+
+type FormListResponse {
+  forms: [Form!]!
+  hasMore: Boolean!
+  total: Int!
+}
+
+type FormSettings {
+  actionType: FormActionType!
+  emailConfigurationId: String
+  emailRecipients: [String!]!
+  enableCaptcha: Boolean!
+  errorMessage: JSON!
+  newsletterListId: String
+  redirectUrl: String
+  requireLogin: Boolean!
+  saveSubmissions: Boolean!
+  sendEmailNotification: Boolean!
+  submitButtonLabel: JSON!
+  subscriberTags: [String!]!
+  successMessage: JSON!
+  webhookUrl: String
+}
+
+input FormSettingsInput {
+  actionType: FormActionType = contact
+  emailConfigurationId: String
+  emailRecipients: [String!]
+  enableCaptcha: Boolean = false
+  errorMessage: JSON
+  newsletterListId: String
+  redirectUrl: String
+  requireLogin: Boolean = false
+  saveSubmissions: Boolean = true
+  sendEmailNotification: Boolean = true
+  submitButtonLabel: JSON
+  subscriberTags: [String!]
+  successMessage: JSON
+  webhookUrl: String
+}
+
+enum FormStatus {
+  archived
+  draft
+  published
+}
+
+type FormSubmission {
+  createdAt: DateTime!
+  customerId: String
+  data: JSON!
+  emailSent: Boolean!
+  formId: String!
+  formSlug: String!
+  id: String!
+  ipAddress: String
+  processedAt: DateTime
+  referrer: String
+  status: FormSubmissionStatus!
+  userAgent: String
+  webhookSent: Boolean!
+}
+
+type FormSubmissionListResponse {
+  hasMore: Boolean!
+  submissions: [FormSubmission!]!
+  total: Int!
+}
+
+enum FormSubmissionStatus {
+  archived
+  pending
+  processed
+  spam
+}
+
+type FormSubmitResponse {
+  accessToken: String
+  customer: JSON
+  message: String!
+  redirectUrl: String
+  submissionId: String
+  success: Boolean!
+}
+
+input FulfillOrderInput {
+  orderId: ID!
+  status: String!
+  trackingCarrier: String
+  trackingNumber: String
+  workspaceId: ID!
+}
+
+input GenerateAltTextInput {
+  imageContext: String!
+  pageContext: String
+}
+
+type I18nSettings {
+  fallbackBehavior: String!
+  urlStrategy: String!
+}
+
+type ImportError {
+  message: String!
+  row: Int!
+}
+
+input ImportModelRecordsInput {
+  modelId: ID!
+  rows: [JSON!]!
+}
+
+type ImportModelRecordsResult {
+  errors: [ImportError!]!
+  importedCount: Int!
+}
+
+type ImportNewsletterSubscribersResult {
+  errors: [String!]!
+  imported: Int!
+  skipped: Int!
+}
+
+type InvitationResult {
+  message: String!
+  success: Boolean!
+  userId: String
+}
+
+input InviteUserInput {
+  email: String!
+  roleId: String
+}
+
+scalar JSON
+
+type LayoutBlock {
+  advanced: JSON
+  blockVersion: String
+  content: JSON!
+  defaultLanguage: String!
+  id: String!
+  isActive: Boolean!
+  metadata: BlockMetadata
+  order: Int!
+  position: LayoutPosition!
+  settings: JSON!
+  style: JSON
+  translations: JSON!
+  type: String!
+}
+
+input LayoutBlockInput {
+  advanced: JSON
+  blockVersion: String
+  content: JSON
+  defaultLanguage: String
+  id: String!
+  isActive: Boolean
+  metadata: JSON
+  order: Int!
+  position: LayoutPosition!
+  settings: JSON
+  style: JSON
+  translations: JSON
+  type: String!
+}
+
+enum LayoutMobileBehavior {
+  collapse
+  keep
+}
+
+type LayoutOverride {
+  action: LayoutOverrideAction!
+  blockId: String
+  position: LayoutPosition!
+}
+
+enum LayoutOverrideAction {
+  disable
+  replace
+}
+
+input LayoutOverrideInput {
+  action: LayoutOverrideAction!
+  blockId: String
+  position: LayoutPosition!
+}
+
+enum LayoutPosition {
+  bottom
+  footer
+  header
+  sidebar_left
+  sidebar_right
+  top
+}
+
+type LayoutPositionSettings {
+  desktopWidth: Int
+  mobileBehavior: LayoutMobileBehavior!
+  position: LayoutPosition!
+}
+
+input LayoutPositionSettingsInput {
+  desktopWidth: Int
+  mobileBehavior: LayoutMobileBehavior!
+  position: LayoutPosition!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+  website: String
+}
+
+input ManualOrderItemInput {
+  name: String
+  price: Int
+  quantity: Int!
+  recordId: ID
+  variantSelections: JSON
+}
+
+input MarkOrderPaidInput {
+  amount: Int!
+  orderId: ID!
+  provider: String!
+  reference: String!
+  workspaceId: ID!
+}
+
+enum MediaAcceptedType {
+  audio
+  document
+  image
+  video
+}
+
+"""A media asset (image, video, document, audio)"""
+type MediaAsset {
+  alt: JSON!
+  blurDataUrl: String
+  caption: JSON
+  createdAt: DateTime!
+  createdBy: String!
+  duration: Float
+  filename: String!
+  folderId: String
+  format: String
+  height: Int
+  id: String!
+  mimeType: String!
+  pathname: String!
+  processingStatus: String!
+  size: Int!
+  tags: [String!]!
+  type: String!
+  updatedAt: DateTime!
+  url: String!
+  variants: JSON
+  width: Int
+}
+
+type MediaBrandingUsage {
+  field: String!
+  location: String!
+}
+
+input MediaFilterInput {
+  folderId: String
+  search: String
+  tags: [String!]
+  type: String
+}
+
+"""A media folder for organizing assets"""
+type MediaFolder {
+  createdAt: DateTime!
+  createdBy: String!
+  id: String!
+  name: String!
+  parentId: String
+}
+
+type MediaFolderListResponse {
+  items: [MediaFolder!]!
+  total: Int!
+}
+
+type MediaListResponse {
+  hasMore: Boolean!
+  items: [MediaAsset!]!
+  total: Int!
+}
+
+type MediaPageUsage {
+  blockId: String!
+  blockType: String!
+  fieldPath: String!
+  pageId: String!
+  pageName: String!
+  pageSlug: String!
+  position: String!
+  version: String!
+}
+
+type MediaUsageResponse {
+  brandingUsages: [MediaBrandingUsage!]!
+  isUsed: Boolean!
+  pageUsages: [MediaPageUsage!]!
+  totalPages: Int!
+}
+
+type MemberAuthConfig {
+  afterLoginUrl: String!
+  afterLogoutUrl: String!
+  allowRegistration: Boolean!
+  enabled: Boolean!
+  loginButtonLabel: JSON!
+  loginUrl: String!
+  profileUrl: String!
+  registerButtonLabel: JSON!
+  registerUrl: String!
+  requireEmailVerification: Boolean!
+  showLoginInHeader: Boolean!
+  showRegisterInHeader: Boolean!
+}
+
+input MemberAuthConfigInput {
+  afterLoginUrl: String
+  afterLogoutUrl: String
+  allowRegistration: Boolean
+  enabled: Boolean
+  loginButtonLabel: JSON
+  loginUrl: String
+  profileUrl: String
+  registerButtonLabel: JSON
+  registerUrl: String
+  requireEmailVerification: Boolean
+  showLoginInHeader: Boolean
+  showRegisterInHeader: Boolean
+}
+
+type MemberScopedGrant {
+  pageId: String!
+  roleId: String!
+}
+
+"""Status of a workspace membership"""
+enum MembershipStatus {
+  active
+  pending
+  suspended
+}
+
+type ModelAuthConfig {
+  enabled: Boolean!
+  identityField: String!
+  lockout: ModelAuthLockout!
+  strategy: ModelAuthStrategy!
+  verification: ModelAuthVerification!
+}
+
+input ModelAuthConfigInput {
+  enabled: Boolean
+  identityField: String
+  lockout: ModelAuthLockoutInput
+  strategy: ModelAuthStrategy
+  verification: ModelAuthVerificationInput
+}
+
+type ModelAuthLockout {
+  enabled: Boolean!
+  lockMinutes: Int!
+  maxAttempts: Int!
+}
+
+input ModelAuthLockoutInput {
+  enabled: Boolean
+  lockMinutes: Int
+  maxAttempts: Int
+}
+
+enum ModelAuthStrategy {
+  external
+  local
+  oauth
+}
+
+type ModelAuthVerification {
+  required: Boolean!
+}
+
+input ModelAuthVerificationInput {
+  required: Boolean
+}
+
+type ModelDefinition {
+  auth: ModelAuthConfig
+  color: String
+  createdAt: DateTime!
+  createdBy: String
+  defaultSort: DefaultSort
+  description: String
+  displayField: String
+  fields: [PropertyField!]!
+  icon: String!
+  id: String!
+  name: String!
+  product: ModelProductConfig
+  recordCount: Int!
+  slug: String!
+  statusField: StatusFieldConfig!
+  updatedAt: DateTime!
+  workspaceId: String!
+}
+
+type ModelProductConfig {
+  enabled: Boolean!
+  inventoryField: String!
+  priceField: String!
+  skuField: String!
+  variantAxes: [String!]!
+}
+
+input ModelProductConfigInput {
+  enabled: Boolean
+  inventoryField: String
+  priceField: String
+  skuField: String
+  variantAxes: [String!]
+}
+
+type ModelRecord {
+  createdAt: DateTime!
+  createdBy: String
+  data: JSON!
+  id: String!
+  modelId: String!
+  status: String
+  updatedAt: DateTime!
+  updatedBy: String
+  variants: [ProductVariant!]!
+  workspaceId: String!
+}
+
+type ModelRecordList {
+  hasMore: Boolean!
+  items: [ModelRecord!]!
+  total: Int!
+}
+
+input MovePageInput {
+  id: String!
+  order: Int!
+  parentId: String
+}
+
+type Mutation {
+  acceptMyWorkspaceInvitation(workspaceId: ID!): AcceptInvitationResult!
+  acceptWorkspaceInvitation(token: String!): AcceptInvitationResult!
+
+  """Add tags to a newsletter subscriber (admin)"""
+  addNewsletterSubscriberTags(id: ID!, tags: [String!]!): NewsletterSubscriber
+
+  """Add an item to the cart (public, rate-limited)"""
+  addToCart(input: AddToCartInput!): Cart!
+  addWorkspaceMember(input: AddWorkspaceMemberInput!): Workspace!
+
+  """Generate alt text for an image"""
+  aiGenerateAltText(input: GenerateAltTextInput!): AiGenerationResult!
+
+  """Execute an AI action on rich text content"""
+  aiRichText(input: RichTextAiInput!): RichTextResult!
+
+  """
+  Apply a discount code to the active cart for this session (public, rate-limited). Errors with NOT_APPLICABLE when the code is expired / out of redemptions / cart fails minSubtotal / currency mismatch.
+  """
+  applyDiscount(code: String!, workspaceId: ID!): Cart!
+  assignCustomRoleToMember(customRoleId: ID, userId: ID!): Workspace!
+
+  """Bulk delete newsletter subscribers (admin)"""
+  bulkDeleteNewsletterSubscribers(ids: [ID!]!): Int!
+  bulkDeleteProductRecords(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
+  bulkUpdateProductRecords(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
+  cancelInvitation(email: String!): InvitationResult!
+  cancelOrder(input: CancelOrderInput!): Order!
+  checkout(input: CheckoutInput!): Order!
+
+  """Clear an AI provider API key"""
+  clearAiProviderKey(provider: AiProviderType!): Boolean!
+  clearBrandContext: Boolean!
+
+  """Remove all items from the cart (public, rate-limited)"""
+  clearCart(workspaceId: ID!): Cart!
+  createApiToken(input: CreateApiTokenInput!): ApiTokenWithSecret!
+  createCustomRole(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
+
+  """
+  Create a new discount. Code is canonicalized to upper-case. Duplicate code (per workspace) → BAD_USER_INPUT. Cross-field invariants (percentage <= 100, fixed has currency, etc.) enforced by the Zod schema in DiscountRepository.create.
+  """
+  createDiscount(input: CreateDiscountInput!, workspaceId: ID!): AdminDiscount!
+
+  """Create a new email configuration"""
+  createEmailConfiguration(input: CreateEmailConfigurationInput!): EmailConfigurationType!
+  createForm(input: CreateFormInput!): Form!
+  createManualOrder(input: CreateManualOrderInput!): Order!
+  createMediaFolder(input: CreateMediaFolderInput!): MediaFolder!
+  createModelDefinition(input: CreateModelDefinitionInput!): ModelDefinition!
+  createModelRecord(input: CreateModelRecordInput!): ModelRecord!
+
+  """Create a newsletter subscriber (admin)"""
+  createNewsletterSubscriber(input: CreateNewsletterSubscriberInput!): NewsletterSubscriber!
+  createPageType(input: CreatePageTypeInput!): PageTypeGraphQL!
+
+  """Create a new property definition"""
+  createPropertyDefinition(input: CreatePropertyDefinitionInput!): PropertyDefinition!
+  createUser(input: CreateUserInput!): User!
+  createWebhookEndpoint(input: CreateWebhookEndpointInput!): WebhookEndpointSecret!
+  createWorkspace(input: CreateWorkspaceInput!): Workspace!
+  createWorkspaceRole(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
+  deleteApiToken(id: ID!): Boolean!
+  deleteCustomRole(roleId: ID!): WorkspaceRoleResult!
+
+  """Delete an email configuration"""
+  deleteEmailConfiguration(id: ID!): Boolean!
+
+  """Delete an email log entry"""
+  deleteEmailLog(id: ID!): Boolean!
+  deleteForm(formId: ID!): Boolean!
+  deleteFormSubmission(submissionId: ID!): Boolean!
+  deleteMedia(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
+  deleteMediaFolder(deleteContents: Boolean = false, id: ID!): Boolean!
+  deleteModelDefinition(id: ID!): Boolean!
+  deleteModelRecord(id: ID!): Boolean!
+  deleteMyAccount: Boolean!
+
+  """Delete a newsletter subscriber (admin)"""
+  deleteNewsletterSubscriber(id: ID!): Boolean!
+  deletePageType(id: ID!): Boolean!
+
+  """Delete a property definition"""
+  deletePropertyDefinition(id: ID!): Boolean!
+  deleteUser(id: ID!): Boolean!
+  deleteWebhookEndpoint(id: ID!, workspaceId: ID!): Boolean!
+  deleteWorkspace(id: ID!): Boolean!
+  deleteWorkspaceRole(fallbackRoleId: ID, roleId: ID!): WorkspaceRoleResult!
+  discardDevDraft(pageId: String!): Boolean!
+  editOrder(input: EditOrderInput!): Order!
+  grantScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
+  heartbeatPagePresence(pageId: ID!): PagePresenceState!
+  importModelRecords(input: ImportModelRecordsInput!): ImportModelRecordsResult!
+
+  """Import newsletter subscribers from CSV data (admin)"""
+  importNewsletterSubscribers(csvData: String!): ImportNewsletterSubscribersResult!
+  inviteUserToWorkspace(input: InviteUserInput!): InvitationResult!
+  leaveWorkspace: Boolean!
+
+  """Link a newsletter subscriber to a site member (admin)"""
+  linkNewsletterSubscriberToMember(siteMemberId: ID!, subscriberId: ID!): NewsletterSubscriber
+  login(input: LoginInput!): AuthResponse!
+  logout: Boolean!
+
+  """
+  Privileged server-only mutation. Records a payment against an order; it does NOT process or verify a payment. Your backend MUST verify the payment-provider (Stripe, etc.) webhook signature before calling this, and must never expose it to a browser/site-member context. Requires ORDERS_MANAGE.
+  """
+  markOrderPaid(input: MarkOrderPaidInput!): Order!
+
+  """
+  Merge a guest cart (identified by the cart-session cookie) into the authenticated user's cart. Called by the frontend right after login. Idempotent - safe to call when no guest session exists or after a prior merge succeeded.
+  """
+  mergeGuestCart(workspaceId: ID!): Cart!
+  movePage(input: MovePageInput!): Page
+  oauthLogin(input: OAuthLoginInput!): AuthResponse!
+  patchBlockContent(input: PatchBlockContentInput!): Page
+  promoteDevDraft(input: PromoteDevDraftInput!): Page
+  publishPageContent(id: ID!): Page
+  publishPageLayout(id: ID!): Page
+  recalculateAllUsage: Workspace!
+  recalculateBlockUsage: Workspace!
+  recordOrderInvoice(input: RecordOrderInvoiceInput!): Order!
+
+  """
+  Privileged server-only mutation. Records a (partial) payment up to the order balance; it does NOT process or verify a payment. Your backend MUST verify the payment-provider webhook signature before calling this, and must never expose it to a browser/site-member context. Requires ORDERS_MANAGE.
+  """
+  recordOrderPayment(input: RecordOrderPaymentInput!): Order!
+  refreshToken(refreshToken: String!): AuthResponse!
+  refundOrder(input: RefundOrderInput!): Order!
+  regenerateApiToken(id: ID!): ApiTokenWithSecret!
+  regenerateDraftSecret: String!
+
+  """Remove an item from the cart (public, rate-limited)"""
+  removeCartItem(itemId: ID!, workspaceId: ID!): Cart!
+
+  """
+  Remove the applied discount from the active cart (public, rate-limited). Idempotent: succeeds with no change when nothing was applied.
+  """
+  removeDiscount(workspaceId: ID!): Cart!
+
+  """Remove tags from a newsletter subscriber (admin)"""
+  removeNewsletterSubscriberTags(id: ID!, tags: [String!]!): NewsletterSubscriber
+  removePage(id: ID!): Boolean!
+  removeWorkspaceMember(userId: ID!): Workspace!
+  requestUserPasswordReset(email: String!): UserAuthResponse!
+  resendPendingInvitation(email: String!): InvitationResult!
+  resendUserVerificationEmail: UserAuthResponse!
+  resendWorkspaceInvitation(userId: ID!): InvitationResult!
+
+  """Reset AI token usage for workspace (admin only)"""
+  resetAiTokenUsage: Boolean!
+  resetUserPassword(newPassword: String!, token: String!): UserAuthResponse!
+  restorePageVersion(pageId: ID!, version: Int!): Page
+  revertContentToPublished(id: ID!): Page
+  revertLayoutToPublished(id: ID!): Page
+  revokeScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
+  rotateWebhookSecret(id: ID!, workspaceId: ID!): WebhookEndpointSecret!
+  saveDevDraft(input: SaveDevDraftInput!): PageDevDraft!
+  savePage(input: SavePageInput!): Page
+
+  """Send a test email to verify email configuration"""
+  sendTestEmail(email: String!): TestEmailResult!
+
+  """Set an email configuration as the default"""
+  setDefaultEmailConfiguration(id: ID!): EmailConfigurationType!
+  setDevPreviewMode(active: Boolean!): Boolean!
+
+  """
+  Toggle a discount's enabled flag without going through the full update path. NOT_FOUND when the discount doesn't exist or is cross-tenant.
+  """
+  setDiscountEnabled(enabled: Boolean!, id: ID!, workspaceId: ID!): AdminDiscount!
+  setOrderPipelineStage(input: SetOrderPipelineStageInput!): Order!
+  setProductVariants(input: SetProductVariantsInput!): ModelRecord!
+  signup(input: SignupInput!): AuthResponse!
+  siteMemberForgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
+  siteMemberLogin(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
+  siteMemberLogout(refreshToken: String!): SiteMemberAuthResponse!
+  siteMemberLogoutEverywhere: SiteMemberAuthResponse!
+  siteMemberRefresh(refreshToken: String!): SiteMemberLoginResponse!
+  siteMemberRegister(input: SiteMemberRegisterInput!): SiteMemberAuthResponse!
+  siteMemberResetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
+  siteMemberVerifyEmail(token: String!): SiteMemberAuthResponse!
+  submitForm(formId: ID!, input: SubmitFormInput!): FormSubmitResponse!
+
+  """Subscribe to newsletter (public, rate-limited)"""
+  subscribeToNewsletter(input: NewsletterSubscribeInput!, workspaceId: ID!): NewsletterSubscribeResponse!
+  suspendWorkspaceMember(userId: ID!): Workspace!
+  takeOverPageLock(pageId: ID!): PagePresenceState!
+
+  """Validate an AI provider API key with a tiny probe, no save"""
+  testAiProviderConnection(apiKey: String!, model: String, provider: AiProviderType!): AiProviderTestResult!
+
+  """Send a test email to verify configuration"""
+  testEmailConfiguration(id: ID!, testEmail: String!): TestEmailConfigurationResult!
+  togglePublish(id: ID!): Page
+  transferOwnership(newOwnerId: ID!): Workspace!
+  transitionOrderFulfillment(input: FulfillOrderInput!): Order!
+  transitionPageStage(pageId: ID!, stageId: String!): Page
+
+  """Unsubscribe from newsletter using email (public, rate-limited)"""
+  unsubscribeByEmail(email: String!, workspaceId: ID!): NewsletterUnsubscribeResponse!
+
+  """Unsubscribe from newsletter using token (public)"""
+  unsubscribeFromNewsletter(token: String!): NewsletterUnsubscribeResponse!
+  unsuspendWorkspaceMember(userId: ID!): Workspace!
+
+  """Update AI provider configuration"""
+  updateAiProvider(input: UpdateAiProviderInput!): AiProvider!
+  updateApiToken(id: ID!, input: UpdateApiTokenInput!): ApiToken!
+  updateCartConfig(input: CartConfigInput!): SiteConfig!
+
+  """Update quantity or notes on a cart item (public, rate-limited)"""
+  updateCartItem(input: UpdateCartItemInput!): Cart!
+  updateCustomRole(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
+
+  """
+  Partial update. NOT_FOUND when the discount doesn't exist. NOT_APPLICABLE (CONFLICT-class) when the input touches code/type/currency on a discount with currentUses > 0 - those fields are frozen post-first-apply so historical cart/order snapshots stay valid.
+  """
+  updateDiscount(id: ID!, input: UpdateDiscountInput!, workspaceId: ID!): AdminDiscount!
+  updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
+
+  """Update an existing email configuration"""
+  updateEmailConfiguration(input: UpdateEmailConfigurationInput!): EmailConfigurationType!
+  updateForm(formId: ID!, input: UpdateFormInput!): Form
+  updateFormSubmissionStatus(status: String!, submissionId: ID!): Boolean!
+  updateLayoutPositionSettings(input: UpdateLayoutPositionSettingsInput!): Page
+  updateMedia(id: ID!, input: UpdateMediaInput!): MediaAsset!
+  updateMediaFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
+  updateMemberAuthConfig(input: MemberAuthConfigInput!): SiteConfig!
+  updateMemberRole(roleId: ID!, userId: ID!): Workspace!
+  updateModelDefinition(input: UpdateModelDefinitionInput!): ModelDefinition
+  updateModelRecord(input: UpdateModelRecordInput!): ModelRecord
+  updateModelRecordStatus(input: UpdateModelRecordStatusInput!): ModelRecord
+  updateMyLocale(locale: String!): User!
+
+  """Update a newsletter subscriber (admin)"""
+  updateNewsletterSubscriber(id: ID!, input: UpdateNewsletterSubscriberInput!): NewsletterSubscriber!
+  updateOrderDetails(input: UpdateOrderDetailsInput!): Order!
+  updatePageLayout(input: UpdatePageLayoutInput!): Page
+  updatePageSettings(input: UpdatePageSettingsInput!): Page
+  updatePageType(input: UpdatePageTypeInput!): PageTypeGraphQL
+
+  """Update a property definition"""
+  updatePropertyDefinition(id: ID!, input: UpdatePropertyDefinitionInput!): PropertyDefinition!
+  updateSiteConfig(input: UpdateSiteConfigInput!): SiteConfig!
+  updateSiteVerification(code: String, provider: String!): SiteConfig!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  updateWebhookEndpoint(input: UpdateWebhookEndpointInput!): WebhookEndpoint!
+  updateWorkspace(id: ID!, input: UpdateWorkspaceInput!): Workspace!
+  updateWorkspaceBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
+
+  """Update workspace integrations configuration"""
+  updateWorkspaceIntegrations(input: UpdateWorkspaceIntegrationsInput!): WorkspaceIntegrations!
+  updateWorkspaceRole(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
+  uploadMedia(input: UploadMediaInput!): MediaAsset!
+  upsertOrderPipeline(input: UpsertOrderPipelineInput!): OrderPipeline!
+  verifyUserEmail(token: String!): UserAuthResponse!
+}
+
+type MyScopedGrant {
+  pageId: String!
+  permissions: [String!]!
+}
+
+"""Input for newsletter subscription"""
+input NewsletterSubscribeInput {
+  email: String!
+  honeypot: String
+  name: String
+  tags: [String!]
+}
+
+"""Response for newsletter subscription"""
+type NewsletterSubscribeResponse {
+  message: String!
+  subscriber: NewsletterSubscriber
+  success: Boolean!
+}
+
+"""Newsletter subscriber"""
+type NewsletterSubscriber {
+  createdAt: DateTime!
+  customFields: JSON!
+  email: String!
+  engagement: SubscriberEngagement!
+  id: String!
+  name: String
+  siteMemberId: String
+  source: String!
+  status: String!
+  subscribedAt: DateTime!
+  tags: [String!]!
+  unsubscribedAt: DateTime
+  updatedAt: DateTime!
+  workspaceId: String!
+}
+
+"""Paginated list of newsletter subscribers"""
+type NewsletterSubscriberList {
+  subscribers: [NewsletterSubscriber!]!
+  total: Int!
+}
+
+"""Response for newsletter unsubscription"""
+type NewsletterUnsubscribeResponse {
+  message: String!
+  success: Boolean!
+}
+
+input OAuthLoginInput {
+  idToken: String!
+  name: String
+  provider: String!
+}
+
+"""A placed order (immutable snapshot of the cart at checkout)."""
+type Order {
+  amountPaid: Int!
+  balanceDue: Int!
+  canceledAt: DateTime
+  cartId: String
+  createdAt: DateTime!
+  currency: String!
+  customerEmail: String!
+  customerId: String
+  displayStatus: String!
+  edits: [OrderEdit!]!
+  fulfilledAt: DateTime
+  fulfillmentStatus: String!
+  id: String!
+  invoiceNumber: String
+  invoiceProvider: String
+  invoiceUrl: String
+  invoicedAt: DateTime
+  items: [OrderItem!]!
+  notes: String
+  orderNumber: Int
+  paidAt: DateTime
+  paymentProvider: String
+  paymentReference: String
+  paymentStatus: String!
+  payments: [OrderPayment!]!
+  pipelineLog: [OrderPipelineLogEntry!]!
+  pipelineStageId: String
+  pricesIncludeTax: Boolean!
+  refundedAmount: Int!
+  status: String!
+  subtotal: Int!
+  tax: Int!
+  taxSummary: [OrderTaxSummaryLine!]!
+  total: Int!
+  trackingCarrier: String
+  trackingNumber: String
+  updatedAt: DateTime!
+  workspaceId: String!
+}
+
+type OrderEdit {
+  at: DateTime!
+  by: String
+  itemCountAfter: Int!
+  itemCountBefore: Int!
+  totalAfter: Int!
+  totalBefore: Int!
+}
+
+type OrderItem {
+  currency: String!
+  modelId: String
+  name: String!
+  price: Int!
+  quantity: Int!
+  recordDeleted: Boolean!
+  recordId: String
+  sku: String
+  taxAmount: Int!
+  taxRate: Float!
+  taxRateId: String
+  taxRateName: String
+  variantKey: String
+}
+
+type OrderListResult {
+  hasMore: Boolean!
+  items: [Order!]!
+  total: Int!
+}
+
+type OrderPayment {
+  amount: Int!
+  at: DateTime!
+  provider: String
+  reference: String!
+}
+
+type OrderPipeline {
+  stages: [OrderPipelineStage!]!
+}
+
+type OrderPipelineLogEntry {
+  at: DateTime!
+  by: String
+  stageId: String!
+}
+
+type OrderPipelineStage {
+  color: String!
+  id: String!
+  isDefault: Boolean!
+  isTerminal: Boolean!
+  label: String!
+  position: Int!
+}
+
+input OrderPipelineStageInput {
+  color: String!
+  id: String!
+  isDefault: Boolean
+  isTerminal: Boolean
+  label: String!
+  position: Int!
+}
+
+type OrderTaxSummaryLine {
+  amount: Int!
+  base: Int!
+  name: String
+  rate: Float!
+  rateId: String
+}
+
+type Page {
+  accessControl: PageAccessControl
+  blocks: [BlockData!]!
+  createdAt: DateTime!
+  createdBy: String!
+  customFields: [PageCustomField!]!
+  description: String
+  displayName: JSON!
+  hasUnpublishedContentChanges: Boolean!
+  hasUnpublishedLayoutChanges: Boolean!
+  id: String!
+  inheritsLayout: Boolean!
+  layoutBlocks: [LayoutBlock!]!
+  layoutOverrides: [LayoutOverride!]!
+  layoutPositionSettings: [LayoutPositionSettings!]!
+  name: String!
+  order: Int!
+  pageType: String!
+  parentId: String
+  published: Boolean!
+  publishedAt: DateTime
+  publishedBlocks: [BlockData!]!
+  publishedLayoutBlocks: [LayoutBlock!]!
+  publishedLayoutOverrides: [LayoutOverride!]!
+  publishedLayoutPositionSettings: [LayoutPositionSettings!]!
+  schemaPropertyMap: JSON
+  schemaType: String
+  seoDescription: JSON
+  seoKeywords: [String!]!
+  seoTitle: JSON
+  slug: String!
+  updatedAt: DateTime!
+  updatedBy: String
+  version: Int!
+  workflowStage: String
+  workspaceId: String!
+}
+
+type PageAccessControl {
+  allowedRoles: [String!]!
+  redirectTo: String!
+  requireAuth: Boolean!
+}
+
+type PageCustomField {
+  fieldKey: String!
+  value: JSON!
+}
+
+input PageCustomFieldFilterInput {
+  fieldKey: String!
+  value: JSON!
+}
+
+input PageCustomFieldInput {
+  fieldKey: String!
+  value: JSON
+}
+
+type PageDevDraft {
+  blocks: [BlockData!]!
+  pageId: String!
+  updatedAt: DateTime!
+}
+
+type PageHistoryEntry {
+  createdAt: DateTime!
+  createdBy: String
+  id: ID!
+  version: Int!
+}
+
+type PagePresenceState {
+  editors: [PagePresenceUser!]!
+  lockHeldByMe: Boolean!
+  lockHolderId: ID
+  lockHolderName: String
+}
+
+type PagePresenceUser {
+  avatarUrl: String
+  displayName: String
+  userId: String!
+}
+
+input PageSelectorFilterInput {
+  pageType: String
+  search: String
+}
+
+type PageSelectorItem {
+  displayName: JSON!
+  id: ID!
+  name: String!
+  pageType: String!
+  parentId: ID
+  published: Boolean!
+  slug: String!
+}
+
+type PageSelectorResponse {
+  hasMore: Boolean!
+  items: [PageSelectorItem!]!
+  total: Int!
+}
+
+enum PageSortBy {
+  order_asc
+  publishedAt_desc
+}
+
+type PageTypeGraphQL {
+  allowChildren: Boolean!
+  allowedChildTypes: [String!]!
+  createdAt: DateTime!
+  createdBy: String
+  defaultPublished: Boolean!
+  description: String
+  fields: [PropertyField!]!
+  icon: String!
+  id: String!
+  isSystem: Boolean!
+  name: String!
+  schemaType: String!
+  slug: String!
+  updatedAt: DateTime!
+  urlPrefix: String
+  workspaceId: String!
+}
+
+input PatchBlockContentInput {
+  blockId: String!
+  expectedVersion: Int
+  fieldPath: String
+  locale: String!
+  operations: [PatchOperationInput!]!
+  pageId: String!
+}
+
+enum PatchOp {
+  insert_after
+  insert_before
+  replace_section
+}
+
+input PatchOperationInput {
+  endMarker: String
+  html: String!
+  marker: String
+  op: PatchOp!
+  startMarker: String
+}
+
+type PendingInvitation {
+  email: String!
+  expired: Boolean!
+  expiresAt: DateTime
+  invitedAt: DateTime
+  roleId: String!
+  roleName: String
+}
+
+"""A category of permissions"""
+type PermissionCategory {
+  key: String!
+  name: String!
+  permissions: [PermissionInfo!]!
+}
+
+"""Information about a single permission"""
+type PermissionInfo {
+  category: String!
+  description: String!
+  key: String!
+  name: String!
+}
+
+input ProductBulkPatchInput {
+  adjustPrice: Float
+  adjustStock: Int
+  setPrice: Float
+  setStock: Int
+  status: String
+}
+
+input ProductBulkSelectionInput {
+  allMatching: Boolean
+  filter: ProductCatalogFilterInput
+  ids: [ID!]
+}
+
+input ProductCatalogFilterInput {
+  hasVariants: Boolean
+  priceMax: Float
+  priceMin: Float
+  search: String
+  status: String
+  stockState: StockState
+}
+
+type ProductCatalogList {
+  hasMore: Boolean!
+  items: [CatalogItem!]!
+  lowStockThreshold: Int!
+  total: Int!
+}
+
+type ProductVariant {
+  id: String!
+  inventory: Int
+  price: Int!
+  selectedOptions: [ProductVariantSelection!]!
+  sku: String
+}
+
+input ProductVariantInput {
+  inventory: Int
+  price: Int!
+  selections: JSON!
+  sku: String
+}
+
+type ProductVariantSelection {
+  name: String!
+  value: String!
+}
+
+input PromoteDevDraftInput {
+  expectedVersion: Int
+  pageId: String!
+}
+
+"""A property definition for extensible fields"""
+type PropertyDefinition {
+  appliesTo: [String!]!
+  createdAt: DateTime!
+  createdBy: String
+  description: String
+  fields: [PropertyField!]!
+  id: String!
+  isList: Boolean!
+  name: String!
+  slug: String!
+  updatedAt: DateTime!
+  workspaceId: String!
+}
+
+type PropertyField {
+  acceptedTypes: [MediaAcceptedType!]
+  defaultValue: String
+  description: String
+  fields: JSON
+  hidden: Boolean
+  itemFields: JSON
+  itemType: PropertyFieldType
+  key: String!
+  label: String!
+  maxLength: Int
+  maxValue: Float
+  minLength: Int
+  minValue: Float
+  multiple: Boolean
+  options: [String!]!
+  pattern: String
+  relationTo: String
+  relationType: String
+  required: Boolean!
+  schemaProperty: String
+  type: PropertyFieldType!
+}
+
+input PropertyFieldInput {
+  acceptedTypes: [MediaAcceptedType!]
+  defaultValue: String
+  description: String
+  fields: JSON
+  hidden: Boolean
+  itemFields: JSON
+  itemType: PropertyFieldType
+  key: String!
+  label: String!
+  maxLength: Int
+  maxValue: Float
+  minLength: Int
+  minValue: Float
+  multiple: Boolean
+  options: [String!]
+  pattern: String
+  relationTo: String
+  relationType: String
+  required: Boolean
+  schemaProperty: String
+  type: PropertyFieldType!
+}
+
+enum PropertyFieldType {
+  boolean
+  color
+  date
+  datetime
+  email
+  file
+  form
+  hidden
+  link
+  list
+  markdown
+  media
+  multiselect
+  number
+  object
+  pageSelector
+  password
+  phone
+  radio
+  relation
+  repeater
+  richText
+  select
+  text
+  textarea
+  url
+}
+
+"""Metadata about an available property field type"""
+type PropertyFieldTypeDefinition {
+  description: String!
+  label: String!
+  relationTargets: [String!]!
+  supportsOptions: Boolean!
+  supportsRelation: Boolean!
+  supportsValidation: Boolean!
+  type: String!
+}
+
+"""Per-workspace cart configuration (public surface, no server-side TTLs)"""
+type PublicCartConfig {
+  defaultCurrency: String!
+  defaultTaxRateId: String
+  enableQuoteRequests: Boolean!
+  enableSavedCarts: Boolean!
+  fieldMapping: CartFieldMapping!
+  maxItemsPerCart: Int!
+  maxQuantityPerItem: Int!
+  pricesIncludeTax: Boolean!
+  productModelSlug: String
+  taxRates: [TaxRate!]!
+}
+
+type PublicFormSubmissionItem {
+  createdAt: DateTime!
+  data: JSON!
+  formSlug: String!
+  id: String!
+  status: String!
+}
+
+type PublicFormSubmissionListResult {
+  hasMore: Boolean!
+  items: [PublicFormSubmissionItem!]!
+  total: Int!
+}
+
+type PublicMediaItem {
+  alt: JSON!
+  blurDataUrl: String
+  caption: JSON
+  createdAt: DateTime!
+  filename: String!
+  height: Int
+  id: String!
+  mimeType: String!
+  size: Int!
+  tags: [String!]!
+  type: String!
+  url: String!
+  width: Int
+}
+
+type PublicMediaListResult {
+  hasMore: Boolean!
+  items: [PublicMediaItem!]!
+  total: Int!
+}
+
+type PublicPageItem {
+  customFields: JSON!
+  displayName: JSON!
+  fullSlug: String!
+  id: String!
+  pageType: String!
+  publishedAt: DateTime
+  seoDescription: JSON
+  seoTitle: JSON
+  slug: String!
+}
+
+type PublicPagesListResult {
+  hasMore: Boolean!
+  items: [PublicPageItem!]!
+  total: Int!
+}
+
+type Query {
+  adminCarts(limit: Int, skip: Int, status: String, workspaceId: ID!): AdminCartList!
+
+  """Get AI configuration status"""
+  aiConfiguration: AiConfiguration!
+
+  """Get AI generation history for a source"""
+  aiGenerationHistory(sourceId: String, sourceType: String!): [AiGenerationHistory!]!
+
+  """Get AI provider configuration for the current workspace"""
+  aiProvider: AiProvider!
+
+  """Analyze page SEO and return score with suggestions"""
+  aiSeoAnalysis(pageId: ID!): SeoAnalysis!
+
+  """Get AI status for the current workspace"""
+  aiStatus: AiStatus!
+
+  """Get AI token usage information for the current workspace"""
+  aiUsage: AiUsage!
+  apiToken(id: ID!): ApiToken
+  availablePermissions: [PermissionCategory!]!
+
+  """
+  Get the active cart for the current session in this workspace. Returns an empty (non-persistent) cart if no session/cart exists.
+  """
+  cart(workspaceId: ID!): Cart!
+  currentWorkspace: Workspace
+
+  """Get the default email configuration for the current workspace"""
+  defaultEmailConfiguration: EmailConfigurationType
+  devPreviewMode: Boolean!
+
+  """
+  Single discount by id, scoped to workspace. Returns null for missing or cross-tenant ids (the two cases are indistinguishable by design - returning null instead of throwing lets the frontend call `notFound()` without masking unrelated transport / FORBIDDEN failures).
+  """
+  discount(id: ID!, workspaceId: ID!): AdminDiscount
+
+  """
+  Paginated discount list for the workspace Commerce module. Sorted by createdAt desc (newest first). Filters: enabled, type (percentage / fixed / free_shipping), search (case-insensitive substring on canonical code).
+  """
+  discounts(enabled: Boolean, limit: Int = 25, offset: Int = 0, search: String, type: String, workspaceId: ID!): AdminDiscountListResult!
+
+  """Get a specific email configuration by ID"""
+  emailConfiguration(id: ID!): EmailConfigurationType
+
+  """List all email configurations for the current workspace"""
+  emailConfigurations(includeInactive: Boolean = false): EmailConfigurationListType!
+
+  """Get a single email log by ID"""
+  emailLog(id: ID!): EmailLogType
+
+  """Get paginated list of email logs for the current workspace"""
+  emailLogs(emailConfigurationId: ID, limit: Int = 50, search: String, skip: Int = 0, status: EmailStatusGQL): EmailLogConnection!
+
+  """Get list of supported email providers"""
+  emailProviders: [EmailProviderInfo!]!
+
+  """Get email statistics for the current workspace"""
+  emailStats: EmailStats!
+
+  """Export newsletter subscribers as CSV (admin)"""
+  exportNewsletterSubscribers(status: SubscriberStatus): String!
+
+  """Get all available block field types"""
+  fieldTypes: [FieldType!]!
+  form(formId: ID!): Form
+  formSubmission(submissionId: ID!): FormSubmission
+  formSubmissions(formId: ID, limit: Int = 50, skip: Int = 0, status: String): FormSubmissionListResponse!
+  forms(limit: Int = 50, skip: Int = 0, status: String): FormListResponse!
+  health: String!
+  isWorkspaceMember(slug: String!): Boolean!
+  me: User
+  mediaAsset(id: ID!): MediaAsset
+  mediaAssetUsages(assetId: ID!): MediaUsageResponse!
+  mediaAssets(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
+  mediaFolders(parentId: ID): MediaFolderListResponse!
+  modelDefinition(id: ID!): ModelDefinition
+  modelDefinitions: [ModelDefinition!]!
+  modelRecord(id: ID!): ModelRecord
+  modelRecords(filter: JSON, limit: Int, modelId: ID!, offset: Int, populate: [String!], sort: String): ModelRecordList!
+  myApiTokens: [ApiToken!]!
+  myOrder(id: ID!, workspaceId: ID!): Order
+  myOrders(limit: Int, skip: Int, workspaceId: ID!): OrderListResult!
+  myPermissions: [String!]!
+  myWorkspaces(includePending: Boolean = true): [Workspace!]!
+
+  """Get a newsletter subscriber by ID"""
+  newsletterSubscriber(id: ID!): NewsletterSubscriber
+
+  """Get a newsletter subscriber by email"""
+  newsletterSubscriberByEmail(email: String!): NewsletterSubscriber
+
+  """Count newsletter subscribers in a workspace"""
+  newsletterSubscriberCount(status: SubscriberStatus): Int!
+
+  """List newsletter subscribers in a workspace"""
+  newsletterSubscribers(limit: Int = 50, skip: Int = 0, source: SubscriptionSource, status: SubscriberStatus, tags: [String!]): NewsletterSubscriberList!
+  order(id: ID!, workspaceId: ID!): Order
+  orderPipeline(workspaceId: ID!): OrderPipeline!
+  orders(customerId: ID, dateFrom: DateTime, dateTo: DateTime, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, search: String, skip: Int, workspaceId: ID!): OrderListResult!
+  page(pageId: ID!): Page
+  pageDevDraft(pageId: String!): PageDevDraft
+  pageHistory(limit: Int, pageId: ID!): [PageHistoryEntry!]!
+  pagePresence(pageId: ID!): PagePresenceState!
+  pageResolvedLayouts(pageId: ID!, usePublished: Boolean): [ResolvedLayout!]!
+  pageType(pageTypeId: ID!): PageTypeGraphQL
+  pageTypes: [PageTypeGraphQL!]!
+  pages(search: String): [Page!]!
+  pagesByIds(ids: [String!]!): [PageSelectorItem!]!
+  pagesBySlugs(slugs: [String!]!): [PageSelectorItem!]!
+  pagesForSelector(filter: PageSelectorFilterInput, limit: Int = 20, offset: Int = 0): PageSelectorResponse!
+  pendingInvitations: [PendingInvitation!]!
+  productCatalog(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
+
+  """Get a property definition by ID"""
+  propertyDefinition(propertyDefinitionId: ID!): PropertyDefinition
+
+  """List property definitions in a workspace"""
+  propertyDefinitions(appliesTo: String): [PropertyDefinition!]!
+
+  """Get all available property field types with metadata"""
+  propertyFieldTypes: [PropertyFieldTypeDefinition!]!
+  publicForm(formId: ID!): Form
+  publicFormSubmissionsForContext(formId: ID!, limit: Int = 20, offset: Int = 0, status: String): PublicFormSubmissionListResult!
+  publicMediaForContext(folderId: String, limit: Int = 20, offset: Int = 0, tag: String, type: String, workspaceId: String!): PublicMediaListResult!
+  publicModelDefinitions(workspaceId: String!): [ModelDefinition!]!
+  publicModelRecords(filter: JSON, limit: Int = 20, modelSlug: String!, offset: Int = 0, populate: [String!], sort: String, workspaceId: String!): ModelRecordList!
+  publicPage(devPreview: Boolean, previewSecret: String, slug: String!, workspaceSlug: String!): Page
+  publicPageById(pageId: ID!, workspaceSlug: String!): Page
+  publicPageLayouts(pageSlug: String!, previewSecret: String, workspaceSlug: String!): [ResolvedLayout!]!
+  publicPages(workspaceSlug: String!): [Page!]!
+  publicPagesByType(customFieldFilters: [PageCustomFieldFilterInput!], includeDrafts: Boolean = false, limit: Int = 9, offset: Int = 0, pageType: String, parentSlug: String, previewSecret: String, search: String, sortBy: PageSortBy = publishedAt_desc, workspaceId: String!): PublicPagesListResult!
+  publicSiteConfig(workspaceSlug: String!): SiteConfig
+  publicWorkspaceBranding(workspaceSlug: String!): WorkspaceBranding
+  publicWorkspaceI18n(workspaceSlug: String!): I18nSettings
+  siteConfig: SiteConfig
+  user(id: ID!): User
+  users: [User!]!
+  version: String!
+  webhookDeliveries(limit: Int, workspaceId: ID!): [WebhookDelivery!]!
+  webhookEndpoints(workspaceId: ID!): [WebhookEndpoint!]!
+  webhookEventTypes(workspaceId: ID!): [String!]!
+  workspace(id: ID, slug: String): Workspace
+
+  """
+  Paginated activity log for the current workspace. Gated by ROLES_MANAGE; per-workspace only (no admin-wide view).
+  """
+  workspaceAuditLog(action: AuditLogAction, entityId: String, entityType: AuditLogEntityType, limit: Int = 50, skip: Int = 0, userId: ID): WorkspaceAuditLogConnection!
+  workspaceDraftSecret: String!
+
+  """Get workspace integrations configuration"""
+  workspaceIntegrations: WorkspaceIntegrations!
+  workspaceRole(id: ID!): WorkspaceRoleType
+  workspaceRoles: [WorkspaceRoleType!]!
+}
+
+input RecordOrderInvoiceInput {
+  number: String!
+  orderId: ID!
+  provider: String
+  url: String
+  workspaceId: ID!
+}
+
+input RecordOrderPaymentInput {
+  amount: Int!
+  orderId: ID!
+  provider: String
+  reference: String!
+  workspaceId: ID!
+}
+
+input RefundOrderInput {
+  amount: Int
+  orderId: ID!
+  reference: String!
+  workspaceId: ID!
+}
+
+type ResolvedLayout {
+  blocks: [ResolvedLayoutBlock!]!
+  isInherited: Boolean!
+  position: LayoutPosition!
+  settings: LayoutPositionSettings
+  settingsAreInherited: Boolean!
+  settingsSourcePageId: String
+  sourcePageId: String!
+}
+
+type ResolvedLayoutBlock {
+  advanced: JSON
+  blockVersion: String
+  content: JSON!
+  defaultLanguage: String!
+  id: String!
+  isActive: Boolean!
+  isDisabledByOverride: Boolean
+  isInherited: Boolean!
+  metadata: BlockMetadata
+  order: Int!
+  position: LayoutPosition!
+  settings: JSON!
+  sourcePageId: String!
+  style: JSON
+  translations: JSON!
+  type: String!
+}
+
+enum RichTextAction {
+  CHANGE_TONE
+  EXPAND
+  FIX_GRAMMAR
+  GENERATE
+  REWRITE
+  SHORTEN
+  TRANSLATE
+}
+
+input RichTextAiInput {
+  action: RichTextAction!
+  content: String
+  maxTokens: Int = 1000
+  prompt: String
+  targetLanguage: String
+  targetTone: Tone
+}
+
+"""Result of rich text AI action"""
+type RichTextResult {
+  content: String!
+  success: Boolean!
+  tokensUsed: Int!
+}
+
+input SaveDevDraftInput {
+  blocks: [BlockDataInput!]!
+  pageId: String!
+}
+
+input SavePageInput {
+  blocks: [BlockDataInput!]
+  customFields: [PageCustomFieldInput!]
+  description: String
+  displayName: JSON
+  expectedVersion: Int
+  id: String
+  name: String!
+  pageType: String
+  parentId: String
+  published: Boolean
+  seoDescription: JSON
+  seoKeywords: [String!]
+  seoTitle: JSON
+  slug: String!
+}
+
+"""SEO analysis result for a page"""
+type SeoAnalysis {
+  score: Int!
+  suggestions: [SeoSuggestion!]!
+}
+
+enum SeoSeverity {
+  INFO
+  WARNING
+}
+
+"""SEO suggestion for improvement"""
+type SeoSuggestion {
+  currentValue: String
+  message: String!
+  severity: SeoSeverity!
+  suggestedValue: String
+  type: SeoSuggestionType!
+}
+
+enum SeoSuggestionType {
+  ALT_TEXT
+  CONTENT
+  DESCRIPTION
+  TITLE
+}
+
+input SetOrderPipelineStageInput {
+  orderId: ID!
+  stageId: String!
+  workspaceId: ID!
+}
+
+input SetProductVariantsInput {
+  recordId: ID!
+  variants: [ProductVariantInput!]!
+}
+
+input SignupInput {
+  email: String!
+  password: String!
+  username: String
+  website: String
+}
+
+type SiteBranding {
+  brandName: String
+  faviconUrl: String
+  logoUrl: String
+  ogImageUrl: String
+}
+
+type SiteConfig {
+  apiToken: String
+  branding: SiteBranding
+  canUseCart: Boolean!
+  cart: CartConfig
+  defaultLanguage: String!
+  enabledFeatures: [String!]!
+  enabledLanguages: [String!]!
+  id: String!
+  memberAuth: MemberAuthConfig
+  notFoundPageId: String
+  previewUrl: String
+  publicCart: PublicCartConfig
+  siteName: JSON!
+  siteVerifications: SiteVerifications
+  updatedAt: DateTime!
+  updatedBy: String
+  workspaceId: String!
+}
+
+type SiteMemberAuthResponse {
+  message: String!
+  success: Boolean!
+}
+
+input SiteMemberLoginInput {
+  identity: String!
+  modelSlug: String!
+  password: String!
+}
+
+type SiteMemberLoginResponse {
+  accessToken: String
+  accessTokenExpiresIn: Int
+  message: String!
+  refreshToken: String
+  success: Boolean!
+}
+
+input SiteMemberRegisterInput {
+  fields: JSON
+  identity: String!
+  modelSlug: String!
+  password: String!
+}
+
+type SiteVerifications {
+  google: String
+}
+
+enum SortDirection {
+  asc
+  desc
+}
+
+type StatusFieldConfig {
+  defaultValue: String
+  enabled: Boolean!
+  transitions: [StatusTransition!]!
+  values: [String!]!
+}
+
+input StatusFieldConfigInput {
+  defaultValue: String
+  enabled: Boolean
+  transitions: [StatusTransitionInput!]
+  values: [String!]
+}
+
+type StatusTransition {
+  from: String!
+  to: [String!]!
+}
+
+input StatusTransitionInput {
+  from: String!
+  to: [String!]!
+}
+
+enum StockState {
+  in
+  low
+  out
+}
+
+input SubmitFormInput {
+  data: JSON!
+  website: String
+}
+
+"""Email engagement statistics for subscriber"""
+type SubscriberEngagement {
+  clicked: Int!
+  lastClickedAt: DateTime
+  lastOpenedAt: DateTime
+  opened: Int!
+  sent: Int!
+}
+
+"""Subscriber subscription status"""
+enum SubscriberStatus {
+  BOUNCED
+  COMPLAINED
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
+
+"""Source of how the subscriber was acquired"""
+enum SubscriptionSource {
+  CHECKOUT
+  IMPORT
+  MANUAL
+  NEWSLETTER_FORM
+  SITE_REGISTRATION
+}
+
+"""A merchant-defined tax rate (rate is a percentage)"""
+type TaxRate {
+  id: String!
+  name: String!
+  rate: Float!
+}
+
+input TaxRateInput {
+  id: String!
+  name: String!
+  rate: Float!
+}
+
+"""Result of test email operation"""
+type TestEmailConfigurationResult {
+  message: String!
+  messageId: String
+  success: Boolean!
+}
+
+"""Result of test email operation"""
+type TestEmailResult {
+  message: String!
+  messageId: String
+  success: Boolean!
+}
+
+enum Tone {
+  CASUAL
+  CONFIDENT
+  EMPATHETIC
+  FORMAL
+  FRIENDLY
+  PROFESSIONAL
+}
+
+input UpdateAiProviderInput {
+  activeProvider: AiProviderType
+  anthropicApiKey: String
+  anthropicModel: String
+  brandContextEnabled: Boolean
+  googleApiKey: String
+  googleModel: String
+  groqApiKey: String
+  groqModel: String
+  mistralApiKey: String
+  mistralModel: String
+  openaiApiKey: String
+  openaiModel: String
+  useOwnProvider: Boolean
+}
+
+input UpdateApiTokenInput {
+  name: String
+}
+
+"""Input for updateCartItem mutation"""
+input UpdateCartItemInput {
+  itemId: ID!
+  notes: String
+
+  """Set to 0 to remove the item"""
+  quantity: Int
+  workspaceId: ID!
+}
+
+"""
+Partial-update payload. All fields optional - caller passes only what changes. `code`, `type`, `currency` are immutable after first apply (repo enforces `currentUses=0` filter when those are touched).
+"""
+input UpdateDiscountInput {
+  code: String
+  currency: String
+  enabled: Boolean
+  endsAt: DateTime
+  maxUses: Int
+  minSubtotal: Float
+  startsAt: DateTime
+  type: String
+  value: Float
+}
+
+input UpdateEditorialWorkflowInput {
+  enabled: Boolean!
+  stages: [EditorialWorkflowStageInput!]!
+}
+
+input UpdateEmailConfigurationInput {
+  apiKey: String
+  description: String
+  fromEmail: String
+  fromName: String
+  id: String!
+  isActive: Boolean
+  isDefault: Boolean
+  mailgunDomain: String
+  mailgunRegion: String
+  name: String
+  provider: EmailConfigurationProviderType
+  recipients: [EmailRecipientInput!]
+  replyTo: String
+  smtpHost: String
+  smtpPassword: String
+  smtpPort: Int
+  smtpUseTls: Boolean
+  smtpUsername: String
+}
+
+input UpdateFormInput {
+  description: String
+  fields: [FormFieldInput!]
+  name: String
+  settings: FormSettingsInput
+  slug: String
+  status: FormStatus
+}
+
+input UpdateLayoutPositionSettingsInput {
+  expectedVersion: Int
+  pageId: String!
+  settings: [LayoutPositionSettingsInput!]!
+}
+
+input UpdateMediaFolderInput {
+  name: String
+  parentId: String
+}
+
+input UpdateMediaInput {
+  alt: JSON
+  caption: JSON
+  filename: String
+  folderId: String
+  tags: [String!]
+}
+
+input UpdateModelDefinitionInput {
+  auth: ModelAuthConfigInput
+  color: String
+  defaultSort: DefaultSortInput
+  description: String
+  displayField: String
+  fields: [PropertyFieldInput!]
+  icon: String
+  id: ID!
+  name: String
+  product: ModelProductConfigInput
+  slug: String
+  statusField: StatusFieldConfigInput
+}
+
+input UpdateModelRecordInput {
+  data: JSON!
+  id: ID!
+}
+
+input UpdateModelRecordStatusInput {
+  id: ID!
+  status: String!
+}
+
+"""Input for updating a newsletter subscriber"""
+input UpdateNewsletterSubscriberInput {
+  customFields: JSON
+  name: String
+  status: SubscriberStatus
+  tags: [String!]
+}
+
+input UpdateOrderDetailsInput {
+  customerEmail: String
+  notes: String
+  orderId: ID!
+  trackingCarrier: String
+  trackingNumber: String
+  workspaceId: ID!
+}
+
+input UpdatePageLayoutInput {
+  expectedVersion: Int
+  inheritsLayout: Boolean
+  layoutBlocks: [LayoutBlockInput!]
+  layoutOverrides: [LayoutOverrideInput!]
+  pageId: String!
+}
+
+input UpdatePageSettingsInput {
+  accessControl: JSON
+  customFields: JSON
+  description: String
+  displayName: JSON
+  expectedVersion: Int
+  id: String!
+  name: String
+  pageType: String
+  parentId: String
+  seoDescription: JSON
+  seoKeywords: [String!]
+  seoTitle: JSON
+  slug: String
+}
+
+input UpdatePageTypeInput {
+  allowChildren: Boolean
+  allowedChildTypes: [String!]
+  defaultPublished: Boolean
+  description: String
+  fields: [PropertyFieldInput!]
+  icon: String
+  id: ID!
+  name: String
+  schemaType: String
+  slug: String
+  urlPrefix: String
+}
+
+"""Input for updating a property definition"""
+input UpdatePropertyDefinitionInput {
+  appliesTo: [String!]
+  description: String
+  fields: [PropertyFieldInput!]
+  isList: Boolean
+  name: String
+}
+
+input UpdateSiteConfigInput {
+  apiToken: String
+  defaultLanguage: String
+  enabledFeatures: [String!]
+  enabledLanguages: [String!]
+  memberAuth: MemberAuthConfigInput
+  notFoundPageId: String
+  previewUrl: String
+  siteName: JSON
+}
+
+input UpdateUserInput {
+  customFields: [UserCustomFieldInput!]
+  email: String
+  password: String
+  profile: UserProfileInput
+  roleId: String
+  username: String
+}
+
+input UpdateWebhookEndpointInput {
+  description: String
+  enabled: Boolean
+  events: [String!]
+  id: ID!
+  url: String
+  workspaceId: ID!
+}
+
+input UpdateWorkspaceBrandingInput {
+  brandName: String
+  faviconUrl: String
+  logoUrl: String
+  ogImageUrl: String
+}
+
+input UpdateWorkspaceInput {
+  name: String
+  slug: String
+}
+
+"""Input for updating workspace integrations"""
+input UpdateWorkspaceIntegrationsInput {
+  email: EmailIntegrationInput
+}
+
+input UpdateWorkspaceRoleInput {
+  color: String
+  description: String
+  isDefault: Boolean
+  name: String
+  permissions: [String!]
+}
+
+input UploadMediaInput {
+  filename: String!
+  folderId: String
+  height: Int
+  mimeType: String!
+  pathname: String!
+  size: Int!
+  tags: [String!]
+  type: String!
+  url: String!
+  width: Int
+}
+
+input UpsertOrderPipelineInput {
+  stages: [OrderPipelineStageInput!]!
+  workspaceId: ID!
+}
+
+type User {
+  createdAt: DateTime!
+  customFields: [UserCustomField!]!
+  email: String!
+  id: String!
+  invitedAt: DateTime
+  isVerified: Boolean!
+  isWorkspaceOwner: Boolean
+  joinedAt: DateTime
+  lastLoginAt: DateTime
+  membershipStatus: String
+  profile: UserProfile!
+  updatedAt: DateTime!
+  username: String
+  workspaceRole: WorkspaceRole
+}
+
+type UserAuthResponse {
+  message: String!
+  success: Boolean!
+}
+
+type UserCustomField {
+  propertySlug: String!
+  value: JSON
+}
+
+input UserCustomFieldInput {
+  propertySlug: String!
+  value: JSON
+}
+
+type UserProfile {
+  avatarUrl: String
+  displayName: String
+  firstName: String
+  lastName: String
+  phone: String
+  preferredLocale: String
+}
+
+input UserProfileInput {
+  avatarUrl: String
+  displayName: String
+  firstName: String
+  lastName: String
+  phone: String
+}
+
+"""Validation rules for a field type"""
+type ValidationRules {
+  maxLength: Int
+  maxValue: Int
+  minLength: Int
+  minValue: Int
+  optionsRequired: Boolean!
+  pattern: String
+}
+
+type WebhookDelivery {
+  attempts: Int!
+  createdAt: DateTime!
+  deliveredAt: DateTime
+  endpointId: String!
+  error: String
+  event: String!
+  id: String!
+  nextAttemptAt: DateTime
+  responseCode: Int
+  status: String!
+  url: String!
+  webhookId: String!
+}
+
+"""A registered outbound webhook endpoint (secret redacted)."""
+type WebhookEndpoint {
+  createdAt: DateTime!
+  description: String
+  enabled: Boolean!
+  events: [String!]!
+  id: String!
+  updatedAt: DateTime!
+  url: String!
+}
+
+"""
+Endpoint plus its signing secret. The secret is returned ONCE here (creation / rotation) and never again.
+"""
+type WebhookEndpointSecret {
+  endpoint: WebhookEndpoint!
+  secret: String!
+}
+
+type Workspace {
+  aiTokensResetAt: DateTime!
+  billingCycle: String
+  cancelAtPeriodEnd: Boolean!
+  createdAt: DateTime!
+  currentActiveMembers: Int!
+  currentAiTokensUsed: Int!
+  currentPages: Int!
+  currentPeriodEnd: DateTime
+  currentStorageBytes: Int!
+  id: String!
+  isOwner: Boolean!
+  isTrial: Boolean!
+  limits: WorkspaceLimits!
+  members: [WorkspaceMemberType!]!
+  myMembershipStatus: String
+  myPermissions: [String!]!
+  myRole: WorkspaceRoleType
+  myScopedGrants: [MyScopedGrant!]!
+  name: String!
+  ownerId: String!
+  plan: String!
+  roles: [WorkspaceRoleType!]!
+  settings: WorkspaceSettings!
+  slug: String!
+  subscriptionStatus: String
+  trialEndsAt: DateTime
+  updatedAt: DateTime!
+  usage: WorkspaceUsage!
+}
+
+"""Workspace activity log entry"""
+type WorkspaceAuditLog {
+  action: AuditLogAction!
+  createdAt: String!
+  diff: JSON
+  entityId: String!
+  entityName: String!
+  entityType: AuditLogEntityType!
+  id: String!
+  userId: String!
+  userName: String!
+  workspaceId: String!
+}
+
+type WorkspaceAuditLogConnection {
+  hasMore: Boolean!
+  items: [WorkspaceAuditLog!]!
+  total: Int!
+}
+
+type WorkspaceBranding {
+  brandName: String
+  faviconUrl: String
+  logoUrl: String
+  ogImageUrl: String
+}
+
+"""Workspace integrations configuration"""
+type WorkspaceIntegrations {
+  email: EmailIntegration!
+  id: String!
+  updatedAt: DateTime!
+  updatedBy: String
+}
+
+type WorkspaceLimits {
+  canRemoveBranding: Boolean!
+  canUseCart: Boolean!
+  maxAiTokensMonth: Int!
+  maxApiRequestsMonth: Int!
+  maxBandwidthGbMonth: Int!
+  maxPages: Int!
+  maxStorageMb: Int!
+  maxUsers: Int!
+  maxWorkspacesOwned: Int!
+}
+
+type WorkspaceMemberType {
+  email: String
+  invitationToken: String
+  invitedAt: DateTime
+  invitedBy: String
+  joinedAt: DateTime
+  role: WorkspaceRoleType
+  roleId: String!
+  scopedGrants: [MemberScopedGrant!]!
+  status: String!
+  userId: String
+}
+
+type WorkspaceRole {
+  color: String
+  description: String
+  id: String!
+  isDefault: Boolean!
+  isSystem: Boolean!
+  name: String!
+  permissions: [String!]!
+  slug: String!
+}
+
+type WorkspaceRoleResult {
+  message: String!
+  role: WorkspaceRoleType
+  success: Boolean!
+}
+
+type WorkspaceRoleType {
+  color: String
+  createdAt: DateTime!
+  description: String
+  id: String!
+  isDefault: Boolean!
+  isSystem: Boolean!
+  name: String!
+  permissions: [String!]!
+  slug: String!
+  updatedAt: DateTime!
+}
+
+type WorkspaceSettings {
+  branding: WorkspaceBranding!
+  defaultLanguage: String!
+  editorialWorkflow: EditorialWorkflow!
+  enabledLanguages: [String!]!
+  i18n: I18nSettings!
+}
+
+type WorkspaceUsage {
+  aiTokensUsed: Int!
+  bandwidthUsedGb: Float!
+  membersCount: Int!
+  pagesCount: Int!
+  storageUsedMb: Float!
+}
