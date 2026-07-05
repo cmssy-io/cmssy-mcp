@@ -546,6 +546,11 @@ type DeleteMediaResponse {
   success: Boolean!
 }
 
+type DeletionResult {
+  deleted: Boolean!
+  id: ID!
+}
+
 input EditOrderInput {
   items: [EditOrderItemInput!]!
   orderId: ID!
@@ -1396,10 +1401,8 @@ type Mutation {
   deleteWebhookEndpoint(id: ID!, workspaceId: ID!): Boolean!
   deleteWorkspace(id: ID!): Boolean!
   deleteWorkspaceRole(fallbackRoleId: ID, roleId: ID!): WorkspaceRoleResult!
-  discardDevDraft(pageId: String!): Boolean!
   editOrder(input: EditOrderInput!): Order!
   grantScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
-  heartbeatPagePresence(pageId: ID!): PagePresenceState!
   importModelRecords(input: ImportModelRecordsInput!): ImportModelRecordsResult!
 
   """Import newsletter subscribers from CSV data (admin)"""
@@ -1421,12 +1424,8 @@ type Mutation {
   Merge a guest cart (identified by the cart-session cookie) into the authenticated user's cart. Called by the frontend right after login. Idempotent - safe to call when no guest session exists or after a prior merge succeeded.
   """
   mergeGuestCart(workspaceId: ID!): Cart!
-  movePage(input: MovePageInput!): Page
   oauthLogin(input: OAuthLoginInput!): AuthResponse!
-  patchBlockContent(input: PatchBlockContentInput!): Page
-  promoteDevDraft(input: PromoteDevDraftInput!): Page
-  publishPageContent(id: ID!): Page
-  publishPageLayout(id: ID!): Page
+  page: PageMutations!
   recalculateAllUsage: Workspace!
   recalculateBlockUsage: Workspace!
   recordOrderInvoice(input: RecordOrderInvoiceInput!): Order!
@@ -1450,7 +1449,6 @@ type Mutation {
 
   """Remove tags from a newsletter subscriber (admin)"""
   removeNewsletterSubscriberTags(id: ID!, tags: [String!]!): NewsletterSubscriber
-  removePage(id: ID!): Boolean!
   removeWorkspaceMember(userId: ID!): Workspace!
   requestUserPasswordReset(email: String!): UserAuthResponse!
   resendPendingInvitation(email: String!): InvitationResult!
@@ -1460,20 +1458,14 @@ type Mutation {
   """Reset AI token usage for workspace (admin only)"""
   resetAiTokenUsage: Boolean!
   resetUserPassword(newPassword: String!, token: String!): UserAuthResponse!
-  restorePageVersion(pageId: ID!, version: Int!): Page
-  revertContentToPublished(id: ID!): Page
-  revertLayoutToPublished(id: ID!): Page
   revokeScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
   rotateWebhookSecret(id: ID!, workspaceId: ID!): WebhookEndpointSecret!
-  saveDevDraft(input: SaveDevDraftInput!): PageDevDraft!
-  savePage(input: SavePageInput!): Page
 
   """Send a test email to verify email configuration"""
   sendTestEmail(email: String!): TestEmailResult!
 
   """Set an email configuration as the default"""
   setDefaultEmailConfiguration(id: ID!): EmailConfigurationType!
-  setDevPreviewMode(active: Boolean!): Boolean!
 
   """
   Toggle a discount's enabled flag without going through the full update path. NOT_FOUND when the discount doesn't exist or is cross-tenant.
@@ -1495,17 +1487,14 @@ type Mutation {
   """Subscribe to newsletter (public, rate-limited)"""
   subscribeToNewsletter(input: NewsletterSubscribeInput!, workspaceId: ID!): NewsletterSubscribeResponse!
   suspendWorkspaceMember(userId: ID!): Workspace!
-  takeOverPageLock(pageId: ID!): PagePresenceState!
 
   """Validate an AI provider API key with a tiny probe, no save"""
   testAiProviderConnection(apiKey: String!, model: String, provider: AiProviderType!): AiProviderTestResult!
 
   """Send a test email to verify configuration"""
   testEmailConfiguration(id: ID!, testEmail: String!): TestEmailConfigurationResult!
-  togglePublish(id: ID!): Page
   transferOwnership(newOwnerId: ID!): Workspace!
   transitionOrderFulfillment(input: FulfillOrderInput!): Order!
-  transitionPageStage(pageId: ID!, stageId: String!): Page
 
   """Unsubscribe from newsletter using email (public, rate-limited)"""
   unsubscribeByEmail(email: String!, workspaceId: ID!): NewsletterUnsubscribeResponse!
@@ -1533,7 +1522,6 @@ type Mutation {
   updateEmailConfiguration(input: UpdateEmailConfigurationInput!): EmailConfigurationType!
   updateForm(formId: ID!, input: UpdateFormInput!): Form
   updateFormSubmissionStatus(status: String!, submissionId: ID!): Boolean!
-  updateLayoutPositionSettings(input: UpdateLayoutPositionSettingsInput!): Page
   updateMedia(id: ID!, input: UpdateMediaInput!): MediaAsset!
   updateMediaFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
   updateMemberAuthConfig(input: MemberAuthConfigInput!): SiteConfig!
@@ -1546,8 +1534,6 @@ type Mutation {
   """Update a newsletter subscriber (admin)"""
   updateNewsletterSubscriber(id: ID!, input: UpdateNewsletterSubscriberInput!): NewsletterSubscriber!
   updateOrderDetails(input: UpdateOrderDetailsInput!): Order!
-  updatePageLayout(input: UpdatePageLayoutInput!): Page
-  updatePageSettings(input: UpdatePageSettingsInput!): Page
   updatePageType(input: UpdatePageTypeInput!): PageTypeGraphQL
 
   """Update a property definition"""
@@ -1811,6 +1797,29 @@ type PageHistoryEntry {
   version: Int!
 }
 
+type PageMutations {
+  delete(id: ID!): DeletionResult!
+  discardDevDraft(pageId: String!): Boolean!
+  heartbeatPresence(pageId: ID!): PagePresenceState!
+  move(input: MovePageInput!): Page
+  patchBlockContent(input: PatchBlockContentInput!): Page
+  promoteDevDraft(input: PromoteDevDraftInput!): Page
+  publishContent(id: ID!): Page
+  publishLayout(id: ID!): Page
+  restoreVersion(pageId: ID!, version: Int!): Page
+  revertContentToPublished(id: ID!): Page
+  revertLayoutToPublished(id: ID!): Page
+  save(input: SavePageInput!): Page
+  saveDevDraft(input: SaveDevDraftInput!): PageDevDraft!
+  setDevPreviewMode(active: Boolean!): Boolean!
+  takeOverLock(pageId: ID!): PagePresenceState!
+  togglePublish(id: ID!): Page
+  transitionStage(pageId: ID!, stageId: String!): Page
+  updateLayout(input: UpdatePageLayoutInput!): Page
+  updateLayoutPositionSettings(input: UpdateLayoutPositionSettingsInput!): Page
+  updateSettings(input: UpdatePageSettingsInput!): Page
+}
+
 type PagePresenceState {
   editors: [PagePresenceUser!]!
   lockHeldByMe: Boolean!
@@ -1822,6 +1831,19 @@ type PagePresenceUser {
   avatarUrl: String
   displayName: String
   userId: String!
+}
+
+type PageQueries {
+  byIds(ids: [String!]!): [PageSelectorItem!]!
+  bySlugs(slugs: [String!]!): [PageSelectorItem!]!
+  devDraft(pageId: String!): PageDevDraft
+  devPreviewMode: Boolean!
+  forSelector(filter: PageSelectorFilterInput, limit: Int = 20, offset: Int = 0): PageSelectorResponse!
+  get(pageId: ID!): Page
+  history(limit: Int, pageId: ID!): [PageHistoryEntry!]!
+  list(search: String): [Page!]!
+  presence(pageId: ID!): PagePresenceState!
+  resolvedLayouts(pageId: ID!, usePublished: Boolean): [ResolvedLayout!]!
 }
 
 input PageSelectorFilterInput {
@@ -2058,6 +2080,7 @@ enum PropertyFieldType {
   repeater
   richText
   select
+  table
   text
   textarea
   url
@@ -2136,10 +2159,22 @@ type PublicPageItem {
   slug: String!
 }
 
+type PublicPageQueries {
+  byType(customFieldFilters: [PageCustomFieldFilterInput!], includeDrafts: Boolean = false, limit: Int = 9, offset: Int = 0, pageType: String, parentSlug: String, previewSecret: String, search: String, sortBy: PageSortBy = publishedAt_desc, workspaceId: String!): PublicPagesListResult!
+  get(devPreview: Boolean, previewSecret: String, slug: String!, workspaceSlug: String!): Page
+  getById(pageId: ID!, workspaceSlug: String!): Page
+  layouts(pageSlug: String!, previewSecret: String, workspaceSlug: String!): [ResolvedLayout!]!
+  list(workspaceSlug: String!): [Page!]!
+}
+
 type PublicPagesListResult {
   hasMore: Boolean!
   items: [PublicPageItem!]!
   total: Int!
+}
+
+type PublicQueries {
+  page: PublicPageQueries!
 }
 
 type Query {
@@ -2173,7 +2208,6 @@ type Query {
 
   """Get the default email configuration for the current workspace"""
   defaultEmailConfiguration: EmailConfigurationType
-  devPreviewMode: Boolean!
 
   """
   Single discount by id, scoped to workspace. Returns null for missing or cross-tenant ids (the two cases are indistinguishable by design - returning null instead of throwing lets the frontend call `notFound()` without masking unrelated transport / FORBIDDEN failures).
@@ -2243,17 +2277,9 @@ type Query {
   order(id: ID!, workspaceId: ID!): Order
   orderPipeline(workspaceId: ID!): OrderPipeline!
   orders(customerId: ID, dateFrom: DateTime, dateTo: DateTime, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, search: String, skip: Int, workspaceId: ID!): OrderListResult!
-  page(pageId: ID!): Page
-  pageDevDraft(pageId: String!): PageDevDraft
-  pageHistory(limit: Int, pageId: ID!): [PageHistoryEntry!]!
-  pagePresence(pageId: ID!): PagePresenceState!
-  pageResolvedLayouts(pageId: ID!, usePublished: Boolean): [ResolvedLayout!]!
+  page: PageQueries!
   pageType(pageTypeId: ID!): PageTypeGraphQL
   pageTypes: [PageTypeGraphQL!]!
-  pages(search: String): [Page!]!
-  pagesByIds(ids: [String!]!): [PageSelectorItem!]!
-  pagesBySlugs(slugs: [String!]!): [PageSelectorItem!]!
-  pagesForSelector(filter: PageSelectorFilterInput, limit: Int = 20, offset: Int = 0): PageSelectorResponse!
   pendingInvitations: [PendingInvitation!]!
   productCatalog(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
 
@@ -2265,16 +2291,12 @@ type Query {
 
   """Get all available property field types with metadata"""
   propertyFieldTypes: [PropertyFieldTypeDefinition!]!
+  public: PublicQueries!
   publicForm(formId: ID!): Form
   publicFormSubmissionsForContext(formId: ID!, limit: Int = 20, offset: Int = 0, status: String): PublicFormSubmissionListResult!
   publicMediaForContext(folderId: String, limit: Int = 20, offset: Int = 0, tag: String, type: String, workspaceId: String!): PublicMediaListResult!
   publicModelDefinitions(workspaceId: String!): [ModelDefinition!]!
   publicModelRecords(filter: JSON, limit: Int = 20, modelSlug: String!, offset: Int = 0, populate: [String!], sort: String, workspaceId: String!): ModelRecordList!
-  publicPage(devPreview: Boolean, previewSecret: String, slug: String!, workspaceSlug: String!): Page
-  publicPageById(pageId: ID!, workspaceSlug: String!): Page
-  publicPageLayouts(pageSlug: String!, previewSecret: String, workspaceSlug: String!): [ResolvedLayout!]!
-  publicPages(workspaceSlug: String!): [Page!]!
-  publicPagesByType(customFieldFilters: [PageCustomFieldFilterInput!], includeDrafts: Boolean = false, limit: Int = 9, offset: Int = 0, pageType: String, parentSlug: String, previewSecret: String, search: String, sortBy: PageSortBy = publishedAt_desc, workspaceId: String!): PublicPagesListResult!
   publicSiteConfig(workspaceSlug: String!): SiteConfig
   publicWorkspaceBranding(workspaceSlug: String!): WorkspaceBranding
   publicWorkspaceI18n(workspaceSlug: String!): I18nSettings
