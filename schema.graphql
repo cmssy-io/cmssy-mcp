@@ -196,6 +196,18 @@ type ApiToken {
   prefix: String!
 }
 
+type ApiTokenMutations {
+  create(input: CreateApiTokenInput!): ApiTokenWithSecret!
+  delete(id: ID!): DeletionResult!
+  regenerate(id: ID!): ApiTokenWithSecret!
+  update(id: ID!, input: UpdateApiTokenInput!): ApiToken!
+}
+
+type ApiTokenQueries {
+  get(id: ID!): ApiToken
+  list: [ApiToken!]!
+}
+
 type ApiTokenWithSecret {
   createdAt: DateTime!
   id: String!
@@ -609,6 +621,7 @@ input CreateWebhookEndpointInput {
 
 input CreateWorkspaceInput {
   name: String!
+  organizationId: ID!
   slug: String
 }
 
@@ -807,6 +820,26 @@ type EmailLogType {
   workspaceId: String!
 }
 
+type EmailMutations {
+  """Create a new email configuration"""
+  createConfiguration(input: CreateEmailConfigurationInput!): EmailConfigurationType!
+
+  """Delete an email configuration"""
+  deleteConfiguration(id: ID!): DeletionResult!
+
+  """Delete an email log entry"""
+  deleteLog(id: ID!): DeletionResult!
+
+  """Set an email configuration as the default"""
+  setDefaultConfiguration(id: ID!): EmailConfigurationType!
+
+  """Send a test email to verify configuration"""
+  testConfiguration(id: ID!, testEmail: String!): TestEmailConfigurationResult!
+
+  """Update an existing email configuration"""
+  updateConfiguration(input: UpdateEmailConfigurationInput!): EmailConfigurationType!
+}
+
 """Information about an email provider"""
 type EmailProviderInfo {
   description: String!
@@ -822,6 +855,26 @@ enum EmailProviderType {
   resend
   sendgrid
   smtp
+}
+
+type EmailQueries {
+  """Get a specific email configuration by ID"""
+  configuration(id: ID!): EmailConfigurationType
+
+  """List all email configurations for the current workspace"""
+  configurations(includeInactive: Boolean = false): EmailConfigurationListType!
+
+  """Get the default email configuration for the current workspace"""
+  defaultConfiguration: EmailConfigurationType
+
+  """Get a single email log by ID"""
+  log(id: ID!): EmailLogType
+
+  """Get paginated list of email logs for the current workspace"""
+  logs(emailConfigurationId: ID, limit: Int = 50, search: String, skip: Int = 0, status: EmailStatusGQL): EmailLogConnection!
+
+  """Get email statistics for the current workspace"""
+  stats: EmailStats!
 }
 
 """Email recipient"""
@@ -1432,39 +1485,23 @@ type Mutation {
   acceptMyWorkspaceInvitation(workspaceId: ID!): AcceptInvitationResult!
   acceptOrganizationInvitation(organizationId: ID!): Organization!
   acceptWorkspaceInvitation(token: String!): AcceptInvitationResult!
-
   addWorkspaceMember(input: AddWorkspaceMemberInput!): Workspace!
-  addWorkspaceToOrganization(organizationId: ID!, workspaceId: ID!): Organization!
   ai: AiMutations!
+  apiToken: ApiTokenMutations!
   assignCustomRoleToMember(customRoleId: ID, userId: ID!): Workspace!
-
-  bulkDeleteProductRecords(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
-  bulkUpdateProductRecords(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
   cancelInvitation(email: String!): InvitationResult!
   cancelOrganizationInvitation(email: String!, organizationId: ID!): Organization!
   cart: CartMutations!
-  createApiToken(input: CreateApiTokenInput!): ApiTokenWithSecret!
   createCustomRole(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
-
-  """Create a new email configuration"""
-  createEmailConfiguration(input: CreateEmailConfigurationInput!): EmailConfigurationType!
   createForm(input: CreateFormInput!): Form!
   createMediaFolder(input: CreateMediaFolderInput!): MediaFolder!
   createModelDefinition(input: CreateModelDefinitionInput!): ModelDefinition!
   createModelRecord(input: CreateModelRecordInput!): ModelRecord!
-
   createOrganization(input: CreateOrganizationInput!): Organization!
   createUser(input: CreateUserInput!): User!
   createWorkspace(input: CreateWorkspaceInput!): Workspace!
   createWorkspaceRole(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
-  deleteApiToken(id: ID!): Boolean!
   deleteCustomRole(roleId: ID!): WorkspaceRoleResult!
-
-  """Delete an email configuration"""
-  deleteEmailConfiguration(id: ID!): Boolean!
-
-  """Delete an email log entry"""
-  deleteEmailLog(id: ID!): Boolean!
   deleteForm(formId: ID!): Boolean!
   deleteFormSubmission(submissionId: ID!): Boolean!
   deleteMedia(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
@@ -1472,21 +1509,20 @@ type Mutation {
   deleteModelDefinition(id: ID!): Boolean!
   deleteModelRecord(id: ID!): Boolean!
   deleteMyAccount: Boolean!
-
   deleteOrganization(id: ID!): Boolean!
   deleteUser(id: ID!): Boolean!
   deleteWorkspace(id: ID!): Boolean!
   deleteWorkspaceRole(fallbackRoleId: ID, roleId: ID!): WorkspaceRoleResult!
   discount: DiscountMutations!
+  email: EmailMutations!
   grantScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
   importModelRecords(input: ImportModelRecordsInput!): ImportModelRecordsResult!
-
   inviteOrganizationMember(input: InviteOrganizationMemberInput!, organizationId: ID!): Organization!
   inviteUserToWorkspace(input: InviteUserInput!): InvitationResult!
   leaveWorkspace: Boolean!
-
   login(input: LoginInput!): AuthResponse!
   logout: Boolean!
+  moveWorkspaceToOrganization(organizationId: ID!, workspaceId: ID!): Organization!
   notification: NotificationMutations!
   oauthLogin(input: OAuthLoginInput!): AuthResponse!
   order: OrderMutations!
@@ -1494,15 +1530,13 @@ type Mutation {
   pageComment: PageCommentMutations!
   pageTask: PageTaskMutations!
   pageType: PageTypeMutations!
+  product: ProductMutations!
   property: PropertyMutations!
   recalculateAllUsage: Workspace!
   recalculateBlockUsage: Workspace!
   refreshToken(refreshToken: String!): AuthResponse!
-  regenerateApiToken(id: ID!): ApiTokenWithSecret!
   regenerateDraftSecret: String!
-
   removeOrganizationMember(organizationId: ID!, userId: ID!): Organization!
-  removeWorkspaceFromOrganization(organizationId: ID!, workspaceId: ID!): Organization!
   removeWorkspaceMember(userId: ID!): Workspace!
   requestUserPasswordReset(email: String!): UserAuthResponse!
   resendPendingInvitation(email: String!): InvitationResult!
@@ -1513,9 +1547,6 @@ type Mutation {
 
   """Send a test email to verify email configuration"""
   sendTestEmail(email: String!): TestEmailResult!
-
-  """Set an email configuration as the default"""
-  setDefaultEmailConfiguration(id: ID!): EmailConfigurationType!
   setProductVariants(input: SetProductVariantsInput!): ModelRecord!
   signup(input: SignupInput!): AuthResponse!
   siteMemberForgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
@@ -1527,21 +1558,12 @@ type Mutation {
   siteMemberResetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
   siteMemberVerifyEmail(token: String!): SiteMemberAuthResponse!
   submitForm(formId: ID!, input: SubmitFormInput!): FormSubmitResponse!
-
   suspendWorkspaceMember(userId: ID!): Workspace!
-
-  """Send a test email to verify configuration"""
-  testEmailConfiguration(id: ID!, testEmail: String!): TestEmailConfigurationResult!
   transferOwnership(newOwnerId: ID!): Workspace!
-
   unsuspendWorkspaceMember(userId: ID!): Workspace!
-  updateApiToken(id: ID!, input: UpdateApiTokenInput!): ApiToken!
   updateCartConfig(input: CartConfigInput!): SiteConfig!
   updateCustomRole(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
   updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
-
-  """Update an existing email configuration"""
-  updateEmailConfiguration(input: UpdateEmailConfigurationInput!): EmailConfigurationType!
   updateForm(formId: ID!, input: UpdateFormInput!): Form
   updateFormSubmissionStatus(status: String!, submissionId: ID!): Boolean!
   updateMedia(id: ID!, input: UpdateMediaInput!): MediaAsset!
@@ -1552,7 +1574,6 @@ type Mutation {
   updateModelRecord(input: UpdateModelRecordInput!): ModelRecord
   updateModelRecordStatus(input: UpdateModelRecordStatusInput!): ModelRecord
   updateMyLocale(locale: String!): User!
-
   updateOrganization(id: ID!, input: UpdateOrganizationInput!): Organization!
   updateOrganizationMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
   updateSiteConfig(input: UpdateSiteConfigInput!): SiteConfig!
@@ -1756,7 +1777,6 @@ type Organization {
   billing: OrganizationBilling!
   id: ID!
   isOwner: Boolean!
-  isPersonal: Boolean!
   limits: OrganizationLimits!
   memberCount: Int!
   members: [OrganizationMember!]!
@@ -2113,6 +2133,15 @@ type ProductCatalogList {
   total: Int!
 }
 
+type ProductMutations {
+  bulkDelete(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
+  bulkUpdate(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
+}
+
+type ProductQueries {
+  list(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
+}
+
 type ProductVariant {
   id: String!
   inventory: Int
@@ -2349,33 +2378,15 @@ type Query {
   account: AccountQueries!
   adminCart: AdminCartQueries!
   ai: AiQueries!
-  apiToken(id: ID!): ApiToken
+  apiToken: ApiTokenQueries!
   availablePermissions: [PermissionCategory!]!
   cart: CartQueries!
   currentWorkspace: Workspace
-
-  """Get the default email configuration for the current workspace"""
-  defaultEmailConfiguration: EmailConfigurationType
   discount: DiscountQueries!
-
-  """Get a specific email configuration by ID"""
-  emailConfiguration(id: ID!): EmailConfigurationType
-
-  """List all email configurations for the current workspace"""
-  emailConfigurations(includeInactive: Boolean = false): EmailConfigurationListType!
-
-  """Get a single email log by ID"""
-  emailLog(id: ID!): EmailLogType
-
-  """Get paginated list of email logs for the current workspace"""
-  emailLogs(emailConfigurationId: ID, limit: Int = 50, search: String, skip: Int = 0, status: EmailStatusGQL): EmailLogConnection!
+  email: EmailQueries!
 
   """Get list of supported email providers"""
   emailProviders: [EmailProviderInfo!]!
-
-  """Get email statistics for the current workspace"""
-  emailStats: EmailStats!
-
   fieldType: FieldTypeQueries!
   form(formId: ID!): Form
   formSubmission(submissionId: ID!): FormSubmission
@@ -2392,11 +2403,9 @@ type Query {
   modelDefinitions: [ModelDefinition!]!
   modelRecord(id: ID!): ModelRecord
   modelRecords(filter: JSON, limit: Int, modelId: ID!, offset: Int, populate: [String!], sort: String): ModelRecordList!
-  myApiTokens: [ApiToken!]!
   myOrganizations: [Organization!]!
   myPermissions: [String!]!
   myWorkspaces(includePending: Boolean = true): [Workspace!]!
-
   notification: NotificationQueries!
   order: OrderQueries!
   organization(id: ID, slug: String): Organization
@@ -2405,7 +2414,7 @@ type Query {
   pageTask: PageTaskQueries!
   pageType: PageTypeQueries!
   pendingInvitations: [PendingInvitation!]!
-  productCatalog(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
+  product: ProductQueries!
   property: PropertyQueries!
   public: PublicQueries!
   publicForm(formId: ID!): Form
