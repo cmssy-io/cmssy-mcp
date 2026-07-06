@@ -1062,36 +1062,38 @@ export const PRODUCT_CATALOG_QUERY = `
     $offset: Int
     $sort: String
   ) {
-    productCatalog(
-      modelId: $modelId
-      filter: $filter
-      limit: $limit
-      offset: $offset
-      sort: $sort
-    ) {
-      items {
-        id
-        data
-        status
-        onHand
-        reserved
-        available
-        hasVariants
-        variants {
-          key
-          sku
-          price
+    product {
+      list(
+        modelId: $modelId
+        filter: $filter
+        limit: $limit
+        offset: $offset
+        sort: $sort
+      ) {
+        items {
+          id
+          data
+          status
           onHand
           reserved
           available
-          selectedOptions { name value }
+          hasVariants
+          variants {
+            key
+            sku
+            price
+            onHand
+            reserved
+            available
+            selectedOptions { name value }
+          }
+          createdAt
+          updatedAt
         }
-        createdAt
-        updatedAt
+        total
+        hasMore
+        lowStockThreshold
       }
-      total
-      hasMore
-      lowStockThreshold
     }
   }
 `;
@@ -1102,11 +1104,9 @@ export const BULK_UPDATE_PRODUCT_RECORDS_MUTATION = `
     $selection: ProductBulkSelectionInput!
     $patch: ProductBulkPatchInput!
   ) {
-    bulkUpdateProductRecords(
-      modelId: $modelId
-      selection: $selection
-      patch: $patch
-    )
+    product {
+      bulkUpdate(modelId: $modelId, selection: $selection, patch: $patch)
+    }
   }
 `;
 
@@ -1115,7 +1115,9 @@ export const BULK_DELETE_PRODUCT_RECORDS_MUTATION = `
     $modelId: ID!
     $selection: ProductBulkSelectionInput!
   ) {
-    bulkDeleteProductRecords(modelId: $modelId, selection: $selection)
+    product {
+      bulkDelete(modelId: $modelId, selection: $selection)
+    }
   }
 `;
 

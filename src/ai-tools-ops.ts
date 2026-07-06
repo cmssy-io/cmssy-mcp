@@ -1642,25 +1642,25 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     },
     products: {
       list: async (modelId, filter, limit, offset, sort) => {
-        const res = await client.query<{ productCatalog: unknown }>(
+        const res = await client.query<{ product: { list: unknown } }>(
           PRODUCT_CATALOG_QUERY,
           { modelId, filter, limit, offset, sort },
         );
-        return res.productCatalog;
+        return res.product.list;
       },
       bulkUpdate: async (modelId, selection, patch) => {
-        const res = await client.query<{ bulkUpdateProductRecords: number }>(
+        const res = await client.query<{ product: { bulkUpdate: number } }>(
           BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
           { modelId, selection, patch },
         );
-        return { count: res.bulkUpdateProductRecords };
+        return { count: res.product.bulkUpdate };
       },
       bulkDelete: async (modelId, selection) => {
-        const res = await client.query<{ bulkDeleteProductRecords: number }>(
+        const res = await client.query<{ product: { bulkDelete: number } }>(
           BULK_DELETE_PRODUCT_RECORDS_MUTATION,
           { modelId, selection },
         );
-        return { count: res.bulkDeleteProductRecords };
+        return { count: res.product.bulkDelete };
       },
     },
     members: {
