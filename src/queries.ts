@@ -428,7 +428,7 @@ const FORM_FIELDS_FRAGMENT = `
     width order showWhen
   }
   settings {
-    actionType webhookUrl emailRecipients newsletterListId
+    actionType webhookUrl emailRecipients
     submitButtonLabel successMessage errorMessage
     redirectUrl enableCaptcha requireLogin
     saveSubmissions sendEmailNotification emailConfigurationId

@@ -564,15 +564,6 @@ input CreateModelRecordInput {
   modelId: ID!
 }
 
-"""Input for creating a newsletter subscriber"""
-input CreateNewsletterSubscriberInput {
-  customFields: JSON
-  email: String!
-  name: String
-  source: SubscriptionSource
-  tags: [String!]
-}
-
 input CreateOrganizationInput {
   name: String!
   slug: String
@@ -900,7 +891,6 @@ type Form {
 enum FormActionType {
   contact
   custom
-  newsletter
 }
 
 type FormFieldDefinition {
@@ -997,13 +987,11 @@ type FormSettings {
   emailRecipients: [String!]!
   enableCaptcha: Boolean!
   errorMessage: JSON!
-  newsletterListId: String
   redirectUrl: String
   requireLogin: Boolean!
   saveSubmissions: Boolean!
   sendEmailNotification: Boolean!
   submitButtonLabel: JSON!
-  subscriberTags: [String!]!
   successMessage: JSON!
   webhookUrl: String
 }
@@ -1014,13 +1002,11 @@ input FormSettingsInput {
   emailRecipients: [String!]
   enableCaptcha: Boolean = false
   errorMessage: JSON
-  newsletterListId: String
   redirectUrl: String
   requireLogin: Boolean = false
   saveSubmissions: Boolean = true
   sendEmailNotification: Boolean = true
   submitButtonLabel: JSON
-  subscriberTags: [String!]
   successMessage: JSON
   webhookUrl: String
 }
@@ -1099,12 +1085,6 @@ input ImportModelRecordsInput {
 type ImportModelRecordsResult {
   errors: [ImportError!]!
   importedCount: Int!
-}
-
-type ImportNewsletterSubscribersResult {
-  errors: [String!]!
-  imported: Int!
-  skipped: Int!
 }
 
 type InvitationResult {
@@ -1453,15 +1433,11 @@ type Mutation {
   acceptOrganizationInvitation(organizationId: ID!): Organization!
   acceptWorkspaceInvitation(token: String!): AcceptInvitationResult!
 
-  """Add tags to a newsletter subscriber (admin)"""
-  addNewsletterSubscriberTags(id: ID!, tags: [String!]!): NewsletterSubscriber
   addWorkspaceMember(input: AddWorkspaceMemberInput!): Workspace!
   addWorkspaceToOrganization(organizationId: ID!, workspaceId: ID!): Organization!
   ai: AiMutations!
   assignCustomRoleToMember(customRoleId: ID, userId: ID!): Workspace!
 
-  """Bulk delete newsletter subscribers (admin)"""
-  bulkDeleteNewsletterSubscribers(ids: [ID!]!): Int!
   bulkDeleteProductRecords(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
   bulkUpdateProductRecords(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
   cancelInvitation(email: String!): InvitationResult!
@@ -1477,8 +1453,6 @@ type Mutation {
   createModelDefinition(input: CreateModelDefinitionInput!): ModelDefinition!
   createModelRecord(input: CreateModelRecordInput!): ModelRecord!
 
-  """Create a newsletter subscriber (admin)"""
-  createNewsletterSubscriber(input: CreateNewsletterSubscriberInput!): NewsletterSubscriber!
   createOrganization(input: CreateOrganizationInput!): Organization!
   createUser(input: CreateUserInput!): User!
   createWorkspace(input: CreateWorkspaceInput!): Workspace!
@@ -1499,8 +1473,6 @@ type Mutation {
   deleteModelRecord(id: ID!): Boolean!
   deleteMyAccount: Boolean!
 
-  """Delete a newsletter subscriber (admin)"""
-  deleteNewsletterSubscriber(id: ID!): Boolean!
   deleteOrganization(id: ID!): Boolean!
   deleteUser(id: ID!): Boolean!
   deleteWorkspace(id: ID!): Boolean!
@@ -1509,14 +1481,10 @@ type Mutation {
   grantScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
   importModelRecords(input: ImportModelRecordsInput!): ImportModelRecordsResult!
 
-  """Import newsletter subscribers from CSV data (admin)"""
-  importNewsletterSubscribers(csvData: String!): ImportNewsletterSubscribersResult!
   inviteOrganizationMember(input: InviteOrganizationMemberInput!, organizationId: ID!): Organization!
   inviteUserToWorkspace(input: InviteUserInput!): InvitationResult!
   leaveWorkspace: Boolean!
 
-  """Link a newsletter subscriber to a site member (admin)"""
-  linkNewsletterSubscriberToMember(siteMemberId: ID!, subscriberId: ID!): NewsletterSubscriber
   login(input: LoginInput!): AuthResponse!
   logout: Boolean!
   notification: NotificationMutations!
@@ -1533,8 +1501,6 @@ type Mutation {
   regenerateApiToken(id: ID!): ApiTokenWithSecret!
   regenerateDraftSecret: String!
 
-  """Remove tags from a newsletter subscriber (admin)"""
-  removeNewsletterSubscriberTags(id: ID!, tags: [String!]!): NewsletterSubscriber
   removeOrganizationMember(organizationId: ID!, userId: ID!): Organization!
   removeWorkspaceFromOrganization(organizationId: ID!, workspaceId: ID!): Organization!
   removeWorkspaceMember(userId: ID!): Workspace!
@@ -1562,19 +1528,12 @@ type Mutation {
   siteMemberVerifyEmail(token: String!): SiteMemberAuthResponse!
   submitForm(formId: ID!, input: SubmitFormInput!): FormSubmitResponse!
 
-  """Subscribe to newsletter (public, rate-limited)"""
-  subscribeToNewsletter(input: NewsletterSubscribeInput!, workspaceId: ID!): NewsletterSubscribeResponse!
   suspendWorkspaceMember(userId: ID!): Workspace!
 
   """Send a test email to verify configuration"""
   testEmailConfiguration(id: ID!, testEmail: String!): TestEmailConfigurationResult!
   transferOwnership(newOwnerId: ID!): Workspace!
 
-  """Unsubscribe from newsletter using email (public, rate-limited)"""
-  unsubscribeByEmail(email: String!, workspaceId: ID!): NewsletterUnsubscribeResponse!
-
-  """Unsubscribe from newsletter using token (public)"""
-  unsubscribeFromNewsletter(token: String!): NewsletterUnsubscribeResponse!
   unsuspendWorkspaceMember(userId: ID!): Workspace!
   updateApiToken(id: ID!, input: UpdateApiTokenInput!): ApiToken!
   updateCartConfig(input: CartConfigInput!): SiteConfig!
@@ -1594,8 +1553,6 @@ type Mutation {
   updateModelRecordStatus(input: UpdateModelRecordStatusInput!): ModelRecord
   updateMyLocale(locale: String!): User!
 
-  """Update a newsletter subscriber (admin)"""
-  updateNewsletterSubscriber(id: ID!, input: UpdateNewsletterSubscriberInput!): NewsletterSubscriber!
   updateOrganization(id: ID!, input: UpdateOrganizationInput!): Organization!
   updateOrganizationMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
   updateSiteConfig(input: UpdateSiteConfigInput!): SiteConfig!
@@ -1615,51 +1572,6 @@ type Mutation {
 type MyScopedGrant {
   pageId: String!
   permissions: [String!]!
-}
-
-"""Input for newsletter subscription"""
-input NewsletterSubscribeInput {
-  email: String!
-  honeypot: String
-  name: String
-  tags: [String!]
-}
-
-"""Response for newsletter subscription"""
-type NewsletterSubscribeResponse {
-  message: String!
-  subscriber: NewsletterSubscriber
-  success: Boolean!
-}
-
-"""Newsletter subscriber"""
-type NewsletterSubscriber {
-  createdAt: DateTime!
-  customFields: JSON!
-  email: String!
-  engagement: SubscriberEngagement!
-  id: String!
-  name: String
-  siteMemberId: String
-  source: String!
-  status: String!
-  subscribedAt: DateTime!
-  tags: [String!]!
-  unsubscribedAt: DateTime
-  updatedAt: DateTime!
-  workspaceId: String!
-}
-
-"""Paginated list of newsletter subscribers"""
-type NewsletterSubscriberList {
-  subscribers: [NewsletterSubscriber!]!
-  total: Int!
-}
-
-"""Response for newsletter unsubscription"""
-type NewsletterUnsubscribeResponse {
-  message: String!
-  success: Boolean!
 }
 
 type Notification {
@@ -2464,8 +2376,6 @@ type Query {
   """Get email statistics for the current workspace"""
   emailStats: EmailStats!
 
-  """Export newsletter subscribers as CSV (admin)"""
-  exportNewsletterSubscribers(status: SubscriberStatus): String!
   fieldType: FieldTypeQueries!
   form(formId: ID!): Form
   formSubmission(submissionId: ID!): FormSubmission
@@ -2487,17 +2397,6 @@ type Query {
   myPermissions: [String!]!
   myWorkspaces(includePending: Boolean = true): [Workspace!]!
 
-  """Get a newsletter subscriber by ID"""
-  newsletterSubscriber(id: ID!): NewsletterSubscriber
-
-  """Get a newsletter subscriber by email"""
-  newsletterSubscriberByEmail(email: String!): NewsletterSubscriber
-
-  """Count newsletter subscribers in a workspace"""
-  newsletterSubscriberCount(status: SubscriberStatus): Int!
-
-  """List newsletter subscribers in a workspace"""
-  newsletterSubscribers(limit: Int = 50, skip: Int = 0, source: SubscriptionSource, status: SubscriberStatus, tags: [String!]): NewsletterSubscriberList!
   notification: NotificationQueries!
   order: OrderQueries!
   organization(id: ID, slug: String): Organization
@@ -2774,32 +2673,6 @@ input SubmitFormInput {
   website: String
 }
 
-"""Email engagement statistics for subscriber"""
-type SubscriberEngagement {
-  clicked: Int!
-  lastClickedAt: DateTime
-  lastOpenedAt: DateTime
-  opened: Int!
-  sent: Int!
-}
-
-"""Subscriber subscription status"""
-enum SubscriberStatus {
-  BOUNCED
-  COMPLAINED
-  SUBSCRIBED
-  UNSUBSCRIBED
-}
-
-"""Source of how the subscriber was acquired"""
-enum SubscriptionSource {
-  CHECKOUT
-  IMPORT
-  MANUAL
-  NEWSLETTER_FORM
-  SITE_REGISTRATION
-}
-
 type TaskUser {
   avatarUrl: String
   displayName: String
@@ -2964,14 +2837,6 @@ input UpdateModelRecordInput {
 input UpdateModelRecordStatusInput {
   id: ID!
   status: String!
-}
-
-"""Input for updating a newsletter subscriber"""
-input UpdateNewsletterSubscriberInput {
-  customFields: JSON
-  name: String
-  status: SubscriberStatus
-  tags: [String!]
 }
 
 input UpdateOrderDetailsInput {
