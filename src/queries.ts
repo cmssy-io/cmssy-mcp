@@ -927,49 +927,49 @@ const DISCOUNT_FRAGMENT = `
 
 export const DISCOUNTS_QUERY = `
   query Discounts(
-    $workspaceId: ID!
     $enabled: Boolean
     $type: String
     $search: String
     $limit: Int
     $offset: Int
   ) {
-    discounts(
-      workspaceId: $workspaceId
-      enabled: $enabled
-      type: $type
-      search: $search
-      limit: $limit
-      offset: $offset
-    ) {
-      items { ${DISCOUNT_FRAGMENT} }
-      total
-      hasMore
+    discount {
+      list(
+        enabled: $enabled
+        type: $type
+        search: $search
+        limit: $limit
+        offset: $offset
+      ) {
+        items { ${DISCOUNT_FRAGMENT} }
+        total
+        hasMore
+      }
     }
   }
 `;
 
 export const DISCOUNT_BY_ID_QUERY = `
-  query Discount($workspaceId: ID!, $id: ID!) {
-    discount(workspaceId: $workspaceId, id: $id) { ${DISCOUNT_FRAGMENT} }
+  query Discount($id: ID!) {
+    discount { get(id: $id) { ${DISCOUNT_FRAGMENT} } }
   }
 `;
 
 export const CREATE_DISCOUNT_MUTATION = `
-  mutation CreateDiscount($workspaceId: ID!, $input: CreateDiscountInput!) {
-    createDiscount(workspaceId: $workspaceId, input: $input) { ${DISCOUNT_FRAGMENT} }
+  mutation CreateDiscount($input: CreateDiscountInput!) {
+    discount { create(input: $input) { ${DISCOUNT_FRAGMENT} } }
   }
 `;
 
 export const UPDATE_DISCOUNT_MUTATION = `
-  mutation UpdateDiscount($workspaceId: ID!, $id: ID!, $input: UpdateDiscountInput!) {
-    updateDiscount(workspaceId: $workspaceId, id: $id, input: $input) { ${DISCOUNT_FRAGMENT} }
+  mutation UpdateDiscount($id: ID!, $input: UpdateDiscountInput!) {
+    discount { update(id: $id, input: $input) { ${DISCOUNT_FRAGMENT} } }
   }
 `;
 
 export const SET_DISCOUNT_ENABLED_MUTATION = `
-  mutation SetDiscountEnabled($workspaceId: ID!, $id: ID!, $enabled: Boolean!) {
-    setDiscountEnabled(workspaceId: $workspaceId, id: $id, enabled: $enabled) { ${DISCOUNT_FRAGMENT} }
+  mutation SetDiscountEnabled($id: ID!, $enabled: Boolean!) {
+    discount { setEnabled(id: $id, enabled: $enabled) { ${DISCOUNT_FRAGMENT} } }
   }
 `;
 
