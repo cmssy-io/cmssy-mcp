@@ -1462,8 +1462,6 @@ type Mutation {
 
   """Bulk delete newsletter subscribers (admin)"""
   bulkDeleteNewsletterSubscribers(ids: [ID!]!): Int!
-  bulkDeleteProductRecords(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
-  bulkUpdateProductRecords(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
   cancelInvitation(email: String!): InvitationResult!
   cancelOrganizationInvitation(email: String!, organizationId: ID!): Organization!
   cart: CartMutations!
@@ -1526,6 +1524,7 @@ type Mutation {
   pageComment: PageCommentMutations!
   pageTask: PageTaskMutations!
   pageType: PageTypeMutations!
+  product: ProductMutations!
   property: PropertyMutations!
   recalculateAllUsage: Workspace!
   recalculateBlockUsage: Workspace!
@@ -2201,6 +2200,15 @@ type ProductCatalogList {
   total: Int!
 }
 
+type ProductMutations {
+  bulkDelete(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
+  bulkUpdate(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
+}
+
+type ProductQueries {
+  list(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
+}
+
 type ProductVariant {
   id: String!
   inventory: Int
@@ -2506,7 +2514,7 @@ type Query {
   pageTask: PageTaskQueries!
   pageType: PageTypeQueries!
   pendingInvitations: [PendingInvitation!]!
-  productCatalog(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
+  product: ProductQueries!
   property: PropertyQueries!
   public: PublicQueries!
   publicForm(formId: ID!): Form
