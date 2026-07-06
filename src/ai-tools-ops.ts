@@ -777,14 +777,16 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const ev = expectedVersionOf(page);
         const configData = await client.query<{
           siteConfig: {
-            defaultLanguage?: string;
-            enabledLanguages?: string[];
-          } | null;
+            get: {
+              defaultLanguage?: string;
+              enabledLanguages?: string[];
+            } | null;
+          };
         }>(SITE_CONFIG_QUERY);
-        const defaultLanguage = configData.siteConfig?.defaultLanguage ?? "en";
-        const enabledLanguages = configData.siteConfig?.enabledLanguages ?? [
-          defaultLanguage,
-        ];
+        const defaultLanguage =
+          configData.siteConfig.get?.defaultLanguage ?? "en";
+        const enabledLanguages = configData.siteConfig.get
+          ?.enabledLanguages ?? [defaultLanguage];
         const content = block.content as Record<string, unknown>;
         const translations: Record<string, { status: string }> = {};
         for (const lang of enabledLanguages) {
@@ -1551,16 +1553,18 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       siteConfig: async () => {
         const res = await client.query<{
           siteConfig: {
-            id?: string | null;
-            defaultLanguage?: string | null;
-            enabledLanguages?: string[];
-            siteName?: string | null;
-            enabledFeatures?: string[];
-            header?: unknown;
-            footer?: unknown;
-          } | null;
+            get: {
+              id?: string | null;
+              defaultLanguage?: string | null;
+              enabledLanguages?: string[];
+              siteName?: string | null;
+              enabledFeatures?: string[];
+              header?: unknown;
+              footer?: unknown;
+            } | null;
+          };
         }>(SITE_CONFIG_QUERY);
-        const c = res.siteConfig;
+        const c = res.siteConfig.get;
         if (!c) return null;
         return {
           id: c.id ?? null,

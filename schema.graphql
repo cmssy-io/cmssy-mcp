@@ -1140,6 +1140,22 @@ type ImportModelRecordsResult {
   importedCount: Int!
 }
 
+type IntegrationMutations {
+  """Send a test email to verify email configuration"""
+  sendTestEmail(email: String!): TestEmailResult!
+
+  """Update workspace integrations configuration"""
+  update(input: UpdateWorkspaceIntegrationsInput!): WorkspaceIntegrations!
+}
+
+type IntegrationQueries {
+  """Get workspace integrations configuration"""
+  config: WorkspaceIntegrations!
+
+  """Get list of supported email providers"""
+  emailProviders: [EmailProviderInfo!]!
+}
+
 type InvitationResult {
   message: String!
   success: Boolean!
@@ -1517,6 +1533,7 @@ type Mutation {
   email: EmailMutations!
   grantScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
   importModelRecords(input: ImportModelRecordsInput!): ImportModelRecordsResult!
+  integration: IntegrationMutations!
   inviteOrganizationMember(input: InviteOrganizationMemberInput!, organizationId: ID!): Organization!
   inviteUserToWorkspace(input: InviteUserInput!): InvitationResult!
   leaveWorkspace: Boolean!
@@ -1544,11 +1561,9 @@ type Mutation {
   resendWorkspaceInvitation(userId: ID!): InvitationResult!
   resetUserPassword(newPassword: String!, token: String!): UserAuthResponse!
   revokeScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
-
-  """Send a test email to verify email configuration"""
-  sendTestEmail(email: String!): TestEmailResult!
   setProductVariants(input: SetProductVariantsInput!): ModelRecord!
   signup(input: SignupInput!): AuthResponse!
+  siteConfig: SiteConfigMutations!
   siteMemberForgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
   siteMemberLogin(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
   siteMemberLogout(refreshToken: String!): SiteMemberAuthResponse!
@@ -1561,14 +1576,12 @@ type Mutation {
   suspendWorkspaceMember(userId: ID!): Workspace!
   transferOwnership(newOwnerId: ID!): Workspace!
   unsuspendWorkspaceMember(userId: ID!): Workspace!
-  updateCartConfig(input: CartConfigInput!): SiteConfig!
   updateCustomRole(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
   updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
   updateForm(formId: ID!, input: UpdateFormInput!): Form
   updateFormSubmissionStatus(status: String!, submissionId: ID!): Boolean!
   updateMedia(id: ID!, input: UpdateMediaInput!): MediaAsset!
   updateMediaFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
-  updateMemberAuthConfig(input: MemberAuthConfigInput!): SiteConfig!
   updateMemberRole(roleId: ID!, userId: ID!): Workspace!
   updateModelDefinition(input: UpdateModelDefinitionInput!): ModelDefinition
   updateModelRecord(input: UpdateModelRecordInput!): ModelRecord
@@ -1576,14 +1589,9 @@ type Mutation {
   updateMyLocale(locale: String!): User!
   updateOrganization(id: ID!, input: UpdateOrganizationInput!): Organization!
   updateOrganizationMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
-  updateSiteConfig(input: UpdateSiteConfigInput!): SiteConfig!
-  updateSiteVerification(code: String, provider: String!): SiteConfig!
   updateUser(id: ID!, input: UpdateUserInput!): User!
   updateWorkspace(id: ID!, input: UpdateWorkspaceInput!): Workspace!
   updateWorkspaceBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
-
-  """Update workspace integrations configuration"""
-  updateWorkspaceIntegrations(input: UpdateWorkspaceIntegrationsInput!): WorkspaceIntegrations!
   updateWorkspaceRole(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
   uploadMedia(input: UploadMediaInput!): MediaAsset!
   verifyUserEmail(token: String!): UserAuthResponse!
@@ -2372,6 +2380,7 @@ type PublicPagesListResult {
 
 type PublicQueries {
   page: PublicPageQueries!
+  siteConfig(workspaceSlug: String): SiteConfig
 }
 
 type Query {
@@ -2384,15 +2393,13 @@ type Query {
   currentWorkspace: Workspace
   discount: DiscountQueries!
   email: EmailQueries!
-
-  """Get list of supported email providers"""
-  emailProviders: [EmailProviderInfo!]!
   fieldType: FieldTypeQueries!
   form(formId: ID!): Form
   formSubmission(submissionId: ID!): FormSubmission
   formSubmissions(formId: ID, limit: Int = 50, skip: Int = 0, status: String): FormSubmissionListResponse!
   forms(limit: Int = 50, skip: Int = 0, status: String): FormListResponse!
   health: String!
+  integration: IntegrationQueries!
   isWorkspaceMember(slug: String!): Boolean!
   me: User
   mediaAsset(id: ID!): MediaAsset
@@ -2422,10 +2429,9 @@ type Query {
   publicMediaForContext(folderId: String, limit: Int = 20, offset: Int = 0, tag: String, type: String, workspaceId: String!): PublicMediaListResult!
   publicModelDefinitions(workspaceId: String!): [ModelDefinition!]!
   publicModelRecords(filter: JSON, limit: Int = 20, modelSlug: String!, offset: Int = 0, populate: [String!], sort: String, workspaceId: String!): ModelRecordList!
-  publicSiteConfig(workspaceSlug: String!): SiteConfig
   publicWorkspaceBranding(workspaceSlug: String!): WorkspaceBranding
   publicWorkspaceI18n(workspaceSlug: String!): I18nSettings
-  siteConfig: SiteConfig
+  siteConfig: SiteConfigQueries!
   user(id: ID!): User
   users: [User!]!
   version: String!
@@ -2437,9 +2443,6 @@ type Query {
   """
   workspaceAuditLog(action: AuditLogAction, entityId: String, entityType: AuditLogEntityType, limit: Int = 50, skip: Int = 0, userId: ID): WorkspaceAuditLogConnection!
   workspaceDraftSecret: String!
-
-  """Get workspace integrations configuration"""
-  workspaceIntegrations: WorkspaceIntegrations!
   workspaceRole(id: ID!): WorkspaceRoleType
   workspaceRoles: [WorkspaceRoleType!]!
 }
@@ -2605,11 +2608,23 @@ type SiteConfig {
   notFoundPageId: String
   previewUrl: String
   publicCart: PublicCartConfig
+  publicSiteUrl: String
   siteName: JSON!
   siteVerifications: SiteVerifications
   updatedAt: DateTime!
   updatedBy: String
   workspaceId: String!
+}
+
+type SiteConfigMutations {
+  update(input: UpdateSiteConfigInput!): SiteConfig!
+  updateCart(input: CartConfigInput!): SiteConfig!
+  updateMemberAuth(input: MemberAuthConfigInput!): SiteConfig!
+  updateSiteVerification(code: String, provider: String!): SiteConfig!
+}
+
+type SiteConfigQueries {
+  get: SiteConfig
 }
 
 type SiteMemberAuthResponse {
@@ -2916,6 +2931,7 @@ input UpdateSiteConfigInput {
   memberAuth: MemberAuthConfigInput
   notFoundPageId: String
   previewUrl: String
+  publicSiteUrl: String
   siteName: JSON
 }
 

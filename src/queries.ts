@@ -115,11 +115,13 @@ export const PAGE_BY_ID_QUERY = `
 export const SITE_CONFIG_QUERY = `
   query SiteConfig {
     siteConfig {
-      id
-      defaultLanguage
-      enabledLanguages
-      siteName
-      enabledFeatures
+      get {
+        id
+        defaultLanguage
+        enabledLanguages
+        siteName
+        enabledFeatures
+      }
     }
   }
 `;
