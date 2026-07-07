@@ -10,9 +10,11 @@ import { fileURLToPath } from "node:url";
 // the live surface - a stale SDL is what let namespaced fields drift undetected.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const src =
-  process.env.CMSSY_BACKEND_SCHEMA ??
-  resolve(root, "../cmssy/apps/backend/schema.graphql");
+// Resolve the override relative to the repo root (absolute paths pass through)
+// so behavior is identical no matter which directory the script is run from.
+const src = process.env.CMSSY_BACKEND_SCHEMA
+  ? resolve(root, process.env.CMSSY_BACKEND_SCHEMA)
+  : resolve(root, "../cmssy/apps/backend/schema.graphql");
 const dest = resolve(root, "schema.graphql");
 
 if (!existsSync(src)) {
