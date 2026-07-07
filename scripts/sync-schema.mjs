@@ -20,7 +20,7 @@ const dest = resolve(root, "schema.graphql");
 if (!existsSync(src)) {
   console.error(
     `Backend SDL not found at ${src}.\n` +
-      "Set CMSSY_BACKEND_SCHEMA to cmssy/apps/backend/schema.graphql " +
+      "Set CMSSY_BACKEND_SCHEMA to ../cmssy/apps/backend/schema.graphql " +
       "(run `pnpm --filter backend print-schema` in the cmssy repo first).",
   );
   process.exit(1);
