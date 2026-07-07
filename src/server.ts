@@ -245,7 +245,9 @@ export function createServer(client: CmssyClient) {
         client.query<{ workspace: { current: Workspace | null } }>(
           CURRENT_WORKSPACE_QUERY,
         ),
-        client.query<{ siteConfig: SiteConfig | null }>(SITE_CONFIG_QUERY),
+        client.query<{ siteConfig: { get: SiteConfig | null } }>(
+          SITE_CONFIG_QUERY,
+        ),
       ]);
       return {
         contents: [
@@ -255,7 +257,7 @@ export function createServer(client: CmssyClient) {
             text: JSON.stringify(
               {
                 workspace: workspaceData.workspace.current,
-                siteConfig: configData.siteConfig,
+                siteConfig: configData.siteConfig.get,
               },
               null,
               2,
