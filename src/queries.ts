@@ -130,18 +130,20 @@ export const SITE_CONFIG_QUERY = `
 
 export const CURRENT_WORKSPACE_QUERY = `
   query CurrentWorkspace {
-    currentWorkspace {
-      id
-      name
-      slug
-      plan
-      limits {
-        maxPages
-        maxUsers
-        maxStorageMb
-        maxAiTokensMonth
-        maxWorkspacesOwned
-        canRemoveBranding
+    workspace {
+      current {
+        id
+        name
+        slug
+        plan
+        limits {
+          maxPages
+          maxUsers
+          maxStorageMb
+          maxAiTokensMonth
+          maxWorkspacesOwned
+          canRemoveBranding
+        }
       }
     }
   }
@@ -1125,20 +1127,22 @@ export const BULK_DELETE_PRODUCT_RECORDS_MUTATION = `
 
 export const MEMBERS_QUERY = `
   query Members {
-    users {
-      id
-      email
-      username
-      profile {
-        displayName
-      }
-      membershipStatus
-      isWorkspaceOwner
-      invitedAt
-      joinedAt
-      workspaceRole {
+    user {
+      list {
         id
-        name
+        email
+        username
+        profile {
+          displayName
+        }
+        membershipStatus
+        isWorkspaceOwner
+        invitedAt
+        joinedAt
+        workspaceRole {
+          id
+          name
+        }
       }
     }
   }
@@ -1146,13 +1150,15 @@ export const MEMBERS_QUERY = `
 
 export const ROLES_QUERY = `
   query WorkspaceRoles {
-    workspaceRoles {
-      id
-      name
-      slug
-      permissions
-      isDefault
-      isSystem
+    role {
+      list {
+        id
+        name
+        slug
+        permissions
+        isDefault
+        isSystem
+      }
     }
   }
 `;

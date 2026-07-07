@@ -242,7 +242,7 @@ export function createServer(client: CmssyClient) {
     },
     async (uri) => {
       const [workspaceData, configData] = await Promise.all([
-        client.query<{ currentWorkspace: Workspace | null }>(
+        client.query<{ workspace: { current: Workspace | null } }>(
           CURRENT_WORKSPACE_QUERY,
         ),
         client.query<{ siteConfig: SiteConfig | null }>(SITE_CONFIG_QUERY),
@@ -254,7 +254,7 @@ export function createServer(client: CmssyClient) {
             mimeType: "application/json",
             text: JSON.stringify(
               {
-                workspace: workspaceData.currentWorkspace,
+                workspace: workspaceData.workspace.current,
                 siteConfig: configData.siteConfig,
               },
               null,

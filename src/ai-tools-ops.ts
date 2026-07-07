@@ -1532,15 +1532,17 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     workspace: {
       info: async () => {
         const res = await client.query<{
-          currentWorkspace: {
-            id: string;
-            name: string;
-            slug: string;
-            plan?: string | null;
-            limits?: Record<string, unknown> | null;
-          } | null;
+          workspace: {
+            current: {
+              id: string;
+              name: string;
+              slug: string;
+              plan?: string | null;
+              limits?: Record<string, unknown> | null;
+            } | null;
+          };
         }>(CURRENT_WORKSPACE_QUERY);
-        const w = res.currentWorkspace;
+        const w = res.workspace.current;
         if (!w) throw new Error("Workspace not found");
         return {
           id: w.id,
@@ -1670,19 +1672,21 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     members: {
       list: async (options) => {
         const res = await client.query<{
-          users: Array<{
-            id: string;
-            email?: string | null;
-            username?: string | null;
-            profile?: { displayName?: string | null } | null;
-            membershipStatus?: string | null;
-            isWorkspaceOwner?: boolean | null;
-            invitedAt?: string | null;
-            joinedAt?: string | null;
-            workspaceRole?: { id: string; name: string } | null;
-          }>;
+          user: {
+            list: Array<{
+              id: string;
+              email?: string | null;
+              username?: string | null;
+              profile?: { displayName?: string | null } | null;
+              membershipStatus?: string | null;
+              isWorkspaceOwner?: boolean | null;
+              invitedAt?: string | null;
+              joinedAt?: string | null;
+              workspaceRole?: { id: string; name: string } | null;
+            }>;
+          };
         }>(MEMBERS_QUERY);
-        let items = res.users.map((u) => ({
+        let items = res.user.list.map((u) => ({
           userId: u.id,
           email: u.email ?? null,
           name: u.profile?.displayName ?? u.username ?? null,
@@ -1711,16 +1715,18 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     roles: {
       list: async () => {
         const res = await client.query<{
-          workspaceRoles: Array<{
-            id: string;
-            name: string;
-            slug: string;
-            permissions: string[];
-            isDefault: boolean;
-            isSystem: boolean;
-          }>;
+          role: {
+            list: Array<{
+              id: string;
+              name: string;
+              slug: string;
+              permissions: string[];
+              isDefault: boolean;
+              isSystem: boolean;
+            }>;
+          };
         }>(ROLES_QUERY);
-        return res.workspaceRoles.map((r) => ({
+        return res.role.list.map((r) => ({
           id: r.id,
           name: r.name,
           slug: r.slug,

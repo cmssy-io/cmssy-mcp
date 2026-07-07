@@ -243,6 +243,17 @@ enum AuditLogEntityType {
   WORKSPACE
 }
 
+type AuthMutations {
+  login(input: LoginInput!): AuthResponse!
+  logout: Boolean!
+  oauthLogin(input: OAuthLoginInput!): AuthResponse!
+  refreshToken(refreshToken: String!): AuthResponse!
+  requestPasswordReset(email: String!): UserAuthResponse!
+  resetPassword(newPassword: String!, token: String!): UserAuthResponse!
+  signup(input: SignupInput!): AuthResponse!
+  verifyEmail(token: String!): UserAuthResponse!
+}
+
 type AuthResponse {
   accessToken: String!
   accessTokenExpiresIn: Int!
@@ -1156,6 +1167,19 @@ type IntegrationQueries {
   emailProviders: [EmailProviderInfo!]!
 }
 
+type InvitationMutations {
+  accept(token: String!): AcceptInvitationResult!
+  acceptMine(workspaceId: ID!): AcceptInvitationResult!
+  cancel(email: String!): InvitationResult!
+  create(input: InviteUserInput!): InvitationResult!
+  resend(userId: ID!): InvitationResult!
+  resendPending(email: String!): InvitationResult!
+}
+
+type InvitationQueries {
+  list: [PendingInvitation!]!
+}
+
 type InvitationResult {
   message: String!
   success: Boolean!
@@ -1382,6 +1406,16 @@ input MemberAuthConfigInput {
   showRegisterInHeader: Boolean
 }
 
+type MemberMutations {
+  add(input: AddWorkspaceMemberInput!): Workspace!
+  leave: Boolean!
+  remove(userId: ID!): Workspace!
+  suspend(userId: ID!): Workspace!
+  transferOwnership(newOwnerId: ID!): Workspace!
+  unsuspend(userId: ID!): Workspace!
+  updateRole(roleId: ID!, userId: ID!): Workspace!
+}
+
 type MemberScopedGrant {
   pageId: String!
   roleId: String!
@@ -1498,71 +1532,37 @@ input MovePageInput {
 }
 
 type Mutation {
-  acceptMyWorkspaceInvitation(workspaceId: ID!): AcceptInvitationResult!
-  acceptOrganizationInvitation(organizationId: ID!): Organization!
-  acceptWorkspaceInvitation(token: String!): AcceptInvitationResult!
-  addWorkspaceMember(input: AddWorkspaceMemberInput!): Workspace!
   ai: AiMutations!
   apiToken: ApiTokenMutations!
-  assignCustomRoleToMember(customRoleId: ID, userId: ID!): Workspace!
-  cancelInvitation(email: String!): InvitationResult!
-  cancelOrganizationInvitation(email: String!, organizationId: ID!): Organization!
+  auth: AuthMutations!
   cart: CartMutations!
-  createCustomRole(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
   createForm(input: CreateFormInput!): Form!
   createMediaFolder(input: CreateMediaFolderInput!): MediaFolder!
   createModelDefinition(input: CreateModelDefinitionInput!): ModelDefinition!
   createModelRecord(input: CreateModelRecordInput!): ModelRecord!
-  createOrganization(input: CreateOrganizationInput!): Organization!
-  createUser(input: CreateUserInput!): User!
-  createWorkspace(input: CreateWorkspaceInput!): Workspace!
-  createWorkspaceRole(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
-  deleteCustomRole(roleId: ID!): WorkspaceRoleResult!
   deleteForm(formId: ID!): Boolean!
   deleteFormSubmission(submissionId: ID!): Boolean!
   deleteMedia(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
   deleteMediaFolder(deleteContents: Boolean = false, id: ID!): Boolean!
   deleteModelDefinition(id: ID!): Boolean!
   deleteModelRecord(id: ID!): Boolean!
-  deleteMyAccount: Boolean!
-  deleteOrganization(id: ID!): Boolean!
-  deleteUser(id: ID!): Boolean!
-  deleteWorkspace(id: ID!): Boolean!
-  deleteWorkspaceRole(fallbackRoleId: ID, roleId: ID!): WorkspaceRoleResult!
   discount: DiscountMutations!
   email: EmailMutations!
-  grantScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
   importModelRecords(input: ImportModelRecordsInput!): ImportModelRecordsResult!
   integration: IntegrationMutations!
-  inviteOrganizationMember(input: InviteOrganizationMemberInput!, organizationId: ID!): Organization!
-  inviteUserToWorkspace(input: InviteUserInput!): InvitationResult!
-  leaveWorkspace: Boolean!
-  login(input: LoginInput!): AuthResponse!
-  logout: Boolean!
-  moveWorkspaceToOrganization(organizationId: ID!, workspaceId: ID!): Organization!
+  invitation: InvitationMutations!
+  member: MemberMutations!
   notification: NotificationMutations!
-  oauthLogin(input: OAuthLoginInput!): AuthResponse!
   order: OrderMutations!
+  organization: OrganizationMutations!
   page: PageMutations!
   pageComment: PageCommentMutations!
   pageTask: PageTaskMutations!
   pageType: PageTypeMutations!
   product: ProductMutations!
   property: PropertyMutations!
-  recalculateAllUsage: Workspace!
-  recalculateBlockUsage: Workspace!
-  refreshToken(refreshToken: String!): AuthResponse!
-  regenerateDraftSecret: String!
-  removeOrganizationMember(organizationId: ID!, userId: ID!): Organization!
-  removeWorkspaceMember(userId: ID!): Workspace!
-  requestUserPasswordReset(email: String!): UserAuthResponse!
-  resendPendingInvitation(email: String!): InvitationResult!
-  resendUserVerificationEmail: UserAuthResponse!
-  resendWorkspaceInvitation(userId: ID!): InvitationResult!
-  resetUserPassword(newPassword: String!, token: String!): UserAuthResponse!
-  revokeScopedRole(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
+  role: RoleMutations!
   setProductVariants(input: SetProductVariantsInput!): ModelRecord!
-  signup(input: SignupInput!): AuthResponse!
   siteConfig: SiteConfigMutations!
   siteMemberForgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
   siteMemberLogin(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
@@ -1573,29 +1573,18 @@ type Mutation {
   siteMemberResetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
   siteMemberVerifyEmail(token: String!): SiteMemberAuthResponse!
   submitForm(formId: ID!, input: SubmitFormInput!): FormSubmitResponse!
-  suspendWorkspaceMember(userId: ID!): Workspace!
-  transferOwnership(newOwnerId: ID!): Workspace!
-  unsuspendWorkspaceMember(userId: ID!): Workspace!
-  updateCustomRole(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
-  updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
   updateForm(formId: ID!, input: UpdateFormInput!): Form
   updateFormSubmissionStatus(status: String!, submissionId: ID!): Boolean!
   updateMedia(id: ID!, input: UpdateMediaInput!): MediaAsset!
   updateMediaFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
-  updateMemberRole(roleId: ID!, userId: ID!): Workspace!
   updateModelDefinition(input: UpdateModelDefinitionInput!): ModelDefinition
   updateModelRecord(input: UpdateModelRecordInput!): ModelRecord
   updateModelRecordStatus(input: UpdateModelRecordStatusInput!): ModelRecord
-  updateMyLocale(locale: String!): User!
-  updateOrganization(id: ID!, input: UpdateOrganizationInput!): Organization!
-  updateOrganizationMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
-  updateUser(id: ID!, input: UpdateUserInput!): User!
-  updateWorkspace(id: ID!, input: UpdateWorkspaceInput!): Workspace!
-  updateWorkspaceBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
-  updateWorkspaceRole(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
   uploadMedia(input: UploadMediaInput!): MediaAsset!
-  verifyUserEmail(token: String!): UserAuthResponse!
+  user: UserMutations!
+  viewer: ViewerMutations!
   webhook: WebhookMutations!
+  workspace: WorkspaceMutations!
 }
 
 type MyScopedGrant {
@@ -1824,6 +1813,23 @@ type OrganizationMember {
   roleId: String!
   status: String!
   userId: String
+}
+
+type OrganizationMutations {
+  acceptInvitation(organizationId: ID!): Organization!
+  cancelInvitation(email: String!, organizationId: ID!): Organization!
+  create(input: CreateOrganizationInput!): Organization!
+  delete(id: ID!): DeletionResult!
+  inviteMember(input: InviteOrganizationMemberInput!, organizationId: ID!): Organization!
+  moveWorkspace(organizationId: ID!, workspaceId: ID!): Organization!
+  removeMember(organizationId: ID!, userId: ID!): Organization!
+  update(id: ID!, input: UpdateOrganizationInput!): Organization!
+  updateMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
+}
+
+type OrganizationQueries {
+  get(id: ID, slug: String): Organization
+  list: [Organization!]!
 }
 
 type OrganizationUsage {
@@ -2381,6 +2387,8 @@ type PublicPagesListResult {
 type PublicQueries {
   page: PublicPageQueries!
   siteConfig(workspaceSlug: String): SiteConfig
+  workspaceBranding(workspaceSlug: String!): WorkspaceBranding
+  workspaceI18n(workspaceSlug: String!): I18nSettings
 }
 
 type Query {
@@ -2388,9 +2396,7 @@ type Query {
   adminCart: AdminCartQueries!
   ai: AiQueries!
   apiToken: ApiTokenQueries!
-  availablePermissions: [PermissionCategory!]!
   cart: CartQueries!
-  currentWorkspace: Workspace
   discount: DiscountQueries!
   email: EmailQueries!
   fieldType: FieldTypeQueries!
@@ -2400,8 +2406,7 @@ type Query {
   forms(limit: Int = 50, skip: Int = 0, status: String): FormListResponse!
   health: String!
   integration: IntegrationQueries!
-  isWorkspaceMember(slug: String!): Boolean!
-  me: User
+  invitation: InvitationQueries!
   mediaAsset(id: ID!): MediaAsset
   mediaAssetUsages(assetId: ID!): MediaUsageResponse!
   mediaAssets(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
@@ -2410,17 +2415,14 @@ type Query {
   modelDefinitions: [ModelDefinition!]!
   modelRecord(id: ID!): ModelRecord
   modelRecords(filter: JSON, limit: Int, modelId: ID!, offset: Int, populate: [String!], sort: String): ModelRecordList!
-  myOrganizations: [Organization!]!
   myPermissions: [String!]!
-  myWorkspaces(includePending: Boolean = true): [Workspace!]!
   notification: NotificationQueries!
   order: OrderQueries!
-  organization(id: ID, slug: String): Organization
+  organization: OrganizationQueries!
   page: PageQueries!
   pageComment: PageCommentQueries!
   pageTask: PageTaskQueries!
   pageType: PageTypeQueries!
-  pendingInvitations: [PendingInvitation!]!
   product: ProductQueries!
   property: PropertyQueries!
   public: PublicQueries!
@@ -2429,22 +2431,18 @@ type Query {
   publicMediaForContext(folderId: String, limit: Int = 20, offset: Int = 0, tag: String, type: String, workspaceId: String!): PublicMediaListResult!
   publicModelDefinitions(workspaceId: String!): [ModelDefinition!]!
   publicModelRecords(filter: JSON, limit: Int = 20, modelSlug: String!, offset: Int = 0, populate: [String!], sort: String, workspaceId: String!): ModelRecordList!
-  publicWorkspaceBranding(workspaceSlug: String!): WorkspaceBranding
-  publicWorkspaceI18n(workspaceSlug: String!): I18nSettings
+  role: RoleQueries!
   siteConfig: SiteConfigQueries!
-  user(id: ID!): User
-  users: [User!]!
+  user: UserQueries!
   version: String!
+  viewer: ViewerQueries!
   webhook: WebhookQueries!
-  workspace(id: ID, slug: String): Workspace
+  workspace: WorkspaceQueries!
 
   """
   Paginated activity log for the current workspace. Gated by ROLES_MANAGE; per-workspace only (no admin-wide view).
   """
   workspaceAuditLog(action: AuditLogAction, entityId: String, entityType: AuditLogEntityType, limit: Int = 50, skip: Int = 0, userId: ID): WorkspaceAuditLogConnection!
-  workspaceDraftSecret: String!
-  workspaceRole(id: ID!): WorkspaceRoleType
-  workspaceRoles: [WorkspaceRoleType!]!
 }
 
 input RecordOrderInvoiceInput {
@@ -2520,6 +2518,24 @@ type RichTextResult {
   content: String!
   success: Boolean!
   tokensUsed: Int!
+}
+
+type RoleMutations {
+  assignToMember(customRoleId: ID, userId: ID!): Workspace!
+  create(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
+  createCustom(input: CreateWorkspaceRoleInput!): WorkspaceRoleResult!
+  delete(fallbackRoleId: ID, roleId: ID!): WorkspaceRoleResult!
+  deleteCustom(roleId: ID!): WorkspaceRoleResult!
+  grantScoped(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
+  revokeScoped(pageId: ID!, roleId: ID!, userId: ID!): Workspace!
+  update(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
+  updateCustom(input: UpdateWorkspaceRoleInput!, roleId: ID!): WorkspaceRoleResult!
+}
+
+type RoleQueries {
+  availablePermissions: [PermissionCategory!]!
+  get(id: ID!): WorkspaceRoleType
+  list: [WorkspaceRoleType!]!
 }
 
 input SaveDevDraftInput {
@@ -3026,6 +3042,12 @@ input UserCustomFieldInput {
   value: JSON
 }
 
+type UserMutations {
+  create(input: CreateUserInput!): User!
+  delete(id: ID!): DeletionResult!
+  update(id: ID!, input: UpdateUserInput!): User!
+}
+
 type UserProfile {
   avatarUrl: String
   displayName: String
@@ -3043,6 +3065,11 @@ input UserProfileInput {
   phone: String
 }
 
+type UserQueries {
+  get(id: ID!): User
+  list: [User!]!
+}
+
 """Validation rules for a field type"""
 type ValidationRules {
   maxLength: Int
@@ -3051,6 +3078,16 @@ type ValidationRules {
   minValue: Int
   optionsRequired: Boolean!
   pattern: String
+}
+
+type ViewerMutations {
+  deleteAccount: DeletionResult!
+  resendVerificationEmail: UserAuthResponse!
+  updateLocale(locale: String!): User!
+}
+
+type ViewerQueries {
+  me: User
 }
 
 type WebhookDelivery {
@@ -3121,6 +3158,7 @@ type Workspace {
   myScopedGrants: [MyScopedGrant!]!
   name: String!
   organizationId: String
+  organizationSlug: String
   ownerId: String!
   plan: String!
   roles: [WorkspaceRoleType!]!
@@ -3190,6 +3228,25 @@ type WorkspaceMemberType {
   scopedGrants: [MemberScopedGrant!]!
   status: String!
   userId: String
+}
+
+type WorkspaceMutations {
+  create(input: CreateWorkspaceInput!): Workspace!
+  delete(id: ID!): Boolean!
+  recalculateAllUsage: Workspace!
+  recalculateBlockUsage: Workspace!
+  regenerateDraftSecret: String!
+  update(id: ID!, input: UpdateWorkspaceInput!): Workspace!
+  updateBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
+  updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
+}
+
+type WorkspaceQueries {
+  current: Workspace
+  draftSecret: String!
+  get(id: ID, organizationSlug: String, slug: String): Workspace
+  isMember(slug: String!): Boolean!
+  mine(includePending: Boolean = true): [Workspace!]!
 }
 
 type WorkspaceRole {
