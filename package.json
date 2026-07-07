@@ -9,6 +9,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",
+    "sync-schema": "node scripts/sync-schema.mjs",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
