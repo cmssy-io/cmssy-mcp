@@ -150,17 +150,19 @@ async function fetchModelById(
   id: string,
 ): Promise<ResolvedModel | null> {
   const data = await client.query<{
-    modelDefinition: {
-      id: string;
-      name: string;
-      displayField?: string | null;
-    } | null;
+    model: {
+      get: {
+        id: string;
+        name: string;
+        displayField?: string | null;
+      } | null;
+    };
   }>(MODEL_DEFINITION_BY_ID_QUERY, { id });
-  if (!data.modelDefinition) return null;
+  if (!data.model.get) return null;
   return {
-    id: data.modelDefinition.id,
-    name: data.modelDefinition.name,
-    displayField: data.modelDefinition.displayField ?? null,
+    id: data.model.get.id,
+    name: data.model.get.name,
+    displayField: data.model.get.displayField ?? null,
   };
 }
 
@@ -173,9 +175,9 @@ async function resolveModel(
     if (byId) return byId;
   }
   const index = await client.query<{
-    modelDefinitions: Array<{ id: string; slug: string }>;
+    model: { list: Array<{ id: string; slug: string }> };
   }>(MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY);
-  const match = index.modelDefinitions.find((m) => m.slug === idOrSlug);
+  const match = index.model.list.find((m) => m.slug === idOrSlug);
   if (!match) return null;
   return fetchModelById(client, match.id);
 }
@@ -248,34 +250,36 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     models: {
       list: async () => {
         const res = await client.query<{
-          modelDefinitions: RawModelDefinition[];
+          model: { list: RawModelDefinition[] };
         }>(MODEL_DEFINITIONS_QUERY);
-        return res.modelDefinitions.map(toModelSummary);
+        return res.model.list.map(toModelSummary);
       },
       get: async (idOrSlug) => {
         const resolved = await resolveModel(client, idOrSlug);
         if (!resolved) return null;
         const res = await client.query<{
-          modelDefinition: RawModelDefinition | null;
+          model: { get: RawModelDefinition | null };
         }>(MODEL_DEFINITION_BY_ID_QUERY, { id: resolved.id });
-        if (!res.modelDefinition) return null;
-        return toModelDetail(res.modelDefinition);
+        if (!res.model.get) return null;
+        return toModelDetail(res.model.get);
       },
       listRecords: async (modelIdOrSlug, options) => {
         const model = await resolveModel(client, modelIdOrSlug);
         if (!model) return null;
         const res = await client.query<{
-          modelRecords: {
-            items: Array<{
-              id: string;
-              modelId: string;
-              status?: string | null;
-              data?: Record<string, unknown> | null;
-              createdAt?: string | null;
-              updatedAt?: string | null;
-            }>;
-            total: number;
-            hasMore: boolean;
+          record: {
+            list: {
+              items: Array<{
+                id: string;
+                modelId: string;
+                status?: string | null;
+                data?: Record<string, unknown> | null;
+                createdAt?: string | null;
+                updatedAt?: string | null;
+              }>;
+              total: number;
+              hasMore: boolean;
+            };
           };
         }>(MODEL_RECORDS_QUERY, {
           modelId: model.id,
@@ -287,7 +291,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         });
         return {
           modelId: model.id,
-          items: res.modelRecords.items.map((r) => ({
+          items: res.record.list.items.map((r) => ({
             id: r.id,
             modelId: r.modelId,
             status: r.status ?? null,
@@ -295,8 +299,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             createdAt: r.createdAt ?? null,
             updatedAt: r.updatedAt ?? null,
           })),
-          total: res.modelRecords.total,
-          hasMore: res.modelRecords.hasMore,
+          total: res.record.list.total,
+          hasMore: res.record.list.hasMore,
         };
       },
       create: async (input) => {
@@ -316,14 +320,16 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (input.statusField !== undefined)
           mutationInput.statusField = input.statusField;
         const res = await client.query<{
-          createModelDefinition: {
-            id: string;
-            name: string;
-            slug: string;
-            fields?: unknown[] | null;
+          model: {
+            create: {
+              id: string;
+              name: string;
+              slug: string;
+              fields?: unknown[] | null;
+            };
           };
         }>(CREATE_MODEL_DEFINITION_MUTATION, { input: mutationInput });
-        const m = res.createModelDefinition;
+        const m = res.model.create;
         return {
           id: m.id,
           name: m.name,
@@ -349,15 +355,17 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           if (patch[key] !== undefined) input[key] = patch[key];
         }
         const res = await client.query<{
-          updateModelDefinition: {
-            id: string;
-            name: string;
-            slug: string;
-            fields?: unknown[] | null;
-          } | null;
+          model: {
+            update: {
+              id: string;
+              name: string;
+              slug: string;
+              fields?: unknown[] | null;
+            } | null;
+          };
         }>(UPDATE_MODEL_DEFINITION_MUTATION, { input });
-        if (!res.updateModelDefinition) return null;
-        const m = res.updateModelDefinition;
+        if (!res.model.update) return null;
+        const m = res.model.update;
         return {
           id: m.id,
           name: m.name,
@@ -367,40 +375,46 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       },
       updateRecord: async (recordId, { data, status }) => {
         const recRes = await client.query<{
-          modelRecord: {
-            id: string;
-            modelId: string;
-            data?: Record<string, unknown> | null;
-          } | null;
+          record: {
+            get: {
+              id: string;
+              modelId: string;
+              data?: Record<string, unknown> | null;
+            } | null;
+          };
         }>(MODEL_RECORD_BY_ID_QUERY, { id: recordId });
-        if (!recRes.modelRecord) return null;
-        const rec = recRes.modelRecord;
+        if (!recRes.record.get) return null;
+        const rec = recRes.record.get;
         const model = await resolveModel(client, rec.modelId);
         let currentData: Record<string, unknown> = rec.data ?? {};
         if (status !== undefined) {
           const res = await client.query<{
-            updateModelRecordStatus: {
-              id: string;
-              data?: Record<string, unknown> | null;
-            } | null;
+            record: {
+              setStatus: {
+                id: string;
+                data?: Record<string, unknown> | null;
+              } | null;
+            };
           }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
             input: { id: recordId, status },
           });
-          if (!res.updateModelRecordStatus) return null;
-          currentData = res.updateModelRecordStatus.data ?? currentData;
+          if (!res.record.setStatus) return null;
+          currentData = res.record.setStatus.data ?? currentData;
         }
         if (data !== undefined) {
           const merged = { ...currentData, ...data };
           const res = await client.query<{
-            updateModelRecord: {
-              id: string;
-              data?: Record<string, unknown> | null;
-            } | null;
+            record: {
+              update: {
+                id: string;
+                data?: Record<string, unknown> | null;
+              } | null;
+            };
           }>(UPDATE_MODEL_RECORD_MUTATION, {
             input: { id: recordId, data: merged },
           });
-          if (!res.updateModelRecord) return null;
-          currentData = res.updateModelRecord.data ?? merged;
+          if (!res.record.update) return null;
+          currentData = res.record.update.data ?? merged;
         }
         const display = model?.displayField;
         const label =
@@ -417,17 +431,18 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       createRecord: async (modelIdOrSlug, data) => {
         const model = await resolveModel(client, modelIdOrSlug);
         if (!model) return null;
-        const res = await client.query<{ createModelRecord: { id: string } }>(
-          CREATE_MODEL_RECORD_MUTATION,
-          { input: { modelId: model.id, data } },
-        );
+        const res = await client.query<{
+          record: { create: { id: string } };
+        }>(CREATE_MODEL_RECORD_MUTATION, {
+          input: { modelId: model.id, data },
+        });
         const display = model.displayField;
         const label =
           display && typeof data[display] === "string"
             ? (data[display] as string)
             : model.name;
         return {
-          id: res.createModelRecord.id,
+          id: res.record.create.id,
           label,
           modelName: model.name,
           modelId: model.id,
@@ -435,16 +450,18 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       },
       getRecord: async (recordId) => {
         const res = await client.query<{
-          modelRecord: {
-            id: string;
-            modelId: string;
-            status?: string | null;
-            data?: Record<string, unknown> | null;
-            createdAt?: string | null;
-            updatedAt?: string | null;
-          } | null;
+          record: {
+            get: {
+              id: string;
+              modelId: string;
+              status?: string | null;
+              data?: Record<string, unknown> | null;
+              createdAt?: string | null;
+              updatedAt?: string | null;
+            } | null;
+          };
         }>(MODEL_RECORD_BY_ID_QUERY, { id: recordId });
-        const r = res.modelRecord;
+        const r = res.record.get;
         if (!r) return null;
         return {
           id: r.id,
@@ -458,31 +475,31 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       delete: async (idOrSlug) => {
         const model = await resolveModel(client, idOrSlug);
         if (!model) return { deleted: false };
-        const res = await client.query<{ deleteModelDefinition: boolean }>(
-          DELETE_MODEL_DEFINITION_MUTATION,
-          { id: model.id },
-        );
-        return { deleted: Boolean(res.deleteModelDefinition) };
+        const res = await client.query<{
+          model: { delete: { deleted: boolean } };
+        }>(DELETE_MODEL_DEFINITION_MUTATION, { id: model.id });
+        return { deleted: Boolean(res.model.delete.deleted) };
       },
       deleteRecord: async (recordId) => {
-        const res = await client.query<{ deleteModelRecord: boolean }>(
-          DELETE_MODEL_RECORD_MUTATION,
-          { id: recordId },
-        );
-        return { deleted: Boolean(res.deleteModelRecord) };
+        const res = await client.query<{
+          record: { delete: { deleted: boolean } };
+        }>(DELETE_MODEL_RECORD_MUTATION, { id: recordId });
+        return { deleted: Boolean(res.record.delete.deleted) };
       },
       importRecords: async (modelIdOrSlug, rows) => {
         const model = await resolveModel(client, modelIdOrSlug);
         if (!model) throw new Error(`Model "${modelIdOrSlug}" not found`);
         const res = await client.query<{
-          importModelRecords: {
-            importedCount: number;
-            errors: Array<{ row: number; message: string }>;
+          record: {
+            import: {
+              importedCount: number;
+              errors: Array<{ row: number; message: string }>;
+            };
           };
         }>(IMPORT_MODEL_RECORDS_MUTATION, {
           input: { modelId: model.id, rows },
         });
-        return res.importModelRecords;
+        return res.record.import;
       },
     },
     pages: {
@@ -1030,21 +1047,23 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     media: {
       list: async (limit, offset) => {
         const res = await client.query<{
-          mediaAssets: {
-            items: Array<{
-              id: string;
-              filename: string;
-              type: string;
-              url?: string | null;
-              mimeType?: string | null;
-              size?: number | null;
-            }>;
-            total: number;
-            hasMore: boolean;
+          media: {
+            list: {
+              items: Array<{
+                id: string;
+                filename: string;
+                type: string;
+                url?: string | null;
+                mimeType?: string | null;
+                size?: number | null;
+              }>;
+              total: number;
+              hasMore: boolean;
+            };
           };
         }>(MEDIA_ASSETS_QUERY, { limit, offset });
         return {
-          items: res.mediaAssets.items.map((m) => ({
+          items: res.media.list.items.map((m) => ({
             id: m.id,
             filename: m.filename,
             type: m.type,
@@ -1052,24 +1071,26 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             mimeType: m.mimeType ?? null,
             size: m.size ?? null,
           })),
-          total: res.mediaAssets.total,
-          hasMore: res.mediaAssets.hasMore,
+          total: res.media.list.total,
+          hasMore: res.media.list.hasMore,
         };
       },
     },
     forms: {
       list: async (options) => {
         const res = await client.query<{
-          forms: {
-            forms: Array<{
-              id: string;
-              name: string;
-              slug?: string | null;
-              status: string;
-              submissionCount?: number | null;
-            }>;
-            total: number;
-            hasMore: boolean;
+          form: {
+            list: {
+              forms: Array<{
+                id: string;
+                name: string;
+                slug?: string | null;
+                status: string;
+                submissionCount?: number | null;
+              }>;
+              total: number;
+              hasMore: boolean;
+            };
           };
         }>(FORMS_QUERY, {
           status: options?.status,
@@ -1077,15 +1098,15 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           limit: options?.limit,
         });
         return {
-          items: res.forms.forms.map((f) => ({
+          items: res.form.list.forms.map((f) => ({
             id: f.id,
             name: f.name,
             slug: f.slug ?? null,
             status: f.status,
             submissionCount: f.submissionCount ?? null,
           })),
-          total: res.forms.total,
-          hasMore: res.forms.hasMore,
+          total: res.form.list.total,
+          hasMore: res.form.list.hasMore,
         };
       },
       create: async (input) => {
@@ -1099,23 +1120,25 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (input.settings !== undefined)
           mutationInput.settings = input.settings;
         const res = await client.query<{
-          createForm: { id: string; name: string };
+          form: { create: { id: string; name: string } };
         }>(CREATE_FORM_MUTATION, { input: mutationInput });
-        return { id: res.createForm.id, name: res.createForm.name };
+        return { id: res.form.create.id, name: res.form.create.name };
       },
       get: async (idOrSlug) => {
         const res = await client.query<{
           form: {
-            id: string;
-            name: string;
-            slug: string;
-            status?: string | null;
-            fields?: unknown;
-            settings?: unknown;
-            submissionCount?: number | null;
-          } | null;
+            get: {
+              id: string;
+              name: string;
+              slug: string;
+              status?: string | null;
+              fields?: unknown;
+              settings?: unknown;
+              submissionCount?: number | null;
+            } | null;
+          };
         }>(FORM_BY_ID_QUERY, { formId: idOrSlug });
-        const f = res.form;
+        const f = res.form.get;
         if (!f) return null;
         return {
           id: f.id,
@@ -1140,19 +1163,18 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           if (patch[key] !== undefined) input[key] = patch[key];
         }
         const res = await client.query<{
-          updateForm: { id: string } | null;
+          form: { update: { id: string } | null };
         }>(UPDATE_FORM_MUTATION, { formId: idOrSlug, input });
-        return res.updateForm ? { id: res.updateForm.id } : null;
+        return res.form.update ? { id: res.form.update.id } : null;
       },
       delete: async (idOrSlug) => {
-        const res = await client.query<{ deleteForm: boolean }>(
-          DELETE_FORM_MUTATION,
-          { formId: idOrSlug },
-        );
-        return { deleted: Boolean(res.deleteForm) };
+        const res = await client.query<{
+          form: { delete: { deleted: boolean } };
+        }>(DELETE_FORM_MUTATION, { formId: idOrSlug });
+        return { deleted: Boolean(res.form.delete.deleted) };
       },
       listSubmissions: async (options) => {
-        const res = await client.query<{ formSubmissions: unknown }>(
+        const res = await client.query<{ form: { submissions: unknown } }>(
           FORM_SUBMISSIONS_QUERY,
           {
             ...(options?.formIdOrSlug ? { formId: options.formIdOrSlug } : {}),
@@ -1161,27 +1183,26 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             limit: options?.limit ?? 50,
           },
         );
-        return res.formSubmissions;
+        return res.form.submissions;
       },
       getSubmission: async (submissionId) => {
-        const res = await client.query<{ formSubmission: unknown }>(
+        const res = await client.query<{ form: { submission: unknown } }>(
           FORM_SUBMISSION_BY_ID_QUERY,
           { submissionId },
         );
-        return res.formSubmission;
+        return res.form.submission;
       },
       updateSubmissionStatus: async (submissionId, status) => {
         const res = await client.query<{
-          updateFormSubmissionStatus: boolean;
+          form: { setSubmissionStatus: boolean };
         }>(UPDATE_FORM_SUBMISSION_STATUS_MUTATION, { submissionId, status });
-        return { ok: Boolean(res.updateFormSubmissionStatus) };
+        return { ok: Boolean(res.form.setSubmissionStatus) };
       },
       deleteSubmission: async (submissionId) => {
-        const res = await client.query<{ deleteFormSubmission: boolean }>(
-          DELETE_FORM_SUBMISSION_MUTATION,
-          { submissionId },
-        );
-        return { deleted: Boolean(res.deleteFormSubmission) };
+        const res = await client.query<{
+          form: { deleteSubmission: { deleted: boolean } };
+        }>(DELETE_FORM_SUBMISSION_MUTATION, { submissionId });
+        return { deleted: Boolean(res.form.deleteSubmission.deleted) };
       },
     },
     orders: {
