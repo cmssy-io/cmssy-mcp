@@ -153,21 +153,23 @@ export const CURRENT_WORKSPACE_QUERY = `
 
 export const MEDIA_ASSETS_QUERY = `
   query MediaAssets($limit: Int, $offset: Int) {
-    mediaAssets(limit: $limit, offset: $offset) {
-      items {
-        id
-        url
-        filename
-        type
-        mimeType
-        size
-        width
-        height
-        alt
-        tags
+    media {
+      list(limit: $limit, offset: $offset) {
+        items {
+          id
+          url
+          filename
+          type
+          mimeType
+          size
+          width
+          height
+          alt
+          tags
+        }
+        total
+        hasMore
       }
-      total
-      hasMore
     }
   }
 `;
@@ -443,42 +445,50 @@ const FORM_FIELDS_FRAGMENT = `
 
 export const FORMS_QUERY = `
   query Forms($status: String, $skip: Int, $limit: Int) {
-    forms(status: $status, skip: $skip, limit: $limit) {
-      forms { ${FORM_FIELDS_FRAGMENT} }
-      total
-      hasMore
+    form {
+      list(status: $status, skip: $skip, limit: $limit) {
+        forms { ${FORM_FIELDS_FRAGMENT} }
+        total
+        hasMore
+      }
     }
   }
 `;
 
 export const FORM_BY_ID_QUERY = `
   query Form($formId: ID!) {
-    form(formId: $formId) {
-      ${FORM_FIELDS_FRAGMENT}
+    form {
+      get(formId: $formId) {
+        ${FORM_FIELDS_FRAGMENT}
+      }
     }
   }
 `;
 
 export const FORM_SUBMISSIONS_QUERY = `
   query FormSubmissions($formId: ID, $status: String, $skip: Int, $limit: Int) {
-    formSubmissions(formId: $formId, status: $status, skip: $skip, limit: $limit) {
-      submissions {
-        id formId formSlug data status
-        ipAddress userAgent referrer customerId
-        processedAt emailSent webhookSent createdAt
+    form {
+      submissions(formId: $formId, status: $status, skip: $skip, limit: $limit) {
+        submissions {
+          id formId formSlug data status
+          ipAddress userAgent referrer customerId
+          processedAt emailSent webhookSent createdAt
+        }
+        total
+        hasMore
       }
-      total
-      hasMore
     }
   }
 `;
 
 export const FORM_SUBMISSION_BY_ID_QUERY = `
   query FormSubmission($submissionId: ID!) {
-    formSubmission(submissionId: $submissionId) {
-      id formId formSlug data status
-      ipAddress userAgent referrer customerId
-      processedAt emailSent webhookSent createdAt
+    form {
+      submission(submissionId: $submissionId) {
+        id formId formSlug data status
+        ipAddress userAgent referrer customerId
+        processedAt emailSent webhookSent createdAt
+      }
     }
   }
 `;
@@ -487,35 +497,51 @@ export const FORM_SUBMISSION_BY_ID_QUERY = `
 
 export const CREATE_FORM_MUTATION = `
   mutation CreateForm($input: CreateFormInput!) {
-    createForm(input: $input) {
-      ${FORM_FIELDS_FRAGMENT}
+    form {
+      create(input: $input) {
+        ${FORM_FIELDS_FRAGMENT}
+      }
     }
   }
 `;
 
 export const UPDATE_FORM_MUTATION = `
   mutation UpdateForm($formId: ID!, $input: UpdateFormInput!) {
-    updateForm(formId: $formId, input: $input) {
-      ${FORM_FIELDS_FRAGMENT}
+    form {
+      update(formId: $formId, input: $input) {
+        ${FORM_FIELDS_FRAGMENT}
+      }
     }
   }
 `;
 
 export const DELETE_FORM_MUTATION = `
   mutation DeleteForm($formId: ID!) {
-    deleteForm(formId: $formId)
+    form {
+      delete(formId: $formId) {
+        id
+        deleted
+      }
+    }
   }
 `;
 
 export const UPDATE_FORM_SUBMISSION_STATUS_MUTATION = `
   mutation UpdateFormSubmissionStatus($submissionId: ID!, $status: String!) {
-    updateFormSubmissionStatus(submissionId: $submissionId, status: $status)
+    form {
+      setSubmissionStatus(submissionId: $submissionId, status: $status)
+    }
   }
 `;
 
 export const DELETE_FORM_SUBMISSION_MUTATION = `
   mutation DeleteFormSubmission($submissionId: ID!) {
-    deleteFormSubmission(submissionId: $submissionId)
+    form {
+      deleteSubmission(submissionId: $submissionId) {
+        id
+        deleted
+      }
+    }
   }
 `;
 
@@ -584,8 +610,10 @@ const MODEL_RECORD_FRAGMENT = `
 
 export const MODEL_DEFINITIONS_QUERY = `
   query ModelDefinitions {
-    modelDefinitions {
-      ${MODEL_DEFINITION_FRAGMENT}
+    model {
+      list {
+        ${MODEL_DEFINITION_FRAGMENT}
+      }
     }
   }
 `;
@@ -595,17 +623,21 @@ export const MODEL_DEFINITIONS_QUERY = `
 // all we need is the id for a follow-up lookup.
 export const MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY = `
   query ModelDefinitionsSlugIndex {
-    modelDefinitions {
-      id
-      slug
+    model {
+      list {
+        id
+        slug
+      }
     }
   }
 `;
 
 export const MODEL_DEFINITION_BY_ID_QUERY = `
   query ModelDefinition($id: ID!) {
-    modelDefinition(id: $id) {
-      ${MODEL_DEFINITION_FRAGMENT}
+    model {
+      get(id: $id) {
+        ${MODEL_DEFINITION_FRAGMENT}
+      }
     }
   }
 `;
@@ -619,25 +651,29 @@ export const MODEL_RECORDS_QUERY = `
     $sort: String
     $populate: [String!]
   ) {
-    modelRecords(
-      modelId: $modelId
-      filter: $filter
-      limit: $limit
-      offset: $offset
-      sort: $sort
-      populate: $populate
-    ) {
-      items { ${MODEL_RECORD_FRAGMENT} }
-      total
-      hasMore
+    record {
+      list(
+        modelId: $modelId
+        filter: $filter
+        limit: $limit
+        offset: $offset
+        sort: $sort
+        populate: $populate
+      ) {
+        items { ${MODEL_RECORD_FRAGMENT} }
+        total
+        hasMore
+      }
     }
   }
 `;
 
 export const MODEL_RECORD_BY_ID_QUERY = `
   query ModelRecord($id: ID!) {
-    modelRecord(id: $id) {
-      ${MODEL_RECORD_FRAGMENT}
+    record {
+      get(id: $id) {
+        ${MODEL_RECORD_FRAGMENT}
+      }
     }
   }
 `;
@@ -646,61 +682,83 @@ export const MODEL_RECORD_BY_ID_QUERY = `
 
 export const CREATE_MODEL_DEFINITION_MUTATION = `
   mutation CreateModelDefinition($input: CreateModelDefinitionInput!) {
-    createModelDefinition(input: $input) {
-      ${MODEL_DEFINITION_FRAGMENT}
+    model {
+      create(input: $input) {
+        ${MODEL_DEFINITION_FRAGMENT}
+      }
     }
   }
 `;
 
 export const UPDATE_MODEL_DEFINITION_MUTATION = `
   mutation UpdateModelDefinition($input: UpdateModelDefinitionInput!) {
-    updateModelDefinition(input: $input) {
-      ${MODEL_DEFINITION_FRAGMENT}
+    model {
+      update(input: $input) {
+        ${MODEL_DEFINITION_FRAGMENT}
+      }
     }
   }
 `;
 
 export const DELETE_MODEL_DEFINITION_MUTATION = `
   mutation DeleteModelDefinition($id: ID!) {
-    deleteModelDefinition(id: $id)
+    model {
+      delete(id: $id) {
+        id
+        deleted
+      }
+    }
   }
 `;
 
 export const CREATE_MODEL_RECORD_MUTATION = `
   mutation CreateModelRecord($input: CreateModelRecordInput!) {
-    createModelRecord(input: $input) {
-      ${MODEL_RECORD_FRAGMENT}
+    record {
+      create(input: $input) {
+        ${MODEL_RECORD_FRAGMENT}
+      }
     }
   }
 `;
 
 export const UPDATE_MODEL_RECORD_MUTATION = `
   mutation UpdateModelRecord($input: UpdateModelRecordInput!) {
-    updateModelRecord(input: $input) {
-      ${MODEL_RECORD_FRAGMENT}
+    record {
+      update(input: $input) {
+        ${MODEL_RECORD_FRAGMENT}
+      }
     }
   }
 `;
 
 export const UPDATE_MODEL_RECORD_STATUS_MUTATION = `
   mutation UpdateModelRecordStatus($input: UpdateModelRecordStatusInput!) {
-    updateModelRecordStatus(input: $input) {
-      ${MODEL_RECORD_FRAGMENT}
+    record {
+      setStatus(input: $input) {
+        ${MODEL_RECORD_FRAGMENT}
+      }
     }
   }
 `;
 
 export const DELETE_MODEL_RECORD_MUTATION = `
   mutation DeleteModelRecord($id: ID!) {
-    deleteModelRecord(id: $id)
+    record {
+      delete(id: $id) {
+        id
+        deleted
+      }
+    }
   }
 `;
 
 export const IMPORT_MODEL_RECORDS_MUTATION = `
   mutation ImportModelRecords($input: ImportModelRecordsInput!) {
-    importModelRecords(input: $input) {
-      importedCount
-      errors { row message }
+    record {
+      import(input: $input) {
+        importedCount
+        errors { row message }
+      }
     }
   }
 `;

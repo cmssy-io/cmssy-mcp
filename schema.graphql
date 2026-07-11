@@ -5,6 +5,13 @@ type AcceptInvitationResult {
   workspaceSlug: String
 }
 
+type AcceptOrganizationInvitationResult {
+  message: String!
+  organizationId: String
+  organizationSlug: String
+  success: Boolean!
+}
+
 type AccountQueries {
   order(id: ID!, workspaceId: ID!): Order
   orders(limit: Int, skip: Int, workspaceId: ID!): OrderListResult!
@@ -241,6 +248,13 @@ enum AuditLogEntityType {
   TOKEN
   USER
   WORKSPACE
+}
+
+type AuditLogQueries {
+  """
+  Paginated activity log for the current workspace. Gated by ROLES_MANAGE; per-workspace only (no admin-wide view).
+  """
+  list(action: AuditLogAction, entityId: String, entityType: AuditLogEntityType, limit: Int = 50, skip: Int = 0, userId: ID): WorkspaceAuditLogConnection!
 }
 
 type AuthMutations {
@@ -1045,6 +1059,22 @@ type FormListResponse {
   total: Int!
 }
 
+type FormMutations {
+  create(input: CreateFormInput!): Form!
+  delete(formId: ID!): DeletionResult!
+  deleteSubmission(submissionId: ID!): DeletionResult!
+  setSubmissionStatus(status: String!, submissionId: ID!): Boolean!
+  update(formId: ID!, input: UpdateFormInput!): Form
+}
+
+type FormQueries {
+  get(formId: ID!): Form
+  list(limit: Int = 50, skip: Int = 0, status: String): FormListResponse!
+  submission(submissionId: ID!): FormSubmission
+  submissions(formId: ID, limit: Int = 50, skip: Int = 0, status: String): FormSubmissionListResponse!
+  submissionsForContext(formId: ID!, limit: Int = 20, offset: Int = 0, status: String): PublicFormSubmissionListResult!
+}
+
 type FormSettings {
   actionType: FormActionType!
   emailConfigurationId: String
@@ -1358,6 +1388,15 @@ type MediaListResponse {
   total: Int!
 }
 
+type MediaMutations {
+  createFolder(input: CreateMediaFolderInput!): MediaFolder!
+  delete(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
+  deleteFolder(deleteContents: Boolean = false, id: ID!): DeletionResult!
+  update(id: ID!, input: UpdateMediaInput!): MediaAsset!
+  updateFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
+  upload(input: UploadMediaInput!): MediaAsset!
+}
+
 type MediaPageUsage {
   blockId: String!
   blockType: String!
@@ -1367,6 +1406,13 @@ type MediaPageUsage {
   pageSlug: String!
   position: String!
   version: String!
+}
+
+type MediaQueries {
+  folders(parentId: ID): MediaFolderListResponse!
+  get(id: ID!): MediaAsset
+  list(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
+  usages(assetId: ID!): MediaUsageResponse!
 }
 
 type MediaUsageResponse {
@@ -1490,6 +1536,12 @@ type ModelDefinition {
   workspaceId: String!
 }
 
+type ModelMutations {
+  create(input: CreateModelDefinitionInput!): ModelDefinition!
+  delete(id: ID!): DeletionResult!
+  update(input: UpdateModelDefinitionInput!): ModelDefinition
+}
+
 type ModelProductConfig {
   enabled: Boolean!
   inventoryField: String!
@@ -1504,6 +1556,11 @@ input ModelProductConfigInput {
   priceField: String
   skuField: String
   variantAxes: [String!]
+}
+
+type ModelQueries {
+  get(id: ID!): ModelDefinition
+  list: [ModelDefinition!]!
 }
 
 type ModelRecord {
@@ -1536,22 +1593,14 @@ type Mutation {
   apiToken: ApiTokenMutations!
   auth: AuthMutations!
   cart: CartMutations!
-  createForm(input: CreateFormInput!): Form!
-  createMediaFolder(input: CreateMediaFolderInput!): MediaFolder!
-  createModelDefinition(input: CreateModelDefinitionInput!): ModelDefinition!
-  createModelRecord(input: CreateModelRecordInput!): ModelRecord!
-  deleteForm(formId: ID!): Boolean!
-  deleteFormSubmission(submissionId: ID!): Boolean!
-  deleteMedia(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
-  deleteMediaFolder(deleteContents: Boolean = false, id: ID!): Boolean!
-  deleteModelDefinition(id: ID!): Boolean!
-  deleteModelRecord(id: ID!): Boolean!
   discount: DiscountMutations!
   email: EmailMutations!
-  importModelRecords(input: ImportModelRecordsInput!): ImportModelRecordsResult!
+  form: FormMutations!
   integration: IntegrationMutations!
   invitation: InvitationMutations!
+  media: MediaMutations!
   member: MemberMutations!
+  model: ModelMutations!
   notification: NotificationMutations!
   order: OrderMutations!
   organization: OrganizationMutations!
@@ -1561,8 +1610,8 @@ type Mutation {
   pageType: PageTypeMutations!
   product: ProductMutations!
   property: PropertyMutations!
+  record: RecordMutations!
   role: RoleMutations!
-  setProductVariants(input: SetProductVariantsInput!): ModelRecord!
   siteConfig: SiteConfigMutations!
   siteMemberForgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
   siteMemberLogin(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
@@ -1573,14 +1622,6 @@ type Mutation {
   siteMemberResetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
   siteMemberVerifyEmail(token: String!): SiteMemberAuthResponse!
   submitForm(formId: ID!, input: SubmitFormInput!): FormSubmitResponse!
-  updateForm(formId: ID!, input: UpdateFormInput!): Form
-  updateFormSubmissionStatus(status: String!, submissionId: ID!): Boolean!
-  updateMedia(id: ID!, input: UpdateMediaInput!): MediaAsset!
-  updateMediaFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
-  updateModelDefinition(input: UpdateModelDefinitionInput!): ModelDefinition
-  updateModelRecord(input: UpdateModelRecordInput!): ModelRecord
-  updateModelRecordStatus(input: UpdateModelRecordStatusInput!): ModelRecord
-  uploadMedia(input: UploadMediaInput!): MediaAsset!
   user: UserMutations!
   viewer: ViewerMutations!
   webhook: WebhookMutations!
@@ -1593,12 +1634,14 @@ type MyScopedGrant {
 }
 
 type Notification {
-  actor: NotificationActor!
+  actor: NotificationActor
   blockId: String
   commentId: ID
   createdAt: DateTime!
   id: ID!
-  pageId: ID!
+  level: Int
+  metric: String
+  pageId: ID
   read: Boolean!
   taskId: ID
   type: String!
@@ -1817,6 +1860,7 @@ type OrganizationMember {
 
 type OrganizationMutations {
   acceptInvitation(organizationId: ID!): Organization!
+  acceptInvitationByToken(token: String!): AcceptOrganizationInvitationResult!
   cancelInvitation(email: String!, organizationId: ID!): Organization!
   create(input: CreateOrganizationInput!): Organization!
   delete(id: ID!): DeletionResult!
@@ -1836,6 +1880,8 @@ type OrganizationUsage {
   aiCreditsMax: Int!
   aiCreditsResetAt: DateTime
   aiCreditsUsed: Int!
+  apiRequests: Int!
+  bandwidthBytes: Float!
   storageBytes: Float!
 }
 
@@ -2150,6 +2196,7 @@ type ProductCatalogList {
 type ProductMutations {
   bulkDelete(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
   bulkUpdate(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
+  setVariants(input: SetProductVariantsInput!): ModelRecord!
 }
 
 type ProductQueries {
@@ -2396,26 +2443,17 @@ type Query {
   adminCart: AdminCartQueries!
   ai: AiQueries!
   apiToken: ApiTokenQueries!
+  auditLog: AuditLogQueries!
   cart: CartQueries!
   discount: DiscountQueries!
   email: EmailQueries!
   fieldType: FieldTypeQueries!
-  form(formId: ID!): Form
-  formSubmission(submissionId: ID!): FormSubmission
-  formSubmissions(formId: ID, limit: Int = 50, skip: Int = 0, status: String): FormSubmissionListResponse!
-  forms(limit: Int = 50, skip: Int = 0, status: String): FormListResponse!
+  form: FormQueries!
   health: String!
   integration: IntegrationQueries!
   invitation: InvitationQueries!
-  mediaAsset(id: ID!): MediaAsset
-  mediaAssetUsages(assetId: ID!): MediaUsageResponse!
-  mediaAssets(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
-  mediaFolders(parentId: ID): MediaFolderListResponse!
-  modelDefinition(id: ID!): ModelDefinition
-  modelDefinitions: [ModelDefinition!]!
-  modelRecord(id: ID!): ModelRecord
-  modelRecords(filter: JSON, limit: Int, modelId: ID!, offset: Int, populate: [String!], sort: String): ModelRecordList!
-  myPermissions: [String!]!
+  media: MediaQueries!
+  model: ModelQueries!
   notification: NotificationQueries!
   order: OrderQueries!
   organization: OrganizationQueries!
@@ -2427,10 +2465,10 @@ type Query {
   property: PropertyQueries!
   public: PublicQueries!
   publicForm(formId: ID!): Form
-  publicFormSubmissionsForContext(formId: ID!, limit: Int = 20, offset: Int = 0, status: String): PublicFormSubmissionListResult!
   publicMediaForContext(folderId: String, limit: Int = 20, offset: Int = 0, tag: String, type: String, workspaceId: String!): PublicMediaListResult!
   publicModelDefinitions(workspaceId: String!): [ModelDefinition!]!
   publicModelRecords(filter: JSON, limit: Int = 20, modelSlug: String!, offset: Int = 0, populate: [String!], sort: String, workspaceId: String!): ModelRecordList!
+  record: RecordQueries!
   role: RoleQueries!
   siteConfig: SiteConfigQueries!
   user: UserQueries!
@@ -2438,11 +2476,14 @@ type Query {
   viewer: ViewerQueries!
   webhook: WebhookQueries!
   workspace: WorkspaceQueries!
+}
 
-  """
-  Paginated activity log for the current workspace. Gated by ROLES_MANAGE; per-workspace only (no admin-wide view).
-  """
-  workspaceAuditLog(action: AuditLogAction, entityId: String, entityType: AuditLogEntityType, limit: Int = 50, skip: Int = 0, userId: ID): WorkspaceAuditLogConnection!
+type RecordMutations {
+  create(input: CreateModelRecordInput!): ModelRecord!
+  delete(id: ID!): DeletionResult!
+  import(input: ImportModelRecordsInput!): ImportModelRecordsResult!
+  setStatus(input: UpdateModelRecordStatusInput!): ModelRecord
+  update(input: UpdateModelRecordInput!): ModelRecord
 }
 
 input RecordOrderInvoiceInput {
@@ -2457,6 +2498,11 @@ input RecordOrderPaymentInput {
   orderId: ID!
   provider: String
   reference: String!
+}
+
+type RecordQueries {
+  get(id: ID!): ModelRecord
+  list(filter: JSON, limit: Int, modelId: ID!, offset: Int, populate: [String!], sort: String): ModelRecordList!
 }
 
 input RefundOrderInput {
@@ -3088,6 +3134,7 @@ type ViewerMutations {
 
 type ViewerQueries {
   me: User
+  myPermissions: [String!]!
 }
 
 type WebhookDelivery {
@@ -3289,6 +3336,7 @@ type WorkspaceSettings {
 
 type WorkspaceUsage {
   aiTokensUsed: Int!
+  apiRequestsUsed: Int!
   bandwidthUsedGb: Float!
   membersCount: Int!
   pagesCount: Int!
