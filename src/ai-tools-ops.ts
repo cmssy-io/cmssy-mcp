@@ -1579,8 +1579,6 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               enabledLanguages?: string[];
               siteName?: string | null;
               enabledFeatures?: string[];
-              header?: unknown;
-              footer?: unknown;
               cart?: unknown;
             } | null;
           };
@@ -1593,8 +1591,6 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           enabledLanguages: c.enabledLanguages ?? [],
           siteName: c.siteName ?? null,
           enabledFeatures: c.enabledFeatures ?? [],
-          header: c.header ?? null,
-          footer: c.footer ?? null,
           cart: c.cart ?? null,
         };
       },
