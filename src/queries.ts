@@ -115,7 +115,6 @@ export const PAGE_BY_ID_QUERY = `
 const CART_CONFIG_FRAGMENT = `
   defaultCurrency
   pricesIncludeTax
-  productModelSlug
   defaultTaxRateId
   lowStockThreshold
   reservationTtlMinutes
@@ -125,7 +124,7 @@ const CART_CONFIG_FRAGMENT = `
   enableSavedCarts
   taxRates { id name rate }
   shippingMethods { id label price etaLabel taxRateId enabled }
-  fieldMapping { name price currency sku imageUrl taxRate }
+  productSources { modelSlug fieldMapping { name price currency sku imageUrl taxRate } }
 `;
 
 export const SITE_CONFIG_QUERY = `
