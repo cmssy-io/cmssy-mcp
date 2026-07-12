@@ -1,10 +1,3 @@
-type AcceptInvitationResult {
-  message: String!
-  success: Boolean!
-  workspaceId: String
-  workspaceSlug: String
-}
-
 type AcceptOrganizationInvitationResult {
   message: String!
   organizationId: String
@@ -238,7 +231,6 @@ enum AuditLogAction {
   USER_SCOPED_GRANT_REVOKED
   USER_STATUS_CHANGED
   WORKSPACE_DRAFT_SECRET_REGENERATED
-  WORKSPACE_PLAN_CHANGED
   WORKSPACE_SETTINGS_UPDATED
 }
 
@@ -321,6 +313,9 @@ input CancelOrderInput {
 type Cart {
   """Discount snapshot if a code is currently applied"""
   appliedDiscount: CartAppliedDiscount
+
+  """Enabled shipping methods the shopper can choose from"""
+  availableShippingMethods: [ShippingMethod!]!
   createdAt: DateTime!
 
   """Currency from the first item's snapshot, or null when empty"""
@@ -335,11 +330,39 @@ type Cart {
   """Sum of quantities across all items"""
   itemCount: Int!
   items: [CartItem!]!
+
+  """
+  Whether the workspace's product prices are gross (tax is extracted from them) rather than net (tax is added on top).
+  """
+  pricesIncludeTax: Boolean!
   sessionId: String!
+
+  """
+  Chosen shipping method, or null when none is selected (or the selection no longer resolves - the storefront should re-ask).
+  """
+  shippingMethod: ShippingMethod
+
+  """
+  Shipping charged on this cart. 0 with no method selected, and 0 when a free_shipping discount is applied (CMS-912).
+  """
+  shippingTotal: Int!
   status: String!
 
-  """Sum of snapshot.price * quantity across all items"""
+  """Sum of unitPrice * quantity across all items (volume breaks applied)"""
   subtotal: Int!
+
+  """
+  VAT on the discounted goods plus the shipping line, computed with the same rules checkout freezes onto the order (CMS-911). 0 when the workspace configured no rates.
+  """
+  tax: Int!
+
+  """Per-rate VAT rollup: one entry per distinct rate used"""
+  taxSummary: [CartTaxSummaryLine!]!
+
+  """
+  Amount payable: discountedTotal + tax when prices are net, or discountedTotal itself when prices already include tax.
+  """
+  totalGross: Int!
   updatedAt: DateTime!
   userId: String
   workspaceId: String!
@@ -377,6 +400,7 @@ type CartConfig {
   productModelSlug: String
   reservationTtlMinutes: Int
   sessionTTLDays: Int!
+  shippingMethods: [ShippingMethodConfig!]!
   taxRates: [TaxRate!]!
 }
 
@@ -394,6 +418,7 @@ input CartConfigInput {
   productModelSlug: String
   reservationTtlMinutes: Int
   sessionTTLDays: Int
+  shippingMethods: [ShippingMethodInput!]
   taxRates: [TaxRateInput!]
 }
 
@@ -419,18 +444,27 @@ input CartFieldMappingInput {
 """Single line item in a shopping cart"""
 type CartItem {
   addedAt: DateTime!
+
+  """
+  Live price from the catalogue AT THIS QUANTITY (tiers applied), or null when the source record was deleted.
+  """
   currentPrice: Int
   id: String!
   modelId: String!
   notes: String
 
   """
-  True when currentPrice differs from snapshot.price. Frontend should show a 'price updated' badge.
+  True when currentPrice differs from unitPrice. Frontend should show a 'price updated' badge.
   """
   priceMismatch: Boolean!
   quantity: Int!
   recordId: String!
   snapshot: CartItemSnapshot!
+
+  """
+  Price charged per unit: the frozen base price stepped down by whichever volume break this line's quantity reaches (CMS-910). Line total = unitPrice * quantity; Cart.subtotal sums these.
+  """
+  unitPrice: Int!
   variantSelections: JSON!
 }
 
@@ -439,8 +473,15 @@ type CartItemSnapshot {
   currency: String!
   imageUrl: String
   name: String!
+
+  """
+  Base (single-unit) price frozen at add-time. The price actually charged is CartItem.unitPrice, which applies volume breaks.
+  """
   price: Int!
   sku: String
+
+  """Volume breaks frozen at add-time (CMS-910)"""
+  tiers: [PriceTier!]!
 }
 
 type CartMutations {
@@ -473,6 +514,11 @@ type CartMutations {
   """Remove an item from the cart (public, rate-limited)"""
   removeItem(itemId: ID!, workspaceId: ID!): Cart!
 
+  """
+  Choose the cart's shipping method, or pass an explicit null to clear it (public, rate-limited). The argument must be present: omitting it is an error, not a clear. Errors with BAD_USER_INPUT when the id is not an enabled method in this workspace's cart config.
+  """
+  setShippingMethod(shippingMethodId: String, workspaceId: ID!): Cart!
+
   """Update quantity or notes on a cart item (public, rate-limited)"""
   updateItem(input: UpdateCartItemInput!): Cart!
 }
@@ -484,6 +530,15 @@ type CartQueries {
   get(workspaceId: ID!): Cart!
 }
 
+"""VAT rollup for one rate: net base and tax, in minor units"""
+type CartTaxSummaryLine {
+  amount: Int!
+  base: Int!
+  name: String
+  rate: Float!
+  rateId: String
+}
+
 type CatalogItem {
   available: Int
   createdAt: DateTime!
@@ -493,6 +548,9 @@ type CatalogItem {
   onHand: Int
   reserved: Int!
   status: String
+
+  """Record-level volume price breaks (CMS-910)"""
+  tiers: [PriceTier!]!
   updatedAt: DateTime!
   variants: [CatalogVariantStock!]!
 }
@@ -510,6 +568,7 @@ type CatalogVariantStock {
   reserved: Int!
   selectedOptions: [CatalogVariantSelection!]!
   sku: String
+  tiers: [PriceTier!]!
 }
 
 input CheckoutInput {
@@ -627,15 +686,6 @@ input CreatePropertyDefinitionInput {
   isList: Boolean = false
   name: String!
   slug: String!
-}
-
-input CreateUserInput {
-  customFields: [UserCustomFieldInput!]
-  email: String!
-  password: String!
-  profile: UserProfileInput
-  roleId: String
-  username: String
 }
 
 input CreateWebhookEndpointInput {
@@ -1197,33 +1247,9 @@ type IntegrationQueries {
   emailProviders: [EmailProviderInfo!]!
 }
 
-type InvitationMutations {
-  accept(token: String!): AcceptInvitationResult!
-  acceptMine(workspaceId: ID!): AcceptInvitationResult!
-  cancel(email: String!): InvitationResult!
-  create(input: InviteUserInput!): InvitationResult!
-  resend(userId: ID!): InvitationResult!
-  resendPending(email: String!): InvitationResult!
-}
-
-type InvitationQueries {
-  list: [PendingInvitation!]!
-}
-
-type InvitationResult {
-  message: String!
-  success: Boolean!
-  userId: String
-}
-
 input InviteOrganizationMemberInput {
   email: String!
   roleId: String!
-}
-
-input InviteUserInput {
-  email: String!
-  roleId: String
 }
 
 scalar JSON
@@ -1569,6 +1595,11 @@ type ModelRecord {
   data: JSON!
   id: String!
   modelId: String!
+
+  """
+  Record-level volume breaks. Price a product without variants, and any variant that defines no tiers of its own.
+  """
+  priceTiers: [PriceTier!]!
   status: String
   updatedAt: DateTime!
   updatedBy: String
@@ -1597,7 +1628,6 @@ type Mutation {
   email: EmailMutations!
   form: FormMutations!
   integration: IntegrationMutations!
-  invitation: InvitationMutations!
   media: MediaMutations!
   member: MemberMutations!
   model: ModelMutations!
@@ -1610,18 +1640,11 @@ type Mutation {
   pageType: PageTypeMutations!
   product: ProductMutations!
   property: PropertyMutations!
+  public: PublicMutations!
   record: RecordMutations!
   role: RoleMutations!
   siteConfig: SiteConfigMutations!
-  siteMemberForgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
-  siteMemberLogin(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
-  siteMemberLogout(refreshToken: String!): SiteMemberAuthResponse!
-  siteMemberLogoutEverywhere: SiteMemberAuthResponse!
-  siteMemberRefresh(refreshToken: String!): SiteMemberLoginResponse!
-  siteMemberRegister(input: SiteMemberRegisterInput!): SiteMemberAuthResponse!
-  siteMemberResetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
-  siteMemberVerifyEmail(token: String!): SiteMemberAuthResponse!
-  submitForm(formId: ID!, input: SubmitFormInput!): FormSubmitResponse!
+  siteMember: SiteMemberMutations!
   user: UserMutations!
   viewer: ViewerMutations!
   webhook: WebhookMutations!
@@ -1700,6 +1723,12 @@ type Order {
   pipelineStageId: String
   pricesIncludeTax: Boolean!
   refundedAmount: Int!
+
+  """Shipping method frozen at order time (CMS-912)"""
+  shippingMethod: OrderShippingMethod
+
+  """Shipping charged on this order, included in total"""
+  shippingTotal: Int!
   status: String!
   subtotal: Int!
   tax: Int!
@@ -1722,8 +1751,13 @@ type OrderEdit {
 
 type OrderItem {
   currency: String!
+
+  """Single-unit price this line would have cost without a volume break"""
+  listPrice: Int
   modelId: String
   name: String!
+
+  """Unit price charged (volume break applied, CMS-910)"""
   price: Int!
   quantity: Int!
   recordDeleted: Boolean!
@@ -1733,6 +1767,9 @@ type OrderItem {
   taxRate: Float!
   taxRateId: String
   taxRateName: String
+
+  """minQty of the volume break that priced this line; null = base price"""
+  tierMinQty: Int
   variantKey: String
 }
 
@@ -1805,6 +1842,13 @@ type OrderQueries {
   pipeline: OrderPipeline!
 }
 
+type OrderShippingMethod {
+  id: String!
+  label: String!
+  price: Int!
+  taxRateId: String
+}
+
 type OrderTaxSummaryLine {
   amount: Int!
   base: Int!
@@ -1836,6 +1880,7 @@ type OrganizationBilling {
   currentPeriodEnd: DateTime
   isTrial: Boolean!
   subscriptionStatus: String
+  trialEndsAt: DateTime
 }
 
 type OrganizationLimits {
@@ -1882,14 +1927,24 @@ type OrganizationUsage {
   aiCreditsUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
+  pagesCount: Int!
   storageBytes: Float!
 }
 
 type OrganizationWorkspace {
   id: ID!
   name: String!
-  plan: String!
   slug: String!
+  usage: OrganizationWorkspaceUsage!
+}
+
+type OrganizationWorkspaceUsage {
+  aiTokensUsed: Int!
+  apiRequests: Int!
+  bandwidthBytes: Float!
+  membersCount: Int!
+  pagesCount: Int!
+  storageBytes: Float!
 }
 
 type Page {
@@ -2139,15 +2194,6 @@ input PatchOperationInput {
   startMarker: String
 }
 
-type PendingInvitation {
-  email: String!
-  expired: Boolean!
-  expiresAt: DateTime
-  invitedAt: DateTime
-  roleId: String!
-  roleName: String
-}
-
 """A category of permissions"""
 type PermissionCategory {
   key: String!
@@ -2161,6 +2207,32 @@ type PermissionInfo {
   description: String!
   key: String!
   name: String!
+}
+
+type PooledUsage {
+  aiTokensUsed: Int!
+  apiRequests: Int!
+  bandwidthBytes: Float!
+  pagesCount: Int!
+  storageBytes: Float!
+}
+
+"""
+Volume price break: from `minQty` units, each unit costs `price` (minor units). Sorted ascending by minQty.
+"""
+type PriceTier {
+  minQty: Int!
+  price: Int!
+}
+
+"""
+Volume price break. `minQty` >= 2 (quantity 1 uses the base price) and each tier must be cheaper than the price below it.
+"""
+input PriceTierInput {
+  minQty: Int!
+
+  """Unit price in minor units"""
+  price: Int!
 }
 
 input ProductBulkPatchInput {
@@ -2196,6 +2268,9 @@ type ProductCatalogList {
 type ProductMutations {
   bulkDelete(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
   bulkUpdate(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
+
+  """Replace a product's record-level volume price breaks (CMS-910)."""
+  setTiers(input: SetProductTiersInput!): ModelRecord!
   setVariants(input: SetProductVariantsInput!): ModelRecord!
 }
 
@@ -2209,6 +2284,11 @@ type ProductVariant {
   price: Int!
   selectedOptions: [ProductVariantSelection!]!
   sku: String
+
+  """
+  Volume breaks for this variant. Empty means the variant is priced by the record's tiers (see ModelRecord.priceTiers).
+  """
+  tiers: [PriceTier!]!
 }
 
 input ProductVariantInput {
@@ -2216,6 +2296,9 @@ input ProductVariantInput {
   price: Int!
   selections: JSON!
   sku: String
+
+  """Omit to keep the variant's existing breaks; send [] to clear them."""
+  tiers: [PriceTierInput!]
 }
 
 type ProductVariantSelection {
@@ -2366,7 +2449,16 @@ type PublicCartConfig {
   maxQuantityPerItem: Int!
   pricesIncludeTax: Boolean!
   productModelSlug: String
+  shippingMethods: [ShippingMethodConfig!]!
   taxRates: [TaxRate!]!
+}
+
+type PublicFormMutations {
+  submit(formId: ID!, input: SubmitFormInput!): FormSubmitResponse!
+}
+
+type PublicFormQueries {
+  get(formId: ID!): Form
 }
 
 type PublicFormSubmissionItem {
@@ -2405,6 +2497,19 @@ type PublicMediaListResult {
   total: Int!
 }
 
+type PublicMediaQueries {
+  forContext(folderId: String, limit: Int = 20, offset: Int = 0, tag: String, type: String, workspaceId: String!): PublicMediaListResult!
+}
+
+type PublicModelQueries {
+  definitions(workspaceId: String!): [ModelDefinition!]!
+  records(filter: JSON, limit: Int = 20, modelSlug: String!, offset: Int = 0, populate: [String!], sort: String, workspaceId: String!): ModelRecordList!
+}
+
+type PublicMutations {
+  form: PublicFormMutations!
+}
+
 type PublicPageItem {
   customFields: JSON!
   displayName: JSON!
@@ -2432,6 +2537,9 @@ type PublicPagesListResult {
 }
 
 type PublicQueries {
+  form: PublicFormQueries!
+  media: PublicMediaQueries!
+  model: PublicModelQueries!
   page: PublicPageQueries!
   siteConfig(workspaceSlug: String): SiteConfig
   workspaceBranding(workspaceSlug: String!): WorkspaceBranding
@@ -2451,7 +2559,6 @@ type Query {
   form: FormQueries!
   health: String!
   integration: IntegrationQueries!
-  invitation: InvitationQueries!
   media: MediaQueries!
   model: ModelQueries!
   notification: NotificationQueries!
@@ -2464,10 +2571,6 @@ type Query {
   product: ProductQueries!
   property: PropertyQueries!
   public: PublicQueries!
-  publicForm(formId: ID!): Form
-  publicMediaForContext(folderId: String, limit: Int = 20, offset: Int = 0, tag: String, type: String, workspaceId: String!): PublicMediaListResult!
-  publicModelDefinitions(workspaceId: String!): [ModelDefinition!]!
-  publicModelRecords(filter: JSON, limit: Int = 20, modelSlug: String!, offset: Int = 0, populate: [String!], sort: String, workspaceId: String!): ModelRecordList!
   record: RecordQueries!
   role: RoleQueries!
   siteConfig: SiteConfigQueries!
@@ -2638,9 +2741,46 @@ input SetOrderPipelineStageInput {
   stageId: String!
 }
 
+input SetProductTiersInput {
+  recordId: ID!
+  tiers: [PriceTierInput!]!
+}
+
 input SetProductVariantsInput {
   recordId: ID!
   variants: [ProductVariantInput!]!
+}
+
+"""
+A shipping option configured for the workspace (CMS-912). `price` is in minor units; `taxRateId` is the rate charged on the shipping line, null when shipping is untaxed.
+"""
+type ShippingMethod {
+  etaLabel: String
+  id: String!
+  label: String!
+  price: Int!
+  taxRateId: String
+}
+
+type ShippingMethodConfig {
+  enabled: Boolean!
+  etaLabel: String
+  id: String!
+  label: String!
+  price: Int!
+  taxRateId: String
+}
+
+"""
+Shipping option (CMS-912). The full list is replaced wholesale on update. `price` is in minor units; `taxRateId` must reference a configured tax rate, or be null for untaxed shipping.
+"""
+input ShippingMethodInput {
+  enabled: Boolean
+  etaLabel: String
+  id: String!
+  label: String!
+  price: Int!
+  taxRateId: String
 }
 
 input SignupInput {
@@ -2706,6 +2846,17 @@ type SiteMemberLoginResponse {
   message: String!
   refreshToken: String
   success: Boolean!
+}
+
+type SiteMemberMutations {
+  forgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
+  login(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
+  logout(refreshToken: String!): SiteMemberAuthResponse!
+  logoutEverywhere: SiteMemberAuthResponse!
+  refresh(refreshToken: String!): SiteMemberLoginResponse!
+  register(input: SiteMemberRegisterInput!): SiteMemberAuthResponse!
+  resetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
+  verifyEmail(token: String!): SiteMemberAuthResponse!
 }
 
 input SiteMemberRegisterInput {
@@ -3061,7 +3212,6 @@ type User {
   customFields: [UserCustomField!]!
   email: String!
   id: String!
-  invitedAt: DateTime
   isVerified: Boolean!
   isWorkspaceOwner: Boolean
   joinedAt: DateTime
@@ -3089,7 +3239,6 @@ input UserCustomFieldInput {
 }
 
 type UserMutations {
-  create(input: CreateUserInput!): User!
   delete(id: ID!): DeletionResult!
   update(id: ID!, input: UpdateUserInput!): User!
 }
@@ -3204,7 +3353,8 @@ type Workspace {
   myRole: WorkspaceRoleType
   myScopedGrants: [MyScopedGrant!]!
   name: String!
-  organizationId: String
+  organization: WorkspaceOrganization
+  organizationId: String!
   organizationSlug: String
   ownerId: String!
   plan: String!
@@ -3266,9 +3416,6 @@ type WorkspaceLimits {
 
 type WorkspaceMemberType {
   email: String
-  invitationToken: String
-  invitedAt: DateTime
-  invitedBy: String
   joinedAt: DateTime
   role: WorkspaceRoleType
   roleId: String!
@@ -3288,12 +3435,23 @@ type WorkspaceMutations {
   updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
 }
 
+type WorkspaceOrganization {
+  billing: OrganizationBilling!
+  id: ID!
+  limits: OrganizationLimits!
+  memberCount: Int!
+  name: String!
+  plan: String!
+  slug: String!
+  usage: PooledUsage!
+}
+
 type WorkspaceQueries {
   current: Workspace
   draftSecret: String!
   get(id: ID, organizationSlug: String, slug: String): Workspace
   isMember(slug: String!): Boolean!
-  mine(includePending: Boolean = true): [Workspace!]!
+  mine: [Workspace!]!
 }
 
 type WorkspaceRole {
