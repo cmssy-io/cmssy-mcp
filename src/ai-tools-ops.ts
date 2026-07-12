@@ -1744,7 +1744,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               username?: string | null;
               profile?: { displayName?: string | null } | null;
               membershipStatus?: string | null;
-              isWorkspaceOwner?: boolean | null;
+              isOrganizationOwner?: boolean | null;
               joinedAt?: string | null;
               workspaceRole?: { id: string; name: string } | null;
             }>;
@@ -1757,7 +1757,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           roleId: u.workspaceRole?.id ?? "",
           roleName: u.workspaceRole?.name ?? null,
           status: u.membershipStatus ?? "",
-          isOwner: u.isWorkspaceOwner ?? false,
+          isOwner: u.isOrganizationOwner ?? false,
           invitedAt: null,
           joinedAt: u.joinedAt ?? null,
         }));

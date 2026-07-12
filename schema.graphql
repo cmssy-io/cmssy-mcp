@@ -1490,7 +1490,6 @@ type MemberMutations {
   leave: Boolean!
   remove(userId: ID!): Workspace!
   suspend(userId: ID!): Workspace!
-  transferOwnership(newOwnerId: ID!): Workspace!
   unsuspend(userId: ID!): Workspace!
   updateRole(roleId: ID!, userId: ID!): Workspace!
 }
@@ -1955,6 +1954,11 @@ type OrganizationMutations {
   inviteMember(input: InviteOrganizationMemberInput!, organizationId: ID!): Organization!
   moveWorkspace(organizationId: ID!, workspaceId: ID!): Organization!
   removeMember(organizationId: ID!, userId: ID!): Organization!
+
+  """
+  Hand the organization - and with it the permission bypass over every workspace it owns - to another active member. Owner-only.
+  """
+  transferOwnership(newOwnerId: ID!, organizationId: ID!): Organization!
   update(id: ID!, input: UpdateOrganizationInput!): Organization!
   updateMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
 }
@@ -3331,8 +3335,8 @@ type User {
   customFields: [UserCustomField!]!
   email: String!
   id: String!
+  isOrganizationOwner: Boolean
   isVerified: Boolean!
-  isWorkspaceOwner: Boolean
   joinedAt: DateTime
   lastLoginAt: DateTime
   membershipStatus: String
@@ -3465,7 +3469,6 @@ type Workspace {
   organization: WorkspaceOrganization
   organizationId: String!
   organizationSlug: String
-  ownerId: String!
   roles: [WorkspaceRoleType!]!
   settings: WorkspaceSettings!
   slug: String!
