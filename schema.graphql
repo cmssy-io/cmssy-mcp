@@ -3453,19 +3453,9 @@ type WebhookQueries {
 }
 
 type Workspace {
-  aiTokensResetAt: DateTime!
-  billingCycle: String
-  cancelAtPeriodEnd: Boolean!
   createdAt: DateTime!
-  currentActiveMembers: Int!
-  currentAiTokensUsed: Int!
-  currentPages: Int!
-  currentPeriodEnd: DateTime
-  currentStorageBytes: Int!
   id: String!
   isOwner: Boolean!
-  isTrial: Boolean!
-  limits: WorkspaceLimits!
   members: [WorkspaceMemberType!]!
   myMembershipStatus: String
   myPermissions: [String!]!
@@ -3476,12 +3466,9 @@ type Workspace {
   organizationId: String!
   organizationSlug: String
   ownerId: String!
-  plan: String!
   roles: [WorkspaceRoleType!]!
   settings: WorkspaceSettings!
   slug: String!
-  subscriptionStatus: String
-  trialEndsAt: DateTime
   updatedAt: DateTime!
   usage: WorkspaceUsage!
 }
@@ -3519,18 +3506,6 @@ type WorkspaceIntegrations {
   id: String!
   updatedAt: DateTime!
   updatedBy: String
-}
-
-type WorkspaceLimits {
-  canRemoveBranding: Boolean!
-  canUseCart: Boolean!
-  maxAiTokensMonth: Int!
-  maxApiRequestsMonth: Int!
-  maxBandwidthGbMonth: Int!
-  maxPages: Int!
-  maxStorageMb: Int!
-  maxUsers: Int!
-  maxWorkspacesOwned: Int!
 }
 
 type WorkspaceMemberType {
