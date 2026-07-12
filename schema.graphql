@@ -573,6 +573,13 @@ type CatalogVariantStock {
 
 input CheckoutInput {
   customerEmail: String!
+
+  """Buyer's message for this order (distinct from admin notes)"""
+  customerNote: String
+
+  """Buyer's purchase-order reference, frozen on the order"""
+  poNumber: String
+  shippingAddress: ShippingAddressInput
   workspaceId: ID!
 }
 
@@ -1694,6 +1701,10 @@ input OAuthLoginInput {
 
 """A placed order (immutable snapshot of the cart at checkout)."""
 type Order {
+  """
+  Capability token for the public confirmation page, returned ONLY in the response to the checkout that minted it. Every later read gets null - the order stores just the hash.
+  """
+  accessToken: String
   amountPaid: Int!
   balanceDue: Int!
   canceledAt: DateTime
@@ -1702,7 +1713,12 @@ type Order {
   currency: String!
   customerEmail: String!
   customerId: String
+
+  """Message the buyer left at checkout (CMS-913)"""
+  customerNote: String
   displayStatus: String!
+
+  """Admin edit trail; empty for a shopper reading their order."""
   edits: [OrderEdit!]!
   fulfilledAt: DateTime
   fulfillmentStatus: String!
@@ -1719,10 +1735,18 @@ type Order {
   paymentReference: String
   paymentStatus: String!
   payments: [OrderPayment!]!
+
+  """Internal ops trail; empty for a shopper reading their order."""
   pipelineLog: [OrderPipelineLogEntry!]!
   pipelineStageId: String
+
+  """Buyer's purchase-order reference (CMS-913)"""
+  poNumber: String
   pricesIncludeTax: Boolean!
   refundedAmount: Int!
+
+  """Delivery address frozen at checkout (CMS-913)"""
+  shippingAddress: OrderAddress
 
   """Shipping method frozen at order time (CMS-912)"""
   shippingMethod: OrderShippingMethod
@@ -1738,6 +1762,19 @@ type Order {
   trackingNumber: String
   updatedAt: DateTime!
   workspaceId: String!
+}
+
+type OrderAddress {
+  city: String!
+  company: String
+  country: String!
+  line1: String!
+  line2: String
+  name: String!
+  phone: String
+  postalCode: String!
+  region: String
+  vatId: String
 }
 
 type OrderEdit {
@@ -1794,6 +1831,11 @@ type OrderMutations {
   """
   recordPayment(input: RecordOrderPaymentInput!): Order!
   refund(input: RefundOrderInput!): Order!
+
+  """
+  Kill the buyer's confirmation-page link (forwarded email, lost device). Irreversible.
+  """
+  revokeAccessToken(orderId: ID!): Order!
   setPipelineStage(input: SetOrderPipelineStageInput!): Order!
   transitionFulfillment(input: FulfillOrderInput!): Order!
   updateDetails(input: UpdateOrderDetailsInput!): Order!
@@ -2510,6 +2552,66 @@ type PublicMutations {
   form: PublicFormMutations!
 }
 
+"""
+An order as its buyer sees it, fetched with the access token minted at checkout.
+"""
+type PublicOrder {
+  amountPaid: Int!
+  balanceDue: Int!
+  canceledAt: DateTime
+  createdAt: DateTime!
+  currency: String!
+  customerEmail: String!
+  customerNote: String
+  fulfilledAt: DateTime
+  fulfillmentStatus: String!
+  id: String!
+  invoiceNumber: String
+  invoiceUrl: String
+  items: [PublicOrderItem!]!
+  orderNumber: Int
+  paidAt: DateTime
+  paymentStatus: String!
+  poNumber: String
+  pricesIncludeTax: Boolean!
+  refundedAmount: Int!
+  shippingAddress: OrderAddress
+  shippingMethod: OrderShippingMethod
+  shippingTotal: Int!
+  status: String!
+  subtotal: Int!
+  tax: Int!
+  taxSummary: [OrderTaxSummaryLine!]!
+  total: Int!
+  trackingCarrier: String
+  trackingNumber: String
+}
+
+type PublicOrderItem {
+  currency: String!
+
+  """Single-unit price without a volume break"""
+  listPrice: Int
+  name: String!
+
+  """Unit price charged (volume break applied)"""
+  price: Int!
+  quantity: Int!
+  sku: String
+  taxAmount: Int!
+  taxRate: Float!
+  taxRateName: String
+  tierMinQty: Int
+  variantKey: String
+}
+
+type PublicOrderQueries {
+  """
+  Read an order with the access token returned by cart.checkout (public, rate-limited). Lets a guest reload their confirmation page without an account. Wrong id/token pairs are indistinguishable from a missing order.
+  """
+  byToken(accessToken: String!, orderId: ID!, workspaceId: ID!): PublicOrder!
+}
+
 type PublicPageItem {
   customFields: JSON!
   displayName: JSON!
@@ -2540,6 +2642,7 @@ type PublicQueries {
   form: PublicFormQueries!
   media: PublicMediaQueries!
   model: PublicModelQueries!
+  order: PublicOrderQueries!
   page: PublicPageQueries!
   siteConfig(workspaceSlug: String): SiteConfig
   workspaceBranding(workspaceSlug: String!): WorkspaceBranding
@@ -2749,6 +2852,24 @@ input SetProductTiersInput {
 input SetProductVariantsInput {
   recordId: ID!
   variants: [ProductVariantInput!]!
+}
+
+"""
+Postal address for the order, frozen on the order at checkout (CMS-913).
+"""
+input ShippingAddressInput {
+  city: String!
+  company: String
+
+  """ISO 3166-1 alpha-2 country code"""
+  country: String!
+  line1: String!
+  line2: String
+  name: String!
+  phone: String
+  postalCode: String!
+  region: String
+  vatId: String
 }
 
 """
@@ -3080,6 +3201,12 @@ input UpdateOrderDetailsInput {
   customerEmail: String
   notes: String
   orderId: ID!
+  poNumber: String
+
+  """
+  Correct the delivery address. Omitted leaves it unchanged; null clears it.
+  """
+  shippingAddress: ShippingAddressInput
   trackingCarrier: String
   trackingNumber: String
 }

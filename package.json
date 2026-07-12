@@ -10,6 +10,8 @@
   "scripts": {
     "build": "tsc",
     "sync-schema": "node scripts/sync-schema.mjs",
+    "fetch-prod-schema": "node scripts/fetch-prod-schema.mjs",
+    "check-schema-drift": "node scripts/check-schema-drift.mjs",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
