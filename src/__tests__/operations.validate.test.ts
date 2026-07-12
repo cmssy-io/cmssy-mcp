@@ -8,11 +8,10 @@ import * as operations from "../queries.js";
 // schema.graphql is a committed copy of the backend's canonical SDL
 // (`pnpm --filter backend print-schema` in the cmssy repo). Refresh it whenever
 // the backend schema changes so this harness validates against the live surface.
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const SDL_PATH = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "schema.graphql",
+  REPO_ROOT,
+  process.env.CMSSY_SCHEMA_FILE ?? "schema.graphql",
 );
 const schema = buildSchema(readFileSync(SDL_PATH, "utf8"));
 

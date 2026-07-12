@@ -1,0 +1,35 @@
+name: Schema drift
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  prod-schema:
+    name: Operations validate against production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Introspect production
+        run: pnpm fetch-prod-schema
+        env:
+          CMSSY_API_URL: ${{ vars.CMSSY_API_URL || 'https://api.cmssy.io/graphql' }}
+
+      - name: Every MCP operation is one production accepts
+        run: pnpm test -- operations.validate
+        env:
+          CMSSY_SCHEMA_FILE: prod-schema.graphql
+
+      - name: Vendored SDL matches production
+        run: pnpm check-schema-drift
