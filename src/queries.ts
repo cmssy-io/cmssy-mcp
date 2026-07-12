@@ -821,6 +821,8 @@ const ORDER_FRAGMENT = `
   customerEmail
   currency
   subtotal
+  discount
+  appliedDiscount { code type value amount }
   tax
   total
   pricesIncludeTax
