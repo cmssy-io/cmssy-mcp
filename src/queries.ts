@@ -625,6 +625,13 @@ const MODEL_DEFINITION_FRAGMENT = `
     defaultValue
     transitions { from to }
   }
+  product {
+    enabled
+    variantAxes
+    skuField
+    priceField
+    inventoryField
+  }
   createdAt
   updatedAt
   createdBy
