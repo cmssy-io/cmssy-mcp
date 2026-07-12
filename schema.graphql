@@ -1268,7 +1268,7 @@ type IntegrationQueries {
 
 input InviteOrganizationMemberInput {
   email: String!
-  roleId: String!
+  roleId: String
 }
 
 type Invoice {
@@ -1949,6 +1949,7 @@ type Organization {
   myRole: String
   name: String!
   plan: String!
+  settings: OrganizationSettings!
   slug: String!
   usage: PooledUsage!
   workspaceCount: Int!
@@ -2007,6 +2008,7 @@ type OrganizationMutations {
   transferOwnership(newOwnerId: ID!, organizationId: ID!): Organization!
   update(id: ID!, input: UpdateOrganizationInput!): Organization!
   updateMemberRole(organizationId: ID!, roleId: String!, userId: ID!): Organization!
+  updateSettings(input: UpdateOrganizationSettingsInput!, organizationId: ID!): Organization!
 }
 
 type OrganizationQueries {
@@ -2014,6 +2016,11 @@ type OrganizationQueries {
   invoices(limit: Int, organizationId: ID!): [Invoice!]!
   list: [Organization!]!
   usageHistory(id: ID, range: UsageHistoryRange!, slug: String): UsageHistory
+}
+
+type OrganizationSettings {
+  allowMemberWorkspaceCreate: Boolean!
+  defaultMemberRole: String!
 }
 
 type OrganizationWorkspace {
@@ -3272,6 +3279,11 @@ input UpdateOrderDetailsInput {
 input UpdateOrganizationInput {
   name: String
   slug: String
+}
+
+input UpdateOrganizationSettingsInput {
+  allowMemberWorkspaceCreate: Boolean
+  defaultMemberRole: String
 }
 
 input UpdatePageLayoutInput {

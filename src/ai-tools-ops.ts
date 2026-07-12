@@ -198,6 +198,24 @@ async function fetchModelById(
   };
 }
 
+// Discounts are addressed by CODE far more often than by id - a code is what
+// the shopper types and what every tool description promises. The backend only
+// takes an id, so resolve the code here rather than returning "not found" for
+// a discount that plainly exists.
+async function resolveDiscountId(
+  client: CmssyClient,
+  idOrSlug: string,
+): Promise<string | null> {
+  if (OBJECT_ID_RE.test(idOrSlug)) return idOrSlug;
+  const res = await client.query<{
+    discount: { list: { items: Array<{ id: string; code: string }> } };
+  }>(DISCOUNTS_QUERY, { search: idOrSlug, limit: 50, offset: 0 });
+  const match = res.discount.list.items.find(
+    (d) => d.code.toLowerCase() === idOrSlug.toLowerCase(),
+  );
+  return match?.id ?? null;
+}
+
 async function resolveModel(
   client: CmssyClient,
   idOrSlug: string,
@@ -1361,8 +1379,24 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               paymentStatus?: string | null;
               fulfillmentStatus?: string | null;
               customerEmail?: string | null;
+              subtotal?: number | null;
+              discount?: number | null;
+              appliedDiscount?: {
+                code: string;
+                type: string;
+                value: number;
+                amount: number;
+              } | null;
+              shippingTotal?: number | null;
+              shippingMethod?: unknown;
+              tax?: number | null;
               total?: number | null;
               currency?: string | null;
+              poNumber?: string | null;
+              customerNote?: string | null;
+              shippingAddress?: unknown;
+              amountPaid?: number | null;
+              balanceDue?: number | null;
               items?: unknown;
               payments?: unknown;
               createdAt?: string | null;
@@ -1377,8 +1411,19 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           paymentStatus: o.paymentStatus ?? null,
           fulfillmentStatus: o.fulfillmentStatus ?? null,
           customerEmail: o.customerEmail ?? null,
+          subtotal: o.subtotal ?? null,
+          discount: o.discount ?? null,
+          appliedDiscount: o.appliedDiscount ?? null,
+          shippingTotal: o.shippingTotal ?? null,
+          shippingMethod: o.shippingMethod ?? null,
+          tax: o.tax ?? null,
           total: o.total ?? null,
           currency: o.currency ?? null,
+          poNumber: o.poNumber ?? null,
+          customerNote: o.customerNote ?? null,
+          shippingAddress: o.shippingAddress ?? null,
+          amountPaid: o.amountPaid ?? null,
+          balanceDue: o.balanceDue ?? null,
           items: o.items ?? null,
           payments: o.payments ?? null,
           createdAt: o.createdAt ?? null,
@@ -1565,6 +1610,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         };
       },
       get: async (idOrSlug) => {
+        const id = await resolveDiscountId(client, idOrSlug);
+        if (!id) return null;
         const res = await client.query<{
           discount: {
             get: {
@@ -1581,7 +1628,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               endsAt?: string | null;
             } | null;
           };
-        }>(DISCOUNT_BY_ID_QUERY, { id: idOrSlug });
+        }>(DISCOUNT_BY_ID_QUERY, { id });
         const d = res.discount.get;
         if (!d) return null;
         return {
@@ -1599,6 +1646,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         };
       },
       update: async (idOrSlug, patch) => {
+        const id = await resolveDiscountId(client, idOrSlug);
+        if (!id) return null;
         const input: Record<string, unknown> = {};
         for (const key of [
           "code",
@@ -1621,7 +1670,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               enabled: boolean;
             } | null;
           };
-        }>(UPDATE_DISCOUNT_MUTATION, { id: idOrSlug, input });
+        }>(UPDATE_DISCOUNT_MUTATION, { id, input });
         if (!res.discount.update) return null;
         return {
           id: res.discount.update.id,
@@ -1630,6 +1679,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         };
       },
       setEnabled: async (idOrSlug, enabled) => {
+        const id = await resolveDiscountId(client, idOrSlug);
+        if (!id) return null;
         const res = await client.query<{
           discount: {
             setEnabled: {
@@ -1639,7 +1690,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             } | null;
           };
         }>(SET_DISCOUNT_ENABLED_MUTATION, {
-          id: idOrSlug,
+          id,
           enabled,
         });
         if (!res.discount.setEnabled) return null;
