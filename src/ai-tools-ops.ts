@@ -1,6 +1,11 @@
 import type { CmssyClient } from "./graphql-client.js";
 import type { Workspace } from "./types.js";
-import type { WorkspaceOps, ModelSummary, ModelDetail } from "@cmssy/ai-tools";
+import type {
+  FieldType,
+  ModelDetail,
+  ModelSummary,
+  WorkspaceOps,
+} from "@cmssy/ai-tools";
 import {
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
@@ -233,6 +238,13 @@ interface RawModelDefinition {
     defaultValue?: string | null;
     transitions?: Array<{ from: string; to: string[] }>;
   } | null;
+  product?: {
+    enabled: boolean;
+    variantAxes: string[];
+    skuField: string;
+    priceField: string;
+    inventoryField: string;
+  } | null;
   fields?: Array<{
     key: string;
     label: string;
@@ -270,10 +282,19 @@ function toModelDetail(m: RawModelDefinition): ModelDetail {
           transitions: m.statusField.transitions,
         }
       : null,
+    product: m.product
+      ? {
+          enabled: m.product.enabled,
+          variantAxes: m.product.variantAxes,
+          skuField: m.product.skuField,
+          priceField: m.product.priceField,
+          inventoryField: m.product.inventoryField,
+        }
+      : null,
     fields: (m.fields ?? []).map((f) => ({
       key: f.key,
       label: f.label,
-      type: f.type,
+      type: f.type as FieldType,
       required: f.required ?? false,
     })),
   };
