@@ -75,12 +75,31 @@ export interface SiteConfig {
   footer: unknown;
 }
 
-export interface Workspace {
+export type OrganizationLimits = {
+  maxPages: number;
+  maxMembers: number;
+  maxWorkspaces: number;
+  maxStorageMb: number;
+  maxAiTokensMonth: number;
+  maxApiRequestsMonth: number;
+  maxBandwidthGbMonth: number;
+  canRemoveBranding: boolean;
+  canUseCart: boolean;
+};
+
+export interface WorkspaceOrganization {
   id: string;
   name: string;
   slug: string;
   plan: string;
-  limits: Record<string, unknown>;
+  limits: OrganizationLimits;
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  organization: WorkspaceOrganization | null;
 }
 
 export interface MediaAsset {

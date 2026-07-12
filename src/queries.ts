@@ -135,14 +135,22 @@ export const CURRENT_WORKSPACE_QUERY = `
         id
         name
         slug
-        plan
-        limits {
-          maxPages
-          maxUsers
-          maxStorageMb
-          maxAiTokensMonth
-          maxWorkspacesOwned
-          canRemoveBranding
+        organization {
+          id
+          name
+          slug
+          plan
+          limits {
+            maxPages
+            maxMembers
+            maxWorkspaces
+            maxStorageMb
+            maxAiTokensMonth
+            maxApiRequestsMonth
+            maxBandwidthGbMonth
+            canRemoveBranding
+            canUseCart
+          }
         }
       }
     }

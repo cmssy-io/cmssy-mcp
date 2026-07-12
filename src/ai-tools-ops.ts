@@ -1,4 +1,5 @@
 import type { CmssyClient } from "./graphql-client.js";
+import type { Workspace } from "./types.js";
 import type { WorkspaceOps, ModelSummary, ModelDetail } from "@cmssy/ai-tools";
 import {
   MODEL_DEFINITION_BY_ID_QUERY,
@@ -1553,15 +1554,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     workspace: {
       info: async () => {
         const res = await client.query<{
-          workspace: {
-            current: {
-              id: string;
-              name: string;
-              slug: string;
-              plan?: string | null;
-              limits?: Record<string, unknown> | null;
-            } | null;
-          };
+          workspace: { current: Workspace | null };
         }>(CURRENT_WORKSPACE_QUERY);
         const w = res.workspace.current;
         if (!w) throw new Error("Workspace not found");
@@ -1569,8 +1562,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           id: w.id,
           name: w.name,
           slug: w.slug,
-          plan: w.plan ?? null,
-          limits: w.limits ?? null,
+          plan: w.organization?.plan ?? null,
+          limits: w.organization?.limits ?? null,
         };
       },
       siteConfig: async () => {
