@@ -1,18 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { toPropertyFields } from "../ai-tools-ops.js";
+import { toPropertyFields, toProposedFields } from "../ai-tools-ops.js";
 
 describe("toPropertyFields", () => {
-  it("translates the shared FieldType names the backend enum does not have", () => {
-    const mapped = toPropertyFields([
-      { key: "name", label: "Name", type: "string" },
-      { key: "body", label: "Body", type: "richtext" },
-    ]);
-
-    expect(mapped.map((f) => f.type)).toEqual(["text", "richText"]);
-  });
-
-  it("leaves the names both sides already agree on", () => {
+  it("passes the canonical backend type names through unchanged", () => {
     const types = [
+      "text",
+      "textarea",
+      "richText",
+      "markdown",
+      "password",
+      "phone",
+      "json",
+      "color",
       "number",
       "boolean",
       "date",
@@ -25,6 +24,7 @@ describe("toPropertyFields", () => {
       "relation",
       "object",
       "list",
+      "hidden",
     ];
 
     const mapped = toPropertyFields(
@@ -34,26 +34,103 @@ describe("toPropertyFields", () => {
     expect(mapped.map((f) => f.type)).toEqual(types);
   });
 
-  it("translates a list's item type", () => {
-    const [field] = toPropertyFields([
-      { key: "tags", label: "Tags", type: "list", itemType: "string" },
+  it("prefixes relationTo with model: for the backend", () => {
+    const mapped = toPropertyFields([
+      {
+        key: "category",
+        label: "Category",
+        type: "relation",
+        relationTo: "category",
+      },
     ]);
 
-    expect(field?.itemType).toBe("text");
+    expect(mapped[0]?.relationTo).toBe("model:category");
   });
 
-  it("translates nested object and repeater fields", () => {
+  it("does not double-prefix a relationTo that already has model:", () => {
+    const mapped = toPropertyFields([
+      {
+        key: "category",
+        label: "Category",
+        type: "relation",
+        relationTo: "model:category",
+      },
+    ]);
+
+    expect(mapped[0]?.relationTo).toBe("model:category");
+  });
+
+  it("round-trips a raw backend field back to the tool contract", () => {
+    const proposed = toProposedFields([
+      {
+        key: "password",
+        label: "Password",
+        type: "password",
+        required: false,
+        hidden: true,
+        description: null,
+        defaultValue: null,
+        options: [],
+        relationTo: null,
+      },
+      {
+        key: "category",
+        label: "Category",
+        type: "relation",
+        required: true,
+        relationTo: "model:category",
+        relationType: "hasOne",
+        minLength: null,
+        maxValue: 10,
+      },
+    ]);
+
+    expect(proposed).toEqual([
+      {
+        key: "password",
+        label: "Password",
+        type: "password",
+        required: false,
+        hidden: true,
+      },
+      {
+        key: "category",
+        label: "Category",
+        type: "relation",
+        required: true,
+        relationTo: "category",
+        relationType: "hasOne",
+        maxValue: 10,
+      },
+    ]);
+  });
+
+  it("prefixes relationTo inside nested object and item fields", () => {
     const [field] = toPropertyFields([
       {
         key: "specs",
         label: "Specs",
         type: "object",
-        fields: [{ key: "material", label: "Material", type: "string" }],
-        itemFields: [{ key: "note", label: "Note", type: "richtext" }],
+        fields: [
+          {
+            key: "brand",
+            label: "Brand",
+            type: "relation",
+            relationTo: "brand",
+          },
+        ],
+        itemFields: [
+          {
+            key: "supplier",
+            label: "Supplier",
+            type: "relation",
+            relationTo: "supplier",
+          },
+        ],
       },
     ]);
 
-    expect(field?.fields?.[0]?.type).toBe("text");
-    expect(field?.itemFields?.[0]?.type).toBe("richText");
+    expect(field?.fields?.[0]?.relationTo).toBe("model:brand");
+    expect(field?.itemFields?.[0]?.relationTo).toBe("model:supplier");
   });
 });
