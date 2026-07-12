@@ -391,13 +391,12 @@ type CartConfig {
   defaultTaxRateId: String
   enableQuoteRequests: Boolean!
   enableSavedCarts: Boolean!
-  fieldMapping: CartFieldMapping!
   loggedInTTLDays: Int!
   lowStockThreshold: Int
   maxItemsPerCart: Int!
   maxQuantityPerItem: Int!
   pricesIncludeTax: Boolean!
-  productModelSlug: String
+  productSources: [CartProductSource!]!
   reservationTtlMinutes: Int
   sessionTTLDays: Int!
   shippingMethods: [ShippingMethodConfig!]!
@@ -409,13 +408,12 @@ input CartConfigInput {
   defaultTaxRateId: String
   enableQuoteRequests: Boolean
   enableSavedCarts: Boolean
-  fieldMapping: CartFieldMappingInput
   loggedInTTLDays: Int
   lowStockThreshold: Int
   maxItemsPerCart: Int
   maxQuantityPerItem: Int
   pricesIncludeTax: Boolean
-  productModelSlug: String
+  productSources: [CartProductSourceInput!]
   reservationTtlMinutes: Int
   sessionTTLDays: Int
   shippingMethods: [ShippingMethodInput!]
@@ -521,6 +519,20 @@ type CartMutations {
 
   """Update quantity or notes on a cart item (public, rate-limited)"""
   updateItem(input: UpdateCartItemInput!): Cart!
+}
+
+"""A model configured as a cart product source, with its field mapping"""
+type CartProductSource {
+  fieldMapping: CartFieldMapping!
+  modelSlug: String!
+}
+
+"""
+One cart product source (CMS-929). The full productSources list is replaced wholesale on update - send the complete desired set.
+"""
+input CartProductSourceInput {
+  fieldMapping: CartFieldMappingInput
+  modelSlug: String!
 }
 
 type CartQueries {
@@ -2482,11 +2494,10 @@ type PublicCartConfig {
   defaultTaxRateId: String
   enableQuoteRequests: Boolean!
   enableSavedCarts: Boolean!
-  fieldMapping: CartFieldMapping!
   maxItemsPerCart: Int!
   maxQuantityPerItem: Int!
   pricesIncludeTax: Boolean!
-  productModelSlug: String
+  productSources: [CartProductSource!]!
   shippingMethods: [ShippingMethodConfig!]!
   taxRates: [TaxRate!]!
 }
