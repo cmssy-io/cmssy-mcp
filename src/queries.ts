@@ -112,6 +112,22 @@ export const PAGE_BY_ID_QUERY = `
 
 // ─── Site Config Queries ─────────────────────────────────────
 
+const CART_CONFIG_FRAGMENT = `
+  defaultCurrency
+  pricesIncludeTax
+  productModelSlug
+  defaultTaxRateId
+  lowStockThreshold
+  reservationTtlMinutes
+  maxItemsPerCart
+  maxQuantityPerItem
+  enableQuoteRequests
+  enableSavedCarts
+  taxRates { id name rate }
+  shippingMethods { id label price etaLabel taxRateId enabled }
+  fieldMapping { name price currency sku imageUrl taxRate }
+`;
+
 export const SITE_CONFIG_QUERY = `
   query SiteConfig {
     siteConfig {
@@ -121,6 +137,18 @@ export const SITE_CONFIG_QUERY = `
         enabledLanguages
         siteName
         enabledFeatures
+        cart { ${CART_CONFIG_FRAGMENT} }
+      }
+    }
+  }
+`;
+
+export const UPDATE_CART_CONFIG_MUTATION = `
+  mutation UpdateCartConfig($input: CartConfigInput!) {
+    siteConfig {
+      updateCart(input: $input) {
+        id
+        cart { ${CART_CONFIG_FRAGMENT} }
       }
     }
   }
@@ -805,9 +833,27 @@ const ORDER_FRAGMENT = `
   invoicedAt
   canceledAt
   pipelineStageId
+  poNumber
+  customerNote
+  shippingTotal
+  shippingMethod { id label price taxRateId }
+  shippingAddress {
+    name
+    company
+    line1
+    line2
+    postalCode
+    city
+    region
+    country
+    phone
+    vatId
+  }
   items {
     name
     price
+    listPrice
+    tierMinQty
     currency
     quantity
     sku
@@ -841,6 +887,8 @@ const ORDER_LIST_FRAGMENT = `
   amountPaid
   balanceDue
   refundedAmount
+  shippingTotal
+  poNumber
   pipelineStageId
   createdAt
   updatedAt
@@ -1148,6 +1196,7 @@ export const PRODUCT_CATALOG_QUERY = `
           reserved
           available
           hasVariants
+          tiers { minQty price }
           variants {
             key
             sku
@@ -1155,6 +1204,7 @@ export const PRODUCT_CATALOG_QUERY = `
             onHand
             reserved
             available
+            tiers { minQty price }
             selectedOptions { name value }
           }
           createdAt
@@ -1163,6 +1213,18 @@ export const PRODUCT_CATALOG_QUERY = `
         total
         hasMore
         lowStockThreshold
+      }
+    }
+  }
+`;
+
+export const SET_PRODUCT_TIERS_MUTATION = `
+  mutation SetProductTiers($input: SetProductTiersInput!) {
+    product {
+      setTiers(input: $input) {
+        id
+        priceTiers { minQty price }
+        variants { id sku price tiers { minQty price } }
       }
     }
   }

@@ -73,6 +73,8 @@ import {
   PRODUCT_CATALOG_QUERY,
   BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
   BULK_DELETE_PRODUCT_RECORDS_MUTATION,
+  SET_PRODUCT_TIERS_MUTATION,
+  UPDATE_CART_CONFIG_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -1577,6 +1579,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               enabledFeatures?: string[];
               header?: unknown;
               footer?: unknown;
+              cart?: unknown;
             } | null;
           };
         }>(SITE_CONFIG_QUERY);
@@ -1590,7 +1593,14 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           enabledFeatures: c.enabledFeatures ?? [],
           header: c.header ?? null,
           footer: c.footer ?? null,
+          cart: c.cart ?? null,
         };
+      },
+      updateCartConfig: async (input) => {
+        const res = await client.query<{
+          siteConfig: { updateCart: unknown };
+        }>(UPDATE_CART_CONFIG_MUTATION, { input });
+        return res.siteConfig.updateCart;
       },
     },
     webhooks: {
@@ -1681,6 +1691,13 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           { modelId, selection },
         );
         return { count: res.product.bulkDelete };
+      },
+      setTiers: async (recordId, tiers) => {
+        const res = await client.query<{ product: { setTiers: unknown } }>(
+          SET_PRODUCT_TIERS_MUTATION,
+          { input: { recordId, tiers } },
+        );
+        return res.product.setTiers;
       },
     },
     members: {
