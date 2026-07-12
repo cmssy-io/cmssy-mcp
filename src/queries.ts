@@ -1195,7 +1195,6 @@ export const MEMBERS_QUERY = `
         }
         membershipStatus
         isWorkspaceOwner
-        invitedAt
         joinedAt
         workspaceRole {
           id
