@@ -1911,12 +1911,13 @@ type Organization {
   name: String!
   plan: String!
   slug: String!
-  usage: OrganizationUsage!
+  usage: PooledUsage!
   workspaceCount: Int!
   workspaces: [OrganizationWorkspace!]!
 }
 
 type OrganizationBilling {
+  aiCreditsResetAt: DateTime
   billingCycle: String
   cancelAtPeriodEnd: Boolean!
   currentPeriodEnd: DateTime
@@ -1961,16 +1962,6 @@ type OrganizationMutations {
 type OrganizationQueries {
   get(id: ID, slug: String): Organization
   list: [Organization!]!
-}
-
-type OrganizationUsage {
-  aiCreditsMax: Int!
-  aiCreditsResetAt: DateTime
-  aiCreditsUsed: Int!
-  apiRequests: Int!
-  bandwidthBytes: Float!
-  pagesCount: Int!
-  storageBytes: Float!
 }
 
 type OrganizationWorkspace {
@@ -2252,9 +2243,10 @@ type PermissionInfo {
 }
 
 type PooledUsage {
-  aiTokensUsed: Int!
+  aiCreditsUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
+  membersCount: Int!
   pagesCount: Int!
   storageBytes: Float!
 }
