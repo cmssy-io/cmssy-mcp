@@ -79,6 +79,38 @@ import {
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
 
+const FIELD_TYPE_MAP: Record<string, string> = {
+  string: "text",
+  richtext: "richText",
+};
+
+function toCanonicalFieldType(type: string): string {
+  return FIELD_TYPE_MAP[type] ?? type;
+}
+
+interface ProposedFieldLike {
+  type: string;
+  itemType?: string;
+  fields?: ProposedFieldLike[];
+  itemFields?: ProposedFieldLike[];
+}
+
+export function toPropertyFields<T extends ProposedFieldLike>(fields: T[]): T[] {
+  return fields.map((field) => ({
+    ...field,
+    type: toCanonicalFieldType(field.type),
+    ...(field.itemType !== undefined
+      ? { itemType: toCanonicalFieldType(field.itemType) }
+      : {}),
+    ...(field.fields !== undefined
+      ? { fields: toPropertyFields(field.fields) }
+      : {}),
+    ...(field.itemFields !== undefined
+      ? { itemFields: toPropertyFields(field.itemFields) }
+      : {}),
+  }));
+}
+
 function slugify(value: string): string {
   const slug = value
     .toLowerCase()
@@ -310,7 +342,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const mutationInput: Record<string, unknown> = {
           name: input.name,
           slug: input.slug ?? slugify(input.name),
-          fields: input.fields,
+          fields: toPropertyFields(input.fields),
         };
         if (input.description !== undefined)
           mutationInput.description = input.description;
@@ -356,6 +388,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "statusField",
         ] as const) {
           if (patch[key] !== undefined) input[key] = patch[key];
+        }
+        if (patch.fields !== undefined) {
+          input.fields = toPropertyFields(patch.fields);
         }
         const res = await client.query<{
           model: {
@@ -679,7 +714,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           mutationInput.urlPrefix = input.urlPrefix;
         if (input.allowChildren !== undefined)
           mutationInput.allowChildren = input.allowChildren;
-        if (input.fields !== undefined) mutationInput.fields = input.fields;
+        if (input.fields !== undefined)
+          mutationInput.fields = toPropertyFields(input.fields);
         const res = await client.query<{
           pageType: { create: { id: string; name: string; slug: string } };
         }>(CREATE_PAGE_TYPE_MUTATION, { input: mutationInput });
