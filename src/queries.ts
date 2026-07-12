@@ -590,6 +590,7 @@ const PROPERTY_FIELD_FRAGMENT = `
   label
   type
   required
+  hidden
   description
   defaultValue
   options

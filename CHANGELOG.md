@@ -1,5 +1,21 @@
 # @cmssy/mcp-server
 
+## 0.38.0
+
+- **Model tool gaps closed (CMS-927).** `update_model` is now a field-level
+  PATCH (upsert by key + explicit `removeFields`) instead of replace-all, so
+  adding a field can no longer drop fields the AI vocabulary could not express
+  (e.g. `password` on a members model). The shared field-type enum covers the
+  backend's full 28-value `PropertyFieldType`. `create_model`/`update_model`
+  accept the `product` capability config as a patch merged onto the stored
+  config, and `get_model` returns complete field definitions (hidden, options,
+  relations, validation). `relationTo` is now sent in the backend's canonical
+  `model:<slug>` form (it was sent bare, breaking relation fields created via
+  MCP). `list_records` filters are validated: equality, `$in`, `$gte`/`$lte`,
+  `$regex` are supported and anything else is rejected loudly instead of
+  silently matching nothing. Requires @cmssy/ai-tools >= 0.20.0 and the
+  CMS-927 backend deploy.
+
 ## 0.36.0
 
 - **Cart reads `productSources` (CMS-929).** `get_site_config` / cart tools now

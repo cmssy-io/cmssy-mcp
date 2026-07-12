@@ -1,9 +1,9 @@
 import type { CmssyClient } from "./graphql-client.js";
 import type { Workspace } from "./types.js";
 import type {
-  FieldType,
   ModelDetail,
   ModelSummary,
+  ProposedField,
   WorkspaceOps,
 } from "@cmssy/ai-tools";
 import {
@@ -84,28 +84,20 @@ import {
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
 
-const FIELD_TYPE_MAP: Record<string, string> = {
-  string: "text",
-  richtext: "richText",
-};
-
-function toCanonicalFieldType(type: string): string {
-  return FIELD_TYPE_MAP[type] ?? type;
-}
-
 interface ProposedFieldLike {
   type: string;
-  itemType?: string;
+  relationTo?: string;
   fields?: ProposedFieldLike[];
   itemFields?: ProposedFieldLike[];
 }
 
-export function toPropertyFields<T extends ProposedFieldLike>(fields: T[]): T[] {
+export function toPropertyFields<T extends ProposedFieldLike>(
+  fields: T[],
+): T[] {
   return fields.map((field) => ({
     ...field,
-    type: toCanonicalFieldType(field.type),
-    ...(field.itemType !== undefined
-      ? { itemType: toCanonicalFieldType(field.itemType) }
+    ...(field.relationTo
+      ? { relationTo: `model:${field.relationTo.replace(/^model:/, "")}` }
       : {}),
     ...(field.fields !== undefined
       ? { fields: toPropertyFields(field.fields) }
@@ -238,6 +230,7 @@ interface RawModelDefinition {
     defaultValue?: string | null;
     transitions?: Array<{ from: string; to: string[] }>;
   } | null;
+  fields?: RawPropertyField[] | null;
   product?: {
     enabled: boolean;
     variantAxes: string[];
@@ -245,12 +238,68 @@ interface RawModelDefinition {
     priceField: string;
     inventoryField: string;
   } | null;
-  fields?: Array<{
-    key: string;
-    label: string;
-    type: string;
-    required?: boolean | null;
-  }> | null;
+}
+
+interface RawPropertyField {
+  key: string;
+  label: string;
+  type: string;
+  required?: boolean | null;
+  hidden?: boolean | null;
+  description?: string | null;
+  defaultValue?: string | null;
+  options?: string[] | null;
+  fields?: RawPropertyField[] | null;
+  itemType?: string | null;
+  itemFields?: RawPropertyField[] | null;
+  relationTo?: string | null;
+  relationType?: string | null;
+  acceptedTypes?: string[] | null;
+  multiple?: boolean | null;
+  schemaProperty?: string | null;
+  minLength?: number | null;
+  maxLength?: number | null;
+  minValue?: number | null;
+  maxValue?: number | null;
+  pattern?: string | null;
+}
+
+export function toProposedFields(fields: RawPropertyField[]): ProposedField[] {
+  return fields.map((f) => ({
+    key: f.key,
+    label: f.label,
+    type: f.type as ProposedField["type"],
+    required: f.required ?? false,
+    ...(f.hidden != null ? { hidden: f.hidden } : {}),
+    ...(f.description != null ? { description: f.description } : {}),
+    ...(f.defaultValue != null ? { defaultValue: f.defaultValue } : {}),
+    ...(f.options && f.options.length > 0 ? { options: f.options } : {}),
+    ...(f.itemType != null
+      ? { itemType: f.itemType as ProposedField["type"] }
+      : {}),
+    ...(f.relationTo != null
+      ? { relationTo: f.relationTo.replace(/^model:/, "") }
+      : {}),
+    ...(f.relationType != null
+      ? { relationType: f.relationType as ProposedField["relationType"] }
+      : {}),
+    ...(f.acceptedTypes && f.acceptedTypes.length > 0
+      ? { acceptedTypes: f.acceptedTypes }
+      : {}),
+    ...(f.multiple != null ? { multiple: f.multiple } : {}),
+    ...(f.schemaProperty != null ? { schemaProperty: f.schemaProperty } : {}),
+    ...(f.minLength != null ? { minLength: f.minLength } : {}),
+    ...(f.maxLength != null ? { maxLength: f.maxLength } : {}),
+    ...(f.minValue != null ? { minValue: f.minValue } : {}),
+    ...(f.maxValue != null ? { maxValue: f.maxValue } : {}),
+    ...(f.pattern != null ? { pattern: f.pattern } : {}),
+    ...(Array.isArray(f.fields) && f.fields.length > 0
+      ? { fields: toProposedFields(f.fields) }
+      : {}),
+    ...(Array.isArray(f.itemFields) && f.itemFields.length > 0
+      ? { itemFields: toProposedFields(f.itemFields) }
+      : {}),
+  }));
 }
 
 function toModelSummary(m: RawModelDefinition): ModelSummary {
@@ -282,21 +331,8 @@ function toModelDetail(m: RawModelDefinition): ModelDetail {
           transitions: m.statusField.transitions,
         }
       : null,
-    product: m.product
-      ? {
-          enabled: m.product.enabled,
-          variantAxes: m.product.variantAxes,
-          skuField: m.product.skuField,
-          priceField: m.product.priceField,
-          inventoryField: m.product.inventoryField,
-        }
-      : null,
-    fields: (m.fields ?? []).map((f) => ({
-      key: f.key,
-      label: f.label,
-      type: f.type as FieldType,
-      required: f.required ?? false,
-    })),
+    product: m.product ?? null,
+    fields: toProposedFields(m.fields ?? []),
   };
 }
 
@@ -375,6 +411,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           mutationInput.defaultSort = input.defaultSort;
         if (input.statusField !== undefined)
           mutationInput.statusField = input.statusField;
+        if (input.product !== undefined) mutationInput.product = input.product;
         const res = await client.query<{
           model: {
             create: {
@@ -407,6 +444,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "defaultSort",
           "fields",
           "statusField",
+          "product",
         ] as const) {
           if (patch[key] !== undefined) input[key] = patch[key];
         }
