@@ -1217,6 +1217,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
                 id: string;
                 orderNumber?: number | null;
                 customerEmail?: string | null;
+                poNumber?: string | null;
                 status?: string | null;
                 paymentStatus?: string | null;
                 fulfillmentStatus?: string | null;
@@ -1244,6 +1245,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             id: o.id,
             orderNumber: o.orderNumber ?? null,
             customerEmail: o.customerEmail ?? null,
+            poNumber: o.poNumber ?? null,
             status: o.status ?? null,
             paymentStatus: o.paymentStatus ?? null,
             fulfillmentStatus: o.fulfillmentStatus ?? null,
