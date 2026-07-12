@@ -1,5 +1,12 @@
 # @cmssy/mcp-server
 
+## 0.36.0
+
+- **Cart reads `productSources` (CMS-929).** `get_site_config` / cart tools now
+  read the multi-model `CartConfig.productSources` (per-source field mapping)
+  instead of the removed single `productModelSlug`/`fieldMapping` pair.
+  Vendored SDL re-synced with production.
+
 ## 0.9.0
 
 - **Dropped model-template tools (headless).** Removed `list_model_templates`
