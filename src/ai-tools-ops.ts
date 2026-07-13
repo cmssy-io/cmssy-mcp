@@ -175,6 +175,44 @@ interface ResolvedModel {
   id: string;
   name: string;
   displayField: string | null;
+  /** Field keys stored per language: { en: "...", pl: "..." }. */
+  localizedFields: string[];
+}
+
+/**
+ * A translatable field's value is a language map. Merging it shallowly - the way
+ * every other field is merged - would drop every language the caller did not
+ * send: an agent translating one language would delete the rest.
+ */
+export function mergeRecordData(
+  current: Record<string, unknown>,
+  patch: Record<string, unknown>,
+  localizedFields: string[],
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...current, ...patch };
+  for (const key of localizedFields) {
+    const next = patch[key];
+    const prev = current[key];
+    if (isLanguageMap(next) && isLanguageMap(prev)) {
+      merged[key] = { ...prev, ...next };
+    }
+  }
+  return merged;
+}
+
+function localizedFieldKeys(
+  fields: Array<{ key: string; localized?: boolean | null }> | null | undefined,
+): string[] {
+  return (fields ?? []).filter((f) => f.localized).map((f) => f.key);
+}
+
+function isLanguageMap(value: unknown): value is Record<string, string> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every((entry) => typeof entry === "string")
+  );
 }
 
 async function fetchModelById(
@@ -187,6 +225,7 @@ async function fetchModelById(
         id: string;
         name: string;
         displayField?: string | null;
+        fields?: RawPropertyField[] | null;
       } | null;
     };
   }>(MODEL_DEFINITION_BY_ID_QUERY, { id });
@@ -195,6 +234,7 @@ async function fetchModelById(
     id: data.model.get.id,
     name: data.model.get.name,
     displayField: data.model.get.displayField ?? null,
+    localizedFields: localizedFieldKeys(data.model.get.fields),
   };
 }
 
@@ -265,6 +305,7 @@ interface RawPropertyField {
   type: string;
   required?: boolean | null;
   hidden?: boolean | null;
+  localized?: boolean | null;
   description?: string | null;
   defaultValue?: string | null;
   options?: string[] | null;
@@ -306,6 +347,7 @@ export function toProposedFields(fields: RawPropertyField[]): ProposedField[] {
       ? { acceptedTypes: f.acceptedTypes }
       : {}),
     ...(f.multiple != null ? { multiple: f.multiple } : {}),
+    ...(f.localized ? { localized: true } : {}),
     ...(f.schemaProperty != null ? { schemaProperty: f.schemaProperty } : {}),
     ...(f.minLength != null ? { minLength: f.minLength } : {}),
     ...(f.maxLength != null ? { maxLength: f.maxLength } : {}),
@@ -522,7 +564,11 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           currentData = res.record.setStatus.data ?? currentData;
         }
         if (data !== undefined) {
-          const merged = { ...currentData, ...data };
+          const merged = mergeRecordData(
+            currentData,
+            data,
+            model?.localizedFields ?? [],
+          );
           const res = await client.query<{
             record: {
               update: {

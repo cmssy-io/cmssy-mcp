@@ -2436,6 +2436,7 @@ type PropertyField {
   itemType: PropertyFieldType
   key: String!
   label: String!
+  localized: Boolean
   maxLength: Int
   maxValue: Float
   minLength: Int
@@ -2460,6 +2461,7 @@ input PropertyFieldInput {
   itemType: PropertyFieldType
   key: String!
   label: String!
+  localized: Boolean
   maxLength: Int
   maxValue: Float
   minLength: Int
@@ -2605,6 +2607,11 @@ type PublicModelQueries {
   records(
     filter: JSON
     limit: Int = 20
+
+    """
+    Language for translatable fields. Their values come back as plain strings, resolved for this language, falling back to the workspace's default language when a translation is missing.
+    """
+    locale: String
     modelSlug: String!
     offset: Int = 0
     populate: [String!]

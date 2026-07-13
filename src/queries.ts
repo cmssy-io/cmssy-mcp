@@ -591,6 +591,7 @@ const PROPERTY_FIELD_FRAGMENT = `
   type
   required
   hidden
+  localized
   description
   defaultValue
   options
