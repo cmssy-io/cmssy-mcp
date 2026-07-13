@@ -2351,6 +2351,11 @@ input ProductBulkSelectionInput {
 
 input ProductCatalogFilterInput {
   hasVariants: Boolean
+
+  """
+  Language for translatable fields: the search matches that language and names come back resolved for it. Defaults to the workspace's default language.
+  """
+  locale: String
   priceMax: Float
   priceMin: Float
   search: String
