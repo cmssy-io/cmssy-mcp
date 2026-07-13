@@ -256,6 +256,7 @@ interface RawModelDefinition {
     priceField: string;
     inventoryField: string;
   } | null;
+  updatedAt?: string | null;
 }
 
 interface RawPropertyField {
@@ -351,6 +352,7 @@ function toModelDetail(m: RawModelDefinition): ModelDetail {
       : null,
     product: m.product ?? null,
     fields: toProposedFields(m.fields ?? []),
+    updatedAt: m.updatedAt ?? null,
   };
 }
 
@@ -465,6 +467,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "product",
         ] as const) {
           if (patch[key] !== undefined) input[key] = patch[key];
+        }
+        if (patch.expectedUpdatedAt != null) {
+          input.expectedUpdatedAt = patch.expectedUpdatedAt;
         }
         if (patch.fields !== undefined) {
           input.fields = toPropertyFields(patch.fields);

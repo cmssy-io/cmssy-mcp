@@ -2602,7 +2602,20 @@ type PublicMediaQueries {
 
 type PublicModelQueries {
   definitions(workspaceId: String!): [ModelDefinition!]!
-  records(filter: JSON, limit: Int = 20, modelSlug: String!, offset: Int = 0, populate: [String!], sort: String, workspaceId: String!): ModelRecordList!
+  records(
+    filter: JSON
+    limit: Int = 20
+    modelSlug: String!
+    offset: Int = 0
+    populate: [String!]
+    sort: String
+
+    """
+    Filter a product model by availability: "in", "low" or "out". Availability is onHand - reserved, the same rule the admin catalog and the stock badge use.
+    """
+    stockState: String
+    workspaceId: String!
+  ): ModelRecordList!
 }
 
 type PublicMutations {
@@ -3243,6 +3256,11 @@ input UpdateModelDefinitionInput {
   defaultSort: DefaultSortInput
   description: String
   displayField: String
+
+  """
+  Optimistic-concurrency precondition: the updatedAt the client last read. The update fails with VERSION_CONFLICT if the model changed since.
+  """
+  expectedUpdatedAt: DateTime
   fields: [PropertyFieldInput!]
   icon: String
   id: ID!

@@ -1,5 +1,20 @@
 # @cmssy/mcp-server
 
+## 0.40.0
+
+- **Optimistic concurrency on `update_model` field patches (CMS-933).** The
+  tool's get -> merge -> update cycle now sends the model's `updatedAt` it
+  read as an `expectedUpdatedAt` precondition; a concurrent edit (admin UI,
+  another AI session) between the read and the write makes the update fail
+  loudly with `VERSION_CONFLICT` instead of silently reverting it. `get_model`
+  returns the model's `updatedAt`. Requires @cmssy/ai-tools >= 0.23.0 and the
+  CMS-933 backend deploy.
+
+## 0.39.0
+
+- **Commerce lookups (CMS-940).** `get_discount` finds a discount by its code,
+  and order tools return the full money column.
+
 ## 0.38.0
 
 - **Model tool gaps closed (CMS-927).** `update_model` is now a field-level
