@@ -465,9 +465,11 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "fields",
           "statusField",
           "product",
-          "expectedUpdatedAt",
         ] as const) {
           if (patch[key] !== undefined) input[key] = patch[key];
+        }
+        if (patch.expectedUpdatedAt != null) {
+          input.expectedUpdatedAt = patch.expectedUpdatedAt;
         }
         if (patch.fields !== undefined) {
           input.fields = toPropertyFields(patch.fields);
