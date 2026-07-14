@@ -2798,7 +2798,19 @@ input RecordOrderPaymentInput {
 
 type RecordQueries {
   get(id: ID!): ModelRecord
-  list(filter: JSON, limit: Int, modelId: ID!, offset: Int, populate: [String!], sort: String): ModelRecordList!
+  list(
+    filter: JSON
+    limit: Int
+
+    """
+    Language a filter or sort on a translatable field addresses. The records come back with their language maps intact - the editor needs every language - only the query is narrowed.
+    """
+    locale: String
+    modelId: ID!
+    offset: Int
+    populate: [String!]
+    sort: String
+  ): ModelRecordList!
 }
 
 input RefundOrderInput {
