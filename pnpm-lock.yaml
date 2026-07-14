@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@cmssy/ai-tools':
-        specifier: 0.25.0
-        version: 0.25.0(zod@4.4.3)
+        specifier: 0.26.0
+        version: 0.26.0(zod@4.4.3)
       '@cmssy/types':
         specifier: ^0.12.0
         version: 0.12.0
@@ -39,8 +39,8 @@ importers:
 
 packages:
 
-  '@cmssy/ai-tools@0.25.0':
-    resolution: {integrity: sha512-+S3t/n4aLyJ05AGfxEBafIYMyY6spCKb1B4Bb3TScx+r+Kgdw3bWYQtsecMN9lFrgw1w6jdXahij/W0zrYAzGA==}
+  '@cmssy/ai-tools@0.26.0':
+    resolution: {integrity: sha512-cKB77mqClIb1CHzO4qUWml1ug6heIcjahA+OZjisqGaIax+kEQ0pKlP4vU5tIGxKIVIARUYa9+y6AFdbpLVb6A==}
     peerDependencies:
       zod: ^4
 
@@ -978,7 +978,7 @@ packages:
 
 snapshots:
 
-  '@cmssy/ai-tools@0.25.0(zod@4.4.3)':
+  '@cmssy/ai-tools@0.26.0(zod@4.4.3)':
     dependencies:
       zod: 4.4.3
 

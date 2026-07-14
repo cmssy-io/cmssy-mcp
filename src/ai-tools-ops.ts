@@ -143,6 +143,10 @@ interface PageDoc {
   blocks?: Array<Record<string, unknown> & { id: string }>;
   layoutBlocks?: Array<Record<string, unknown> & { id: string }>;
   customFields?: unknown;
+  displayName?: Record<string, string> | null;
+  seoTitle?: Record<string, string> | null;
+  seoDescription?: Record<string, string> | null;
+  seoKeywords?: string[] | null;
   version?: number | null;
   createdAt?: string | null;
   updatedAt?: string | null;
@@ -724,6 +728,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           blocks: page.blocks ?? null,
           layoutBlocks: page.layoutBlocks ?? null,
           customFields: page.customFields ?? null,
+          displayName: page.displayName ?? null,
+          seoTitle: page.seoTitle ?? null,
+          seoDescription: page.seoDescription ?? null,
+          seoKeywords: page.seoKeywords ?? null,
           createdAt: page.createdAt ?? null,
           updatedAt: page.updatedAt ?? null,
         };
