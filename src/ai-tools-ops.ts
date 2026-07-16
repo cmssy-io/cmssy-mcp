@@ -1,4 +1,9 @@
+import { put } from "@vercel/blob/client";
 import type { CmssyClient } from "./graphql-client.js";
+import {
+  mediaTypeFromMime,
+  resolveUploadSource,
+} from "./media-upload.js";
 import type { Workspace } from "./types.js";
 import type {
   ModelDetail,
@@ -12,6 +17,9 @@ import {
   MODEL_DEFINITIONS_QUERY,
   MODEL_RECORDS_QUERY,
   MEDIA_ASSETS_QUERY,
+  AUTHORIZE_MEDIA_UPLOAD_MUTATION,
+  REGISTER_MEDIA_UPLOAD_MUTATION,
+  UPDATE_MEDIA_MUTATION,
   MEMBERS_QUERY,
   ROLES_QUERY,
   FORMS_QUERY,
@@ -1248,6 +1256,66 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           })),
           total: res.media.list.total,
           hasMore: res.media.list.hasMore,
+        };
+      },
+      upload: async (input) => {
+        const { bytes, filename, mimeType } = await resolveUploadSource(input);
+        const auth = await client.query<{
+          media: {
+            authorizeUpload: { pathname: string; clientToken: string };
+          };
+        }>(AUTHORIZE_MEDIA_UPLOAD_MUTATION, {
+          filename,
+          mimeType,
+          size: bytes.byteLength,
+        });
+        const { pathname, clientToken } = auth.media.authorizeUpload;
+
+        const blob = await put(pathname, bytes, {
+          access: "public",
+          token: clientToken,
+          contentType: mimeType,
+        });
+
+        const registered = await client.query<{
+          media: {
+            upload: {
+              id: string;
+              url: string | null;
+              filename: string;
+              type: string;
+              mimeType: string | null;
+              size: number | null;
+            };
+          };
+        }>(REGISTER_MEDIA_UPLOAD_MUTATION, {
+          input: {
+            url: blob.url,
+            pathname,
+            filename,
+            type: mediaTypeFromMime(mimeType),
+            mimeType,
+            size: bytes.byteLength,
+            ...(input.folderId ? { folderId: input.folderId } : {}),
+            ...(input.tags?.length ? { tags: input.tags } : {}),
+          },
+        });
+        const asset = registered.media.upload;
+
+        if (input.alt) {
+          await client.query<{ media: { update: { id: string } | null } }>(
+            UPDATE_MEDIA_MUTATION,
+            { id: asset.id, input: { alt: { en: input.alt } } },
+          );
+        }
+
+        return {
+          id: asset.id,
+          filename: asset.filename,
+          type: asset.type,
+          url: asset.url ?? null,
+          mimeType: asset.mimeType ?? null,
+          size: asset.size ?? null,
         };
       },
     },

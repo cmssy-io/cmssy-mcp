@@ -209,6 +209,44 @@ export const MEDIA_ASSETS_QUERY = `
   }
 `;
 
+export const AUTHORIZE_MEDIA_UPLOAD_MUTATION = `
+  mutation AuthorizeMediaUpload($filename: String!, $mimeType: String!, $size: Int!) {
+    media {
+      authorizeUpload(filename: $filename, mimeType: $mimeType, size: $size) {
+        pathname
+        clientToken
+        validUntil
+        maximumSizeInBytes
+      }
+    }
+  }
+`;
+
+export const REGISTER_MEDIA_UPLOAD_MUTATION = `
+  mutation RegisterMediaUpload($input: UploadMediaInput!) {
+    media {
+      upload(input: $input) {
+        id
+        url
+        filename
+        type
+        mimeType
+        size
+      }
+    }
+  }
+`;
+
+export const UPDATE_MEDIA_MUTATION = `
+  mutation UpdateMedia($id: ID!, $input: UpdateMediaInput!) {
+    media {
+      update(id: $id, input: $input) {
+        id
+      }
+    }
+  }
+`;
+
 // ─── Page Mutations ──────────────────────────────────────────
 
 export const SAVE_PAGE_MUTATION = `
