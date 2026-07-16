@@ -266,6 +266,14 @@ type AuthResponse {
   refreshToken: String
 }
 
+"""A scoped Vercel Blob client token authorizing one direct upload"""
+type AuthorizeMediaUploadPayload {
+  clientToken: String!
+  maximumSizeInBytes: Int!
+  pathname: String!
+  validUntil: DateTime!
+}
+
 type BlockData {
   advanced: JSON
   blockVersion: String
@@ -1445,6 +1453,7 @@ type MediaListResponse {
 }
 
 type MediaMutations {
+  authorizeUpload(filename: String!, mimeType: String!, size: Int!): AuthorizeMediaUploadPayload!
   createFolder(input: CreateMediaFolderInput!): MediaFolder!
   delete(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
   deleteFolder(deleteContents: Boolean = false, id: ID!): DeletionResult!
