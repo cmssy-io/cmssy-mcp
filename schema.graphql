@@ -2731,6 +2731,7 @@ type PublicPagesListResult {
 }
 
 type PublicQueries {
+  draftSecretValid(secret: String!, workspaceSlug: String!): Boolean!
   form: PublicFormQueries!
   media: PublicMediaQueries!
   model: PublicModelQueries!
