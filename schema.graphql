@@ -2141,11 +2141,13 @@ type PageMutations {
   move(input: MovePageInput!): Page
   patchBlockContent(input: PatchBlockContentInput!): Page
   promoteDevDraft(input: PromoteDevDraftInput!): Page
+  publish(expectedVersion: Int, id: ID!): Page
   publishContent(id: ID!): Page
   publishLayout(id: ID!): Page
   restoreVersion(pageId: ID!, version: Int!): Page
   revertContentToPublished(id: ID!): Page
   revertLayoutToPublished(id: ID!): Page
+  revertToPublished(id: ID!): Page
   save(input: SavePageInput!): Page
   saveDevDraft(input: SaveDevDraftInput!): PageDevDraft!
   setDevPreviewMode(active: Boolean!): Boolean!
