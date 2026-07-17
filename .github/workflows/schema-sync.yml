@@ -1,0 +1,62 @@
+name: Schema sync
+
+on:
+  schedule:
+    - cron: "45 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Refresh vendored SDL from production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Introspect production
+        run: pnpm fetch-prod-schema
+        env:
+          CMSSY_API_URL: ${{ vars.CMSSY_API_URL || 'https://api.cmssy.io/graphql' }}
+
+      - name: Detect drift
+        id: drift
+        run: |
+          if node scripts/check-schema-drift.mjs; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Refresh the vendored SDL
+        if: steps.drift.outputs.changed == 'true'
+        run: cp prod-schema.graphql schema.graphql
+
+      - name: Every MCP operation is one the refreshed SDL accepts
+        if: steps.drift.outputs.changed == 'true'
+        run: pnpm test -- operations.validate
+
+      - name: Open or update the sync PR
+        if: steps.drift.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: schema-sync
+          commit-message: "chore(schema): sync vendored SDL with production"
+          title: "chore(schema): sync vendored SDL with production"
+          body: |
+            Automated sync: production's schema drifted from the vendored copy.
+
+            The `operations.validate` harness already ran GREEN against this refreshed SDL inside the [sync workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) - if required checks don't start on this PR (GITHUB_TOKEN limitation), close and reopen it.
+          delete-branch: true
