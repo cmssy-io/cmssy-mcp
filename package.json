@@ -1,7 +1,7 @@
 {
   "name": "@cmssy/mcp-server",
-  "version": "0.44.0",
-  "description": "MCP server for Cmssy CMS \u2014 enables AI-driven page creation and management",
+  "version": "0.43.1",
+  "description": "MCP server for Cmssy CMS — enables AI-driven page creation and management",
   "type": "module",
   "bin": {
     "cmssy-mcp": "./dist/index.js"
@@ -25,7 +25,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@cmssy/ai-tools": "0.27.0",
+    "@cmssy/ai-tools": "0.27.1",
     "@cmssy/types": "^0.12.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@vercel/blob": "^2.6.1",
