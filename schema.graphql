@@ -2639,6 +2639,19 @@ type PublicModelQueries {
     stockState: String
     workspaceId: String!
   ): ModelRecordList!
+
+  """
+  Batch-resolve records referenced by id - the delivery read behind block relation fields. Records come back in the order of ids; an unknown or foreign-workspace id is skipped, so a dangling reference never breaks a page render. Accepts at most 50 ids per call.
+  """
+  recordsByIds(
+    ids: [String!]!
+
+    """
+    Language for translatable fields. Their values come back as plain strings, resolved for this language, falling back to the workspace's default language when a translation is missing.
+    """
+    locale: String
+    workspaceId: String!
+  ): [ModelRecord!]!
 }
 
 type PublicMutations {
