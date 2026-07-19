@@ -45,6 +45,9 @@ import {
   CREATE_PAGE_TYPE_MUTATION,
   UPDATE_PAGE_SETTINGS_MUTATION,
   UPDATE_PAGE_LAYOUT_MUTATION,
+  DEV_DRAFT_QUERY,
+  SAVE_DEV_DRAFT_MUTATION,
+  PROMOTE_DEV_DRAFT_MUTATION,
   PUBLISH_PAGE_CONTENT_MUTATION,
   PUBLISH_PAGE_LAYOUT_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
@@ -154,6 +157,56 @@ function withBlockWarnings<T extends object>(
 
 interface WarnedWrite {
   blockWarnings?: string[] | null;
+}
+
+function applyBlockUpdate(
+  block: Record<string, unknown> & { id: string },
+  content: Record<string, unknown>,
+  settings: Record<string, unknown> | undefined,
+  mode: "merge" | "replace",
+): Record<string, unknown> & { id: string } {
+  const updated = { ...block };
+  if (mode === "replace") {
+    updated.content = content;
+  } else {
+    const mergedContent = {
+      ...((updated.content as Record<string, unknown>) ?? {}),
+    };
+    for (const [lang, langContent] of Object.entries(content)) {
+      if (
+        typeof langContent === "object" &&
+        langContent !== null &&
+        typeof mergedContent[lang] === "object" &&
+        mergedContent[lang] !== null
+      ) {
+        mergedContent[lang] = {
+          ...(mergedContent[lang] as Record<string, unknown>),
+          ...(langContent as Record<string, unknown>),
+        };
+      } else {
+        mergedContent[lang] = langContent;
+      }
+    }
+    updated.content = mergedContent;
+  }
+  if (settings) {
+    updated.settings =
+      mode === "replace"
+        ? settings
+        : {
+            ...((updated.settings as Record<string, unknown>) ?? {}),
+            ...settings,
+          };
+  }
+  const trans = updated.translations as
+    | Record<string, { status: string }>
+    | undefined;
+  if (trans) {
+    for (const lang of Object.keys(content)) {
+      if (trans[lang]) trans[lang] = { status: "completed" };
+    }
+  }
+  return updated;
 }
 
 interface PageDoc {
@@ -1091,15 +1144,90 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           saved.page.save.blockWarnings,
         );
       },
+      getDevDraft: async (pageId) => {
+        const page = await loadPageVersion(client, pageId);
+        if (!page) throw new Error("Page not found");
+        const res = await client.query<{
+          page: {
+            devDraft: {
+              pageId: string;
+              updatedAt: string | null;
+              blocks: unknown;
+            } | null;
+          };
+        }>(DEV_DRAFT_QUERY, { pageId: page.id });
+        const draft = res.page.devDraft;
+        if (!draft) return null;
+        return {
+          pageId: page.id,
+          blocks: draft.blocks,
+          updatedAt: draft.updatedAt ?? null,
+        };
+      },
+      saveDevDraft: async (pageId, blocks) => {
+        const page = await loadPageVersion(client, pageId);
+        if (!page) throw new Error("Page not found");
+        await client.query(SAVE_DEV_DRAFT_MUTATION, {
+          input: { pageId: page.id, blocks },
+        });
+        return { id: page.id };
+      },
+      promoteDevDraft: async (pageId) => {
+        const page = await loadPageVersion(client, pageId);
+        if (!page) throw new Error("Page not found");
+        const res = await client.query<{
+          page: { promoteDevDraft: ({ id: string } & WarnedWrite) | null };
+        }>(PROMOTE_DEV_DRAFT_MUTATION, {
+          input: {
+            pageId: page.id,
+            ...(expectedVersionOf(page) !== undefined
+              ? { expectedVersion: expectedVersionOf(page) }
+              : {}),
+          },
+        });
+        if (!res.page.promoteDevDraft) {
+          throw new Error("No dev draft to promote");
+        }
+        return withBlockWarnings(
+          { id: res.page.promoteDevDraft.id },
+          res.page.promoteDevDraft.blockWarnings,
+        );
+      },
       updateBlock: async (
         pageId,
         blockId,
         content,
         settings,
         mode = "merge",
+        target,
       ) => {
         const page = await loadPage(client, pageId);
         if (!page) throw new Error("Page not found");
+        if (target === "devDraft") {
+          const overlay = await client.query<{
+            page: {
+              devDraft: {
+                blocks: Array<Record<string, unknown> & { id: string }>;
+              } | null;
+            };
+          }>(DEV_DRAFT_QUERY, { pageId: page.id });
+          const base = overlay.page.devDraft?.blocks ?? page.blocks ?? [];
+          const idx = base.findIndex((b) => b.id === blockId);
+          if (idx === -1) {
+            throw new Error("Block not found in the dev draft");
+          }
+          const blocks = [...base];
+          blocks[idx] = applyBlockUpdate(
+            { ...blocks[idx]! },
+            content,
+            settings,
+            mode,
+          );
+          await client.query(SAVE_DEV_DRAFT_MUTATION, {
+            input: { pageId: page.id, blocks },
+          });
+          return { pageId: page.id, blockId };
+        }
         const ev = expectedVersionOf(page);
         const contentIdx = (page.blocks ?? []).findIndex(
           (b) => b.id === blockId,
@@ -1116,50 +1244,14 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           ? [...(page.layoutBlocks ?? [])]
           : [...(page.blocks ?? [])];
         const targetIndex = isLayout ? layoutIdx : contentIdx;
-        const existingBlock = {
-          ...targetArray[targetIndex],
-        } as Record<string, unknown> & { id: string };
-        if (mode === "replace") {
-          existingBlock.content = content;
-        } else {
-          const mergedContent = {
-            ...((existingBlock.content as Record<string, unknown>) ?? {}),
-          };
-          for (const [lang, langContent] of Object.entries(content)) {
-            if (
-              typeof langContent === "object" &&
-              langContent !== null &&
-              typeof mergedContent[lang] === "object" &&
-              mergedContent[lang] !== null
-            ) {
-              mergedContent[lang] = {
-                ...(mergedContent[lang] as Record<string, unknown>),
-                ...(langContent as Record<string, unknown>),
-              };
-            } else {
-              mergedContent[lang] = langContent;
-            }
-          }
-          existingBlock.content = mergedContent;
-        }
-        if (settings) {
-          existingBlock.settings =
-            mode === "replace"
-              ? settings
-              : {
-                  ...((existingBlock.settings as Record<string, unknown>) ??
-                    {}),
-                  ...settings,
-                };
-        }
-        const trans = existingBlock.translations as
-          Record<string, { status: string }> | undefined;
-        if (trans) {
-          for (const lang of Object.keys(content)) {
-            if (trans[lang]) trans[lang] = { status: "completed" };
-          }
-        }
-        targetArray[targetIndex] = existingBlock;
+        targetArray[targetIndex] = applyBlockUpdate(
+          { ...targetArray[targetIndex] } as Record<string, unknown> & {
+            id: string;
+          },
+          content,
+          settings,
+          mode,
+        );
         let blockWarnings: string[] | null | undefined;
         if (isLayout) {
           const res = await client.query<{

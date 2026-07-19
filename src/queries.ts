@@ -321,6 +321,51 @@ export const PATCH_BLOCK_CONTENT_MUTATION = `
   }
 `;
 
+export const DEV_DRAFT_QUERY = `
+  query DevDraft($pageId: String!) {
+    page { devDraft(pageId: $pageId) {
+      pageId
+      updatedAt
+      blocks {
+        id
+        type
+        content
+        settings
+        style
+        advanced
+        translations
+        defaultLanguage
+        metadata {
+          createdAt
+          updatedAt
+          createdBy
+          version
+        }
+        blockVersion
+      }
+    } }
+  }
+`;
+
+export const SAVE_DEV_DRAFT_MUTATION = `
+  mutation SaveDevDraft($input: SaveDevDraftInput!) {
+    page { saveDevDraft(input: $input) {
+      pageId
+      updatedAt
+    } }
+  }
+`;
+
+export const PROMOTE_DEV_DRAFT_MUTATION = `
+  mutation PromoteDevDraft($input: PromoteDevDraftInput!) {
+    page { promoteDevDraft(input: $input) {
+      id
+      blockWarnings
+      updatedAt
+    } }
+  }
+`;
+
 export const UPDATE_PAGE_SETTINGS_MUTATION = `
   mutation UpdatePageSettings($input: UpdatePageSettingsInput!) {
     page { updateSettings(input: $input) {
