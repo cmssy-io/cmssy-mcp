@@ -143,6 +143,19 @@ function expectedVersionOf(page: {
   return page?.version != null ? Number(page.version) : undefined;
 }
 
+function withBlockWarnings<T extends object>(
+  base: T,
+  warnings: string[] | null | undefined,
+): T & { blockWarnings?: string[] } {
+  return warnings && warnings.length
+    ? { ...base, blockWarnings: warnings }
+    : base;
+}
+
+interface WarnedWrite {
+  blockWarnings?: string[] | null;
+}
+
 interface PageDoc {
   id: string;
   name: string;
@@ -721,9 +734,12 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (input.customFields !== undefined)
           mutationInput.customFields = input.customFields;
         const res = await client.query<{
-          page: { save: { id: string; name: string } };
+          page: { save: { id: string; name: string } & WarnedWrite };
         }>(SAVE_PAGE_MUTATION, { input: mutationInput });
-        return { id: res.page.save.id, name: res.page.save.name };
+        return withBlockWarnings(
+          { id: res.page.save.id, name: res.page.save.name },
+          res.page.save.blockWarnings,
+        );
       },
       get: async (idOrSlug) => {
         const page = await loadPage(client, idOrSlug);
@@ -807,20 +823,22 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             blockVersion: block.blockVersion ?? prev.blockVersion,
           };
         });
-        const res = await client.query<{ page: { save: { id: string } } }>(
-          SAVE_PAGE_MUTATION,
-          {
-            input: {
-              id: pageId,
-              name: page.name,
-              slug: toRelativeSlug(page.slug),
-              parentId: page.parentId ?? undefined,
-              blocks: merged,
-              expectedVersion: expectedVersionOf(page),
-            },
+        const res = await client.query<{
+          page: { save: { id: string } & WarnedWrite };
+        }>(SAVE_PAGE_MUTATION, {
+          input: {
+            id: pageId,
+            name: page.name,
+            slug: toRelativeSlug(page.slug),
+            parentId: page.parentId ?? undefined,
+            blocks: merged,
+            expectedVersion: expectedVersionOf(page),
           },
+        });
+        return withBlockWarnings(
+          { id: res.page.save.id },
+          res.page.save.blockWarnings,
         );
-        return { id: res.page.save.id };
       },
       updateSettings: async (pageId, settings) => {
         // Read-modify-write: carry the current version as expectedVersion so the
@@ -968,10 +986,13 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const ev = expectedVersionOf(page);
         if (ev !== undefined) input.expectedVersion = ev;
         const res = await client.query<{
-          page: { updateLayout: { id: string } | null };
+          page: { updateLayout: ({ id: string } & WarnedWrite) | null };
         }>(UPDATE_PAGE_LAYOUT_MUTATION, { input });
         if (!res.page.updateLayout) throw new Error("Page not found");
-        return { id: res.page.updateLayout.id };
+        return withBlockWarnings(
+          { id: res.page.updateLayout.id },
+          res.page.updateLayout.blockWarnings,
+        );
       },
       addBlock: async (pageId, block, layoutPosition, position) => {
         const page = await loadPage(client, pageId);
@@ -1020,7 +1041,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             defaultLanguage,
           };
           const res = await client.query<{
-            page: { updateLayout: { id: string } | null };
+            page: { updateLayout: ({ id: string } & WarnedWrite) | null };
           }>(UPDATE_PAGE_LAYOUT_MUTATION, {
             input: {
               pageId,
@@ -1029,7 +1050,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             },
           });
           if (!res.page.updateLayout) throw new Error("Failed to add block");
-          return { pageId, blockId: newBlockId };
+          return withBlockWarnings(
+            { pageId, blockId: newBlockId },
+            res.page.updateLayout.blockWarnings,
+          );
         }
         const newBlock = {
           id: newBlockId,
@@ -1050,7 +1074,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         } else {
           blocks.push(newBlock);
         }
-        await client.query(SAVE_PAGE_MUTATION, {
+        const saved = await client.query<{
+          page: { save: WarnedWrite };
+        }>(SAVE_PAGE_MUTATION, {
           input: {
             id: pageId,
             name: page.name,
@@ -1060,7 +1086,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             expectedVersion: ev,
           },
         });
-        return { pageId, blockId: newBlockId };
+        return withBlockWarnings(
+          { pageId, blockId: newBlockId },
+          saved.page.save.blockWarnings,
+        );
       },
       updateBlock: async (
         pageId,
@@ -1131,9 +1160,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           }
         }
         targetArray[targetIndex] = existingBlock;
+        let blockWarnings: string[] | null | undefined;
         if (isLayout) {
           const res = await client.query<{
-            page: { updateLayout: { id: string } | null };
+            page: { updateLayout: ({ id: string } & WarnedWrite) | null };
           }>(UPDATE_PAGE_LAYOUT_MUTATION, {
             input: {
               pageId,
@@ -1142,8 +1172,11 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             },
           });
           if (!res.page.updateLayout) throw new Error("Failed to update block");
+          blockWarnings = res.page.updateLayout.blockWarnings;
         } else {
-          await client.query(SAVE_PAGE_MUTATION, {
+          const res = await client.query<{
+            page: { save: WarnedWrite };
+          }>(SAVE_PAGE_MUTATION, {
             input: {
               id: pageId,
               name: page.name,
@@ -1153,8 +1186,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               expectedVersion: ev,
             },
           });
+          blockWarnings = res.page.save.blockWarnings;
         }
-        return { pageId, blockId };
+        return withBlockWarnings({ pageId, blockId }, blockWarnings);
       },
       patchBlock: async (
         pageId,
@@ -1174,7 +1208,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           ev = expectedVersionOf(page);
         }
         const res = await client.query<{
-          page: { patchBlockContent: { id: string } | null };
+          page: { patchBlockContent: ({ id: string } & WarnedWrite) | null };
         }>(PATCH_BLOCK_CONTENT_MUTATION, {
           input: {
             pageId,
@@ -1188,7 +1222,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (!res.page.patchBlockContent) {
           throw new Error("Page not found or patch failed");
         }
-        return { pageId, blockId };
+        return withBlockWarnings(
+          { pageId, blockId },
+          res.page.patchBlockContent.blockWarnings,
+        );
       },
       removeBlock: async (pageId, blockId) => {
         const page = await loadPage(client, pageId);
