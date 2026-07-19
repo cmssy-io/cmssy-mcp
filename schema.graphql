@@ -300,6 +300,21 @@ input BlockDataInput {
   type: String!
 }
 
+type BlockManifest {
+  blocks: JSON!
+  hash: String!
+  source: String!
+  updatedAt: DateTime!
+}
+
+type BlockManifestMutations {
+  save(blocks: JSON!): BlockManifest!
+}
+
+type BlockManifestQueries {
+  get: BlockManifest
+}
+
 type BlockMetadata {
   createdAt: DateTime!
   createdBy: String!
@@ -1661,6 +1676,7 @@ type Mutation {
   ai: AiMutations!
   apiToken: ApiTokenMutations!
   auth: AuthMutations!
+  blockManifest: BlockManifestMutations!
   cart: CartMutations!
   discount: DiscountMutations!
   email: EmailMutations!
@@ -2770,6 +2786,7 @@ type Query {
   ai: AiQueries!
   apiToken: ApiTokenQueries!
   auditLog: AuditLogQueries!
+  blockManifest: BlockManifestQueries!
   cart: CartQueries!
   discount: DiscountQueries!
   email: EmailQueries!

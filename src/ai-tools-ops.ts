@@ -6,6 +6,7 @@ import {
 } from "./media-upload.js";
 import type { Workspace } from "./types.js";
 import type {
+  BlockTypeDefinition,
   ModelDetail,
   ModelSummary,
   ProposedField,
@@ -52,6 +53,7 @@ import {
   REMOVE_PAGE_MUTATION,
   PATCH_BLOCK_CONTENT_MUTATION,
   SITE_CONFIG_QUERY,
+  BLOCK_MANIFEST_QUERY,
   CURRENT_WORKSPACE_QUERY,
   FORM_BY_ID_QUERY,
   UPDATE_FORM_MUTATION,
@@ -1866,6 +1868,24 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           enabledFeatures: c.enabledFeatures ?? [],
           cart: c.cart ?? null,
         };
+      },
+      blockManifest: async () => {
+        const res = await client.query<{
+          blockManifest: {
+            get: {
+              blocks?: unknown;
+              hash: string;
+              updatedAt: string;
+            } | null;
+          };
+        }>(BLOCK_MANIFEST_QUERY);
+        const m = res.blockManifest.get;
+        if (!m) return null;
+        const blocks = (Array.isArray(m.blocks) ? m.blocks : []).filter(
+          (entry): entry is BlockTypeDefinition =>
+            typeof entry === "object" && entry !== null && !Array.isArray(entry),
+        );
+        return { blocks, hash: m.hash, updatedAt: m.updatedAt };
       },
       updateCartConfig: async (input) => {
         const res = await client.query<{

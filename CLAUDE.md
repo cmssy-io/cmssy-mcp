@@ -19,7 +19,7 @@ No test framework is configured.
 5 source files in `src/`:
 
 - **index.ts** - CLI entrypoint. Parses `--token`, `--workspace-id`, `--api-url` args (falls back to env vars `CMSSY_API_TOKEN`, `CMSSY_WORKSPACE_ID`, `CMSSY_API_URL`). Wires `CmssyClient` -> `createServer` -> `StdioServerTransport`.
-- **server.ts** - All MCP tool/resource definitions via `McpServer` from `@modelcontextprotocol/sdk`. Contains read tools (list_pages, get_page, etc.), write tools (create_page, update_page_blocks, publish_page, etc.), block helper tools (add_block_to_page, update_block_content, remove_block_from_page), layout tools, and resources (cmssy://sitemap, cmssy://blocks, cmssy://workspace). Caches workspace block registry in-memory.
+- **server.ts** - All MCP tool/resource definitions via `McpServer` from `@modelcontextprotocol/sdk`. Contains read tools (list_pages, get_page, list_block_types backed by the backend `blockManifest` namespace, etc.), write tools (create_page, update_page_blocks, publish_page, etc.), block helper tools (add_block_to_page, update_block_content, remove_block_from_page), layout tools, and resources (cmssy://sitemap, cmssy://workspace).
 - **graphql-client.ts** - `CmssyClient` class. Sends GraphQL queries to `{apiUrl}/graphql` with Bearer token + `x-workspace-id` header. Has `buildSelectionSet()` for runtime schema introspection (used for dynamic header/footer fields in site config).
 - **queries.ts** - All GraphQL query/mutation strings as template literals.
 - **types.ts** - TypeScript interfaces for the domain model (Page, BlockData, LayoutBlock, WorkspaceBlock, SiteConfig, etc.).
