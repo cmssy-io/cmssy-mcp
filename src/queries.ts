@@ -265,6 +265,7 @@ export const SAVE_PAGE_MUTATION = `
   mutation SavePage($input: SavePageInput!) {
     page { save(input: $input) {
       id
+      blockWarnings
       version
       name
       slug
@@ -311,6 +312,7 @@ export const PATCH_BLOCK_CONTENT_MUTATION = `
   mutation PatchBlockContent($input: PatchBlockContentInput!) {
     page { patchBlockContent(input: $input) {
       id
+      blockWarnings
       slug
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
@@ -485,6 +487,7 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
   mutation UpdatePageLayout($input: UpdatePageLayoutInput!) {
     page { updateLayout(input: $input) {
       id
+      blockWarnings
       slug
       hasUnpublishedContentChanges
       hasUnpublishedLayoutChanges
