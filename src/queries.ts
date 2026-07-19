@@ -153,6 +153,18 @@ export const UPDATE_CART_CONFIG_MUTATION = `
   }
 `;
 
+export const BLOCK_MANIFEST_QUERY = `
+  query BlockManifest {
+    blockManifest {
+      get {
+        blocks
+        hash
+        updatedAt
+      }
+    }
+  }
+`;
+
 // ─── Workspace Queries ───────────────────────────────────────
 
 export const CURRENT_WORKSPACE_QUERY = `
