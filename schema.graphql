@@ -2831,7 +2831,7 @@ type Query {
 
 type RecordMutations {
   create(input: CreateModelRecordInput!): ModelRecord!
-  delete(id: ID!): DeletionResult!
+  delete(force: Boolean, id: ID!): DeletionResult!
   import(input: ImportModelRecordsInput!): ImportModelRecordsResult!
   setStatus(input: UpdateModelRecordStatusInput!): ModelRecord
   update(input: UpdateModelRecordInput!): ModelRecord
@@ -2866,6 +2866,21 @@ type RecordQueries {
     populate: [String!]
     sort: String
   ): ModelRecordList!
+  usages(id: ID!): [RecordUsage!]!
+}
+
+"""
+One place a record's id appears in a page's block content. A record stays deletable - the read path resolves a dangling reference to nothing.
+"""
+type RecordUsage {
+  blockId: String!
+  blockType: String!
+  fieldPath: String!
+  pageId: String!
+  pageName: String!
+  pageSlug: String!
+  position: String!
+  version: String!
 }
 
 input RefundOrderInput {

@@ -726,10 +726,13 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         }>(DELETE_MODEL_DEFINITION_MUTATION, { id: model.id });
         return { deleted: Boolean(res.model.delete.deleted) };
       },
-      deleteRecord: async (recordId) => {
+      deleteRecord: async (recordId, options) => {
         const res = await client.query<{
           record: { delete: { deleted: boolean } };
-        }>(DELETE_MODEL_RECORD_MUTATION, { id: recordId });
+        }>(DELETE_MODEL_RECORD_MUTATION, {
+          id: recordId,
+          force: options?.force ?? false,
+        });
         return { deleted: Boolean(res.record.delete.deleted) };
       },
       importRecords: async (modelIdOrSlug, rows) => {

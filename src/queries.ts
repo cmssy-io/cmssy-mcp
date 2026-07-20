@@ -884,9 +884,9 @@ export const UPDATE_MODEL_RECORD_STATUS_MUTATION = `
 `;
 
 export const DELETE_MODEL_RECORD_MUTATION = `
-  mutation DeleteModelRecord($id: ID!) {
+  mutation DeleteModelRecord($id: ID!, $force: Boolean) {
     record {
-      delete(id: $id) {
+      delete(id: $id, force: $force) {
         id
         deleted
       }
