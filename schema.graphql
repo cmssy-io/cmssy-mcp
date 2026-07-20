@@ -1289,6 +1289,14 @@ type IntegrationQueries {
   emailProviders: [EmailProviderInfo!]!
 }
 
+type InviteMemberResult {
+  """
+  Whether the invitation email was actually delivered to the mailer. False means the invite exists but no email went out (e.g. SMTP unconfigured) - surface it so the inviter can share the link another way.
+  """
+  emailSent: Boolean!
+  organization: Organization!
+}
+
 input InviteOrganizationMemberInput {
   email: String!
   roleId: String
@@ -2023,7 +2031,7 @@ type OrganizationMutations {
   cancelInvitation(email: String!, organizationId: ID!): Organization!
   create(input: CreateOrganizationInput!): Organization!
   delete(id: ID!): DeletionResult!
-  inviteMember(input: InviteOrganizationMemberInput!, organizationId: ID!): Organization!
+  inviteMember(input: InviteOrganizationMemberInput!, organizationId: ID!): InviteMemberResult!
   moveWorkspace(organizationId: ID!, workspaceId: ID!): Organization!
   removeMember(organizationId: ID!, userId: ID!): Organization!
 
