@@ -1,9 +1,12 @@
 name: Release
 
-# Publishes @cmssy/mcp-server to npm.
-# Trigger by pushing a version tag (e.g. `git tag v0.10.0 && git push --tags`)
-# or manually via the Actions tab. Requires an npm Automation access token
-# (bypasses 2FA) stored as the `NPM_TOKEN` repository secret.
+# Publishes @cmssy/mcp-server to npm via trusted publishing (OIDC) - no token.
+# Trigger by pushing a version tag (e.g. `git tag v0.10.0 && git push origin v0.10.0`)
+# or manually via the Actions tab. Authentication comes from the GitHub OIDC
+# token, so the npm package must have this repo + this workflow registered as a
+# Trusted Publisher (npmjs.com -> package -> Settings -> Trusted Publisher).
+# pnpm installs and builds; npm does the publish (single package, no
+# workspace: deps to rewrite) so the OIDC path is npm's own.
 
 on:
   push:
@@ -20,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Lets the job mint the OIDC token npm exchanges for publish rights.
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +37,10 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
           cache: pnpm
+
+      # Trusted publishing needs npm >= 11.5.1; the node 22 image ships 10.x.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@latest
 
       # On a tag release the tag must match package.json (source of truth).
       # Manual dispatch publishes the current version as-is.
@@ -53,9 +62,8 @@ jobs:
       - run: pnpm typecheck
 
       # Skips if the current version is already on npm, so re-runs are safe.
+      # This repo is public, so the publish carries a provenance attestation.
       - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -e
           name=$(node -p "require('./package.json').name")
@@ -64,5 +72,5 @@ jobs:
             echo "$name@$version already on npm — skipping"
           else
             echo "Publishing $name@$version"
-            pnpm publish --access public --no-git-checks
+            npm publish --access public --provenance
           fi
