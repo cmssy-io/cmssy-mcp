@@ -11,6 +11,11 @@ import {
   getWorkspaceInfoTool,
   listMediaTool,
   uploadMediaTool,
+  listMediaFoldersTool,
+  createMediaFolderTool,
+  updateMediaFolderTool,
+  deleteMediaFolderTool,
+  moveMediaTool,
   createPageTool,
   updatePageBlocksTool,
   updatePageSettingsTool,
@@ -120,6 +125,11 @@ export function createServer(client: CmssyClient) {
   bindSharedTool(server, getWorkspaceInfoTool, sharedOps);
   bindSharedTool(server, listMediaTool, sharedOps);
   bindSharedTool(server, uploadMediaTool, sharedOps);
+  bindSharedTool(server, listMediaFoldersTool, sharedOps);
+  bindSharedTool(server, createMediaFolderTool, sharedOps);
+  bindSharedTool(server, updateMediaFolderTool, sharedOps);
+  bindSharedTool(server, deleteMediaFolderTool, sharedOps);
+  bindSharedTool(server, moveMediaTool, sharedOps);
   bindSharedTool(server, listMembersTool, sharedOps);
   bindSharedTool(server, listRolesTool, sharedOps);
 

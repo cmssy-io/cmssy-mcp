@@ -259,6 +259,58 @@ export const UPDATE_MEDIA_MUTATION = `
   }
 `;
 
+// ─── Media Folder Queries & Mutations ────────────────────────
+
+export const MEDIA_FOLDERS_QUERY = `
+  query MediaFolders($parentId: ID) {
+    media {
+      folders(parentId: $parentId) {
+        items {
+          id
+          name
+          parentId
+        }
+        total
+      }
+    }
+  }
+`;
+
+export const CREATE_MEDIA_FOLDER_MUTATION = `
+  mutation CreateMediaFolder($input: CreateMediaFolderInput!) {
+    media {
+      createFolder(input: $input) {
+        id
+        name
+        parentId
+      }
+    }
+  }
+`;
+
+export const UPDATE_MEDIA_FOLDER_MUTATION = `
+  mutation UpdateMediaFolder($id: ID!, $input: UpdateMediaFolderInput!) {
+    media {
+      updateFolder(id: $id, input: $input) {
+        id
+        name
+        parentId
+      }
+    }
+  }
+`;
+
+export const DELETE_MEDIA_FOLDER_MUTATION = `
+  mutation DeleteMediaFolder($id: ID!, $deleteContents: Boolean) {
+    media {
+      deleteFolder(id: $id, deleteContents: $deleteContents) {
+        id
+        deleted
+      }
+    }
+  }
+`;
+
 // ─── Page Mutations ──────────────────────────────────────────
 
 export const SAVE_PAGE_MUTATION = `
