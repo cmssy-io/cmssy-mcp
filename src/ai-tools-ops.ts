@@ -18,6 +18,10 @@ import {
   AUTHORIZE_MEDIA_UPLOAD_MUTATION,
   REGISTER_MEDIA_UPLOAD_MUTATION,
   UPDATE_MEDIA_MUTATION,
+  MEDIA_FOLDERS_QUERY,
+  CREATE_MEDIA_FOLDER_MUTATION,
+  UPDATE_MEDIA_FOLDER_MUTATION,
+  DELETE_MEDIA_FOLDER_MUTATION,
   MEMBERS_QUERY,
   ROLES_QUERY,
   FORMS_QUERY,
@@ -1448,6 +1452,89 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           mimeType: asset.mimeType ?? null,
           size: asset.size ?? null,
         };
+      },
+      listFolders: async (parentId) => {
+        const res = await client.query<{
+          media: {
+            folders: {
+              items: Array<{
+                id: string;
+                name: string;
+                parentId?: string | null;
+              }>;
+              total: number;
+            };
+          };
+        }>(MEDIA_FOLDERS_QUERY, { parentId: parentId ?? null });
+        return {
+          items: res.media.folders.items.map((f) => ({
+            id: f.id,
+            name: f.name,
+            parentId: f.parentId ?? null,
+          })),
+          total: res.media.folders.total,
+        };
+      },
+      createFolder: async (input) => {
+        const res = await client.query<{
+          media: {
+            createFolder: {
+              id: string;
+              name: string;
+              parentId?: string | null;
+            };
+          };
+        }>(CREATE_MEDIA_FOLDER_MUTATION, {
+          input: {
+            name: input.name,
+            ...(input.parentId ? { parentId: input.parentId } : {}),
+          },
+        });
+        const f = res.media.createFolder;
+        return { id: f.id, name: f.name, parentId: f.parentId ?? null };
+      },
+      updateFolder: async (id, input) => {
+        const res = await client.query<{
+          media: {
+            updateFolder: {
+              id: string;
+              name: string;
+              parentId?: string | null;
+            };
+          };
+        }>(UPDATE_MEDIA_FOLDER_MUTATION, {
+          id,
+          input: {
+            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.parentId !== undefined
+              ? { parentId: input.parentId }
+              : {}),
+          },
+        });
+        const f = res.media.updateFolder;
+        return { id: f.id, name: f.name, parentId: f.parentId ?? null };
+      },
+      deleteFolder: async (id, deleteContents) => {
+        const res = await client.query<{
+          media: { deleteFolder: { id: string; deleted: boolean } };
+        }>(DELETE_MEDIA_FOLDER_MUTATION, {
+          id,
+          deleteContents: deleteContents ?? false,
+        });
+        return {
+          id: res.media.deleteFolder.id,
+          deleted: res.media.deleteFolder.deleted,
+        };
+      },
+      move: async (ids, folderId) => {
+        // The backend moves one asset per update(id, {folderId}); loop the ids.
+        for (const id of ids) {
+          await client.query<{ media: { update: { id: string } | null } }>(
+            UPDATE_MEDIA_MUTATION,
+            { id, input: { folderId } },
+          );
+        }
+        return { moved: ids.length, folderId };
       },
     },
     forms: {
