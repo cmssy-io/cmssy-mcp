@@ -1,9 +1,6 @@
 import { put } from "@vercel/blob/client";
 import type { CmssyClient } from "./graphql-client.js";
-import {
-  mediaTypeFromMime,
-  resolveUploadSource,
-} from "./media-upload.js";
+import { mediaTypeFromMime, resolveUploadSource } from "./media-upload.js";
 import type { Workspace } from "./types.js";
 import type {
   BlockTypeDefinition,
@@ -199,8 +196,7 @@ function applyBlockUpdate(
           };
   }
   const trans = updated.translations as
-    | Record<string, { status: string }>
-    | undefined;
+    Record<string, { status: string }> | undefined;
   if (trans) {
     for (const lang of Object.keys(content)) {
       if (trans[lang]) trans[lang] = { status: "completed" };
@@ -906,6 +902,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         for (const key of [
           "name",
           "slug",
+          "parentId",
           "displayName",
           "seoTitle",
           "seoDescription",
@@ -2015,7 +2012,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (!m) return null;
         const blocks = (Array.isArray(m.blocks) ? m.blocks : []).filter(
           (entry): entry is BlockTypeDefinition =>
-            typeof entry === "object" && entry !== null && !Array.isArray(entry),
+            typeof entry === "object" &&
+            entry !== null &&
+            !Array.isArray(entry),
         );
         return { blocks, hash: m.hash, updatedAt: m.updatedAt };
       },
