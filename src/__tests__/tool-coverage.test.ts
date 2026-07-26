@@ -17,7 +17,7 @@ function boundToolNames(): Set<string> {
   return names;
 }
 
-const KNOWN_UNBOUND = new Set(["search_content", "promote_dev_draft"]);
+const KNOWN_UNBOUND = new Set(["search_content"]);
 
 describe("tool coverage", () => {
   const bound = boundToolNames();
