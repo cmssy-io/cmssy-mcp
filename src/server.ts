@@ -18,6 +18,7 @@ import {
   moveMediaTool,
   createPageTool,
   updatePageBlocksTool,
+  promoteDevDraftTool,
   updatePageSettingsTool,
   listPageTypesTool,
   createPageTypeTool,
@@ -138,6 +139,7 @@ export function createServer(client: CmssyClient) {
 
   bindSharedTool(server, createPageTool, sharedOps);
   bindSharedTool(server, updatePageBlocksTool, sharedOps);
+  bindSharedTool(server, promoteDevDraftTool, sharedOps);
   bindSharedTool(server, updatePageSettingsTool, sharedOps);
   bindSharedTool(server, listPageTypesTool, sharedOps);
   bindSharedTool(server, createPageTypeTool, sharedOps);
