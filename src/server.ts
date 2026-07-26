@@ -74,6 +74,7 @@ import {
   bulkDeleteProductsTool,
   setProductTiersTool,
   updateCartConfigTool,
+  clearCartConfigTool,
   listWebhooksTool,
   listWebhookDeliveriesTool,
   listWebhookEventTypesTool,
@@ -217,6 +218,7 @@ export function createServer(client: CmssyClient) {
   bindSharedTool(server, bulkDeleteProductsTool, sharedOps);
   bindSharedTool(server, setProductTiersTool, sharedOps);
   bindSharedTool(server, updateCartConfigTool, sharedOps);
+  bindSharedTool(server, clearCartConfigTool, sharedOps);
 
   // ─── Webhooks ────────────────────────────────────────────────
 
