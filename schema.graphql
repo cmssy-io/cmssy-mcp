@@ -3086,6 +3086,7 @@ input SignupInput {
 type SiteBranding {
   brandName: String
   faviconUrl: String
+  logoDarkUrl: String
   logoUrl: String
   ogImageUrl: String
 }
@@ -3112,6 +3113,7 @@ type SiteConfig {
 }
 
 type SiteConfigMutations {
+  clearCart(force: Boolean): SiteConfig!
   update(input: UpdateSiteConfigInput!): SiteConfig!
   updateCart(input: CartConfigInput!): SiteConfig!
   updateMemberAuth(input: MemberAuthConfigInput!): SiteConfig!
@@ -3477,6 +3479,7 @@ input UpdateWebhookEndpointInput {
 input UpdateWorkspaceBrandingInput {
   brandName: String
   faviconUrl: String
+  logoDarkUrl: String
   logoUrl: String
   ogImageUrl: String
 }
@@ -3721,6 +3724,7 @@ type WorkspaceAuditLogConnection {
 type WorkspaceBranding {
   brandName: String
   faviconUrl: String
+  logoDarkUrl: String
   logoUrl: String
   ogImageUrl: String
 }

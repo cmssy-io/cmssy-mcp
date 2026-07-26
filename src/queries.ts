@@ -153,6 +153,17 @@ export const UPDATE_CART_CONFIG_MUTATION = `
   }
 `;
 
+export const CLEAR_CART_CONFIG_MUTATION = `
+  mutation ClearCartConfig($force: Boolean) {
+    siteConfig {
+      clearCart(force: $force) {
+        id
+        cart { ${CART_CONFIG_FRAGMENT} }
+      }
+    }
+  }
+`;
+
 export const BLOCK_MANIFEST_QUERY = `
   query BlockManifest {
     blockManifest {

@@ -94,6 +94,7 @@ import {
   BULK_DELETE_PRODUCT_RECORDS_MUTATION,
   SET_PRODUCT_TIERS_MUTATION,
   UPDATE_CART_CONFIG_MUTATION,
+  CLEAR_CART_CONFIG_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -2110,6 +2111,12 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           siteConfig: { updateCart: unknown };
         }>(UPDATE_CART_CONFIG_MUTATION, { input });
         return res.siteConfig.updateCart;
+      },
+      clearCartConfig: async (options) => {
+        const res = await client.query<{
+          siteConfig: { clearCart: unknown };
+        }>(CLEAR_CART_CONFIG_MUTATION, { force: options?.force ?? false });
+        return res.siteConfig.clearCart;
       },
     },
     webhooks: {
