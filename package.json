@@ -28,7 +28,6 @@
     "@cmssy/ai-tools": "0.34.0",
     "@cmssy/types": "^0.12.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@vercel/blob": "^2.6.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

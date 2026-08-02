@@ -268,11 +268,15 @@ type AuthResponse {
   refreshToken: String
 }
 
-"""A scoped Vercel Blob client token authorizing one direct upload"""
+"""A presigned PUT authorizing one direct upload to the media bucket"""
 type AuthorizeMediaUploadPayload {
-  clientToken: String!
   maximumSizeInBytes: Int!
   pathname: String!
+
+  """
+  PUT the bytes here with Content-Type set to the declared mimeType, then register the asset with media.upload
+  """
+  uploadUrl: String!
   validUntil: DateTime!
 }
 
@@ -689,7 +693,7 @@ input CreateModelDefinitionInput {
   auth: ModelAuthConfigInput
   color: String
   defaultSort: DefaultSortInput
-  deliveryExposed: Boolean
+  deliveryAccess: ModelDeliveryAccess
   description: String
   displayField: String
   fields: [PropertyFieldInput!]
@@ -1629,7 +1633,7 @@ type ModelDefinition {
   createdAt: DateTime!
   createdBy: String
   defaultSort: DefaultSort
-  deliveryExposed: Boolean!
+  deliveryAccess: ModelDeliveryAccess!
   description: String
   displayField: String
   fields: [PropertyField!]!
@@ -1642,6 +1646,15 @@ type ModelDefinition {
   statusField: StatusFieldConfig!
   updatedAt: DateTime!
   workspaceId: String!
+}
+
+"""
+Who the delivery API may serve this model's records to. `members` means any site member signed in to this workspace.
+"""
+enum ModelDeliveryAccess {
+  members
+  none
+  public
 }
 
 type ModelMutations {
@@ -3403,7 +3416,7 @@ input UpdateModelDefinitionInput {
   auth: ModelAuthConfigInput
   color: String
   defaultSort: DefaultSortInput
-  deliveryExposed: Boolean
+  deliveryAccess: ModelDeliveryAccess
   description: String
   displayField: String
 
@@ -3565,7 +3578,6 @@ input UploadMediaInput {
   size: Int!
   tags: [String!]
   type: String!
-  url: String!
   width: Int
 }
 
@@ -3703,6 +3715,7 @@ type WebhookDelivery {
   nextAttemptAt: DateTime
   responseCode: Int
   status: String!
+  subject: WebhookDeliverySubject
 
   """
   Full delivery URL including its query string, which may carry the consumer's own shared secret. Null unless the caller holds webhooks:manage - a role that can rotate the secret anyway.
@@ -3710,6 +3723,14 @@ type WebhookDelivery {
   url: String
   urlLabel: String!
   webhookId: String!
+}
+
+"""What the event was about - identifiers only, never the payload itself."""
+type WebhookDeliverySubject {
+  action: String!
+  kind: String!
+  modelSlug: String
+  slug: String
 }
 
 """A registered outbound webhook endpoint (secret redacted)."""

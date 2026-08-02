@@ -237,7 +237,7 @@ export const AUTHORIZE_MEDIA_UPLOAD_MUTATION = `
     media {
       authorizeUpload(filename: $filename, mimeType: $mimeType, size: $size) {
         pathname
-        clientToken
+        uploadUrl
         validUntil
         maximumSizeInBytes
       }
