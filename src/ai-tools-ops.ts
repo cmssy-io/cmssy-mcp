@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob/client";
+import { putObject } from "./put-object.js";
 import type { CmssyClient } from "./graphql-client.js";
 import { mediaTypeFromMime, resolveUploadSource } from "./media-upload.js";
 import type { Workspace } from "./types.js";
@@ -1398,20 +1398,16 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const { bytes, filename, mimeType } = await resolveUploadSource(input);
         const auth = await client.query<{
           media: {
-            authorizeUpload: { pathname: string; clientToken: string };
+            authorizeUpload: { pathname: string; uploadUrl: string };
           };
         }>(AUTHORIZE_MEDIA_UPLOAD_MUTATION, {
           filename,
           mimeType,
           size: bytes.byteLength,
         });
-        const { pathname, clientToken } = auth.media.authorizeUpload;
+        const { pathname, uploadUrl } = auth.media.authorizeUpload;
 
-        const blob = await put(pathname, bytes, {
-          access: "public",
-          token: clientToken,
-          contentType: mimeType,
-        });
+        await putObject(uploadUrl, bytes, mimeType);
 
         const registered = await client.query<{
           media: {
@@ -1426,7 +1422,6 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           };
         }>(REGISTER_MEDIA_UPLOAD_MUTATION, {
           input: {
-            url: blob.url,
             pathname,
             filename,
             type: mediaTypeFromMime(mimeType),
