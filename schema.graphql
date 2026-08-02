@@ -257,6 +257,8 @@ type AuthMutations {
   requestPasswordReset(email: String!): UserAuthResponse!
   resetPassword(newPassword: String!, token: String!): UserAuthResponse!
   signup(input: SignupInput!): AuthResponse!
+  ssoCallback(code: String!, state: String!): AuthResponse!
+  ssoStart(email: String!): SsoStart!
   verifyEmail(token: String!): UserAuthResponse!
 }
 
@@ -687,6 +689,7 @@ input CreateModelDefinitionInput {
   auth: ModelAuthConfigInput
   color: String
   defaultSort: DefaultSortInput
+  deliveryExposed: Boolean
   description: String
   displayField: String
   fields: [PropertyFieldInput!]
@@ -1392,6 +1395,7 @@ input LayoutPositionSettingsInput {
 
 input LoginInput {
   email: String!
+  mfaCode: String
   password: String!
   website: String
 }
@@ -1421,7 +1425,6 @@ enum MediaAcceptedType {
 """A media asset (image, video, document, audio)"""
 type MediaAsset {
   alt: JSON!
-  blurDataUrl: String
   caption: JSON
   createdAt: DateTime!
   createdBy: String!
@@ -1433,13 +1436,11 @@ type MediaAsset {
   id: String!
   mimeType: String!
   pathname: String!
-  processingStatus: String!
   size: Int!
   tags: [String!]!
   type: String!
   updatedAt: DateTime!
   url: String!
-  variants: JSON
   width: Int
 }
 
@@ -1503,10 +1504,18 @@ type MediaQueries {
   usages(assetId: ID!): MediaUsageResponse!
 }
 
+type MediaRecordUsage {
+  fieldPath: String!
+  modelId: String
+  modelName: String!
+  recordId: String!
+}
+
 type MediaUsageResponse {
   brandingUsages: [MediaBrandingUsage!]!
   isUsed: Boolean!
   pageUsages: [MediaPageUsage!]!
+  recordUsages: [MediaRecordUsage!]!
   totalPages: Int!
 }
 
@@ -1561,6 +1570,17 @@ enum MembershipStatus {
   suspended
 }
 
+type MfaEnrolment {
+  otpauthUri: String!
+  secret: String!
+}
+
+type MfaStatus {
+  enabled: Boolean!
+  enabledAt: String
+  recoveryCodesLeft: Int!
+}
+
 type ModelAuthConfig {
   enabled: Boolean!
   identityField: String!
@@ -1609,6 +1629,7 @@ type ModelDefinition {
   createdAt: DateTime!
   createdBy: String
   defaultSort: DefaultSort
+  deliveryExposed: Boolean!
   description: String
   displayField: String
   fields: [PropertyField!]!
@@ -2008,6 +2029,7 @@ type OrganizationBilling {
 type OrganizationLimits {
   canRemoveBranding: Boolean!
   canUseCart: Boolean!
+  canUseSso: Boolean!
   maxAiTokensMonth: Int!
   maxApiRequestsMonth: Int!
   maxBandwidthGbMonth: Int!
@@ -2034,6 +2056,7 @@ type OrganizationMutations {
   inviteMember(input: InviteOrganizationMemberInput!, organizationId: ID!): InviteMemberResult!
   moveWorkspace(organizationId: ID!, workspaceId: ID!): Organization!
   removeMember(organizationId: ID!, userId: ID!): Organization!
+  sso: OrganizationSsoMutations!
 
   """
   Hand the organization - and with it the permission bypass over every workspace it owns - to another active member. Owner-only.
@@ -2048,12 +2071,27 @@ type OrganizationQueries {
   get(id: ID, slug: String): Organization
   invoices(limit: Int, organizationId: ID!): [Invoice!]!
   list: [Organization!]!
+  sso: OrganizationSsoQueries!
   usageHistory(id: ID, range: UsageHistoryRange!, slug: String): UsageHistory
 }
 
 type OrganizationSettings {
   allowMemberWorkspaceCreate: Boolean!
   defaultMemberRole: String!
+}
+
+type OrganizationSsoMutations {
+  addDomain(domain: String!, organizationId: ID!): [SsoDomain!]!
+  configure(input: SsoConfigInput!, organizationId: ID!): SsoConfig!
+  removeDomain(domain: String!, organizationId: ID!): [SsoDomain!]!
+  setEnforced(enforced: Boolean!, organizationId: ID!): SsoConfig!
+  testConnection(organizationId: ID!): SsoConnectionTest!
+  verifyDomain(domain: String!, organizationId: ID!): [SsoDomain!]!
+}
+
+type OrganizationSsoQueries {
+  config(organizationId: ID!): SsoConfig!
+  domains(organizationId: ID!): [SsoDomain!]!
 }
 
 type OrganizationWorkspace {
@@ -2182,7 +2220,7 @@ type PageMutations {
   publish(expectedVersion: Int, id: ID!): Page
   publishContent(id: ID!): Page
   publishLayout(id: ID!): Page
-  restoreVersion(pageId: ID!, version: Int!): Page
+  restoreVersion(expectedVersion: Int!, pageId: ID!, version: Int!): Page
   revertContentToPublished(id: ID!): Page
   revertLayoutToPublished(id: ID!): Page
   revertToPublished(id: ID!): Page
@@ -2621,32 +2659,6 @@ type PublicFormSubmissionListResult {
   total: Int!
 }
 
-type PublicMediaItem {
-  alt: JSON!
-  blurDataUrl: String
-  caption: JSON
-  createdAt: DateTime!
-  filename: String!
-  height: Int
-  id: String!
-  mimeType: String!
-  size: Int!
-  tags: [String!]!
-  type: String!
-  url: String!
-  width: Int
-}
-
-type PublicMediaListResult {
-  hasMore: Boolean!
-  items: [PublicMediaItem!]!
-  total: Int!
-}
-
-type PublicMediaQueries {
-  forContext(folderId: String, limit: Int = 20, offset: Int = 0, tag: String, type: String, workspaceId: String!): PublicMediaListResult!
-}
-
 type PublicModelQueries {
   definitions(workspaceId: String!): [ModelDefinition!]!
   records(
@@ -2784,7 +2796,6 @@ type PublicPagesListResult {
 type PublicQueries {
   draftSecretValid(secret: String!, workspaceSlug: String!): Boolean!
   form: PublicFormQueries!
-  media: PublicMediaQueries!
   model: PublicModelQueries!
   order: PublicOrderQueries!
   page: PublicPageQueries!
@@ -3170,6 +3181,47 @@ enum SortDirection {
   desc
 }
 
+type SsoConfig {
+  clientId: String
+  defaultWorkspaceId: String
+  defaultWorkspaceRoleId: String
+  displayName: String
+  enabled: Boolean!
+  enforced: Boolean!
+  hasClientSecret: Boolean!
+  issuer: String
+  jitProvisioning: Boolean!
+  lastSuccessfulTestAt: String
+}
+
+input SsoConfigInput {
+  clientId: String
+  clientSecret: String
+  defaultWorkspaceId: String
+  defaultWorkspaceRoleId: String
+  displayName: String
+  enabled: Boolean
+  issuer: String
+  jitProvisioning: Boolean
+}
+
+type SsoConnectionTest {
+  message: String!
+  ok: Boolean!
+}
+
+type SsoDomain {
+  domain: String!
+  verificationToken: String!
+  verified: Boolean!
+  verifiedAt: String
+}
+
+type SsoStart {
+  authorizationUrl: String
+  available: Boolean!
+}
+
 type StatusFieldConfig {
   defaultValue: String
   enabled: Boolean!
@@ -3350,6 +3402,7 @@ input UpdateModelDefinitionInput {
   auth: ModelAuthConfigInput
   color: String
   defaultSort: DefaultSortInput
+  deliveryExposed: Boolean
   description: String
   displayField: String
 
@@ -3624,13 +3677,17 @@ type ValidationRules {
 }
 
 type ViewerMutations {
+  beginMfa: MfaEnrolment!
+  confirmMfa(code: String!): [String!]!
   deleteAccount: DeletionResult!
+  disableMfa(code: String!): MfaStatus!
   resendVerificationEmail: UserAuthResponse!
   updateLocale(locale: String!): User!
 }
 
 type ViewerQueries {
   me: User
+  mfa: MfaStatus!
   myPermissions: [String!]!
 }
 
@@ -3645,7 +3702,12 @@ type WebhookDelivery {
   nextAttemptAt: DateTime
   responseCode: Int
   status: String!
-  url: String!
+
+  """
+  Full delivery URL including its query string, which may carry the consumer's own shared secret. Null unless the caller holds webhooks:manage - a role that can rotate the secret anyway.
+  """
+  url: String
+  urlLabel: String!
   webhookId: String!
 }
 
@@ -3657,7 +3719,12 @@ type WebhookEndpoint {
   events: [String!]!
   id: String!
   updatedAt: DateTime!
-  url: String!
+
+  """
+  Full endpoint URL including its query string, which may carry the consumer's own shared secret. Null unless the caller holds webhooks:manage - a role that can rotate the secret anyway.
+  """
+  url: String
+  urlLabel: String!
 }
 
 """
@@ -3671,7 +3738,13 @@ type WebhookEndpointSecret {
 type WebhookMutations {
   create(input: CreateWebhookEndpointInput!): WebhookEndpointSecret!
   delete(id: ID!): DeletionResult!
-  rotateSecret(id: ID!): WebhookEndpointSecret!
+  rotateSecret(
+    """
+    Hours the previous secret keeps signing alongside the new one, capped at 24. Omit or 0 for an immediate cutover, which breaks delivery until the consumer redeploys.
+    """
+    graceHours: Int
+    id: ID!
+  ): WebhookEndpointSecret!
   update(input: UpdateWebhookEndpointInput!): WebhookEndpoint!
 }
 
