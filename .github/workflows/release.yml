@@ -61,6 +61,20 @@ jobs:
 
       - run: pnpm typecheck
 
+      # A published client is only useful against the deployed backend, so the
+      # last gate before npm is production itself: introspect it and validate
+      # every operation this build sends. Releasing ahead of the backend fails
+      # here instead of breaking every tool at runtime.
+      - name: Introspect production
+        run: pnpm fetch-prod-schema
+        env:
+          CMSSY_API_URL: ${{ vars.CMSSY_API_URL || 'https://api.cmssy.io/graphql' }}
+
+      - name: Every operation is one production accepts
+        run: pnpm test -- operations.validate
+        env:
+          CMSSY_SCHEMA_FILE: prod-schema.graphql
+
       # Skips if the current version is already on npm, so re-runs are safe.
       # This repo is public, so the publish carries a provenance attestation.
       - name: Publish
