@@ -1744,6 +1744,7 @@ type Notification {
   blockId: String
   commentId: ID
   createdAt: DateTime!
+  endpointId: String
   id: ID!
   level: Int
   metric: String
@@ -3713,8 +3714,11 @@ type WebhookDelivery {
 
 """A registered outbound webhook endpoint (secret redacted)."""
 type WebhookEndpoint {
+  consecutiveFailures: Int!
   createdAt: DateTime!
   description: String
+  disabledAt: DateTime
+  disabledReason: String
   enabled: Boolean!
   events: [String!]!
   id: String!
