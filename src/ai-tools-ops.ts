@@ -1,3 +1,4 @@
+import { putObject } from "./put-object.js";
 import type { CmssyClient } from "./graphql-client.js";
 import { mediaTypeFromMime, resolveUploadSource } from "./media-upload.js";
 import type { Workspace } from "./types.js";
@@ -1406,14 +1407,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         });
         const { pathname, uploadUrl } = auth.media.authorizeUpload;
 
-        const put = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": mimeType },
-          body: bytes,
-        });
-        if (!put.ok) {
-          throw new Error(`Upload failed: ${put.status} ${put.statusText}`);
-        }
+        await putObject(uploadUrl, bytes, mimeType);
 
         const registered = await client.query<{
           media: {
