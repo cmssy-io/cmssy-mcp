@@ -12,8 +12,8 @@ importers:
         specifier: 0.34.0
         version: 0.34.0(zod@4.4.3)
       '@cmssy/types':
-        specifier: ^0.12.0
-        version: 0.12.0
+        specifier: ^0.34.0
+        version: 0.34.0
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
@@ -44,8 +44,8 @@ packages:
     peerDependencies:
       zod: ^4
 
-  '@cmssy/types@0.12.0':
-    resolution: {integrity: sha512-tRE9470cSct/+zS9Jnq9I/0KkYHXXgfJUQ7/o46DyIB9kA/g6wSQFsgAyZbOD350fj/7YZqjZyBdDqI68AzITg==}
+  '@cmssy/types@0.34.0':
+    resolution: {integrity: sha512-CuLXONwQV6M4sQhyyXsQ/CRFz/XFaRuDur2ygmZOQlwrqs1FgE2ufaStokt5Xj6STOdZCuoatsu2fC4OC+Z95A==}
 
   '@esbuild/aix-ppc64@0.27.3':
     resolution: {integrity: sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg==}
@@ -982,7 +982,7 @@ snapshots:
     dependencies:
       zod: 4.4.3
 
-  '@cmssy/types@0.12.0': {}
+  '@cmssy/types@0.34.0': {}
 
   '@esbuild/aix-ppc64@0.27.3':
     optional: true

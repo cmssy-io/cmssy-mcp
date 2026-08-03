@@ -1,36 +1,17 @@
 import { describe, it, expect } from "vitest";
+import { fieldTypeValues } from "@cmssy/types";
 import { toPropertyFields, toProposedFields } from "../ai-tools-ops.js";
 
 describe("toPropertyFields", () => {
-  it("passes the canonical backend type names through unchanged", () => {
-    const types = [
-      "text",
-      "textarea",
-      "richText",
-      "markdown",
-      "password",
-      "phone",
-      "json",
-      "color",
-      "number",
-      "boolean",
-      "date",
-      "datetime",
-      "email",
-      "url",
-      "media",
-      "select",
-      "multiselect",
-      "relation",
-      "object",
-      "list",
-      "hidden",
-    ];
+  it("passes every canonical backend type name through unchanged", () => {
+    const types = [...fieldTypeValues];
 
     const mapped = toPropertyFields(
       types.map((type) => ({ key: type, label: type, type })),
     );
 
+    expect(types).toContain("file");
+    expect(types).toContain("media");
     expect(mapped.map((f) => f.type)).toEqual(types);
   });
 
