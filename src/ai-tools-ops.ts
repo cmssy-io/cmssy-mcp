@@ -44,6 +44,9 @@ import {
   PAGE_VERSION_QUERY,
   PAGE_TYPES_QUERY,
   CREATE_PAGE_TYPE_MUTATION,
+  PAGE_TYPE_QUERY,
+  UPDATE_PAGE_TYPE_MUTATION,
+  DELETE_PAGE_TYPE_MUTATION,
   UPDATE_PAGE_SETTINGS_MUTATION,
   UPDATE_PAGE_LAYOUT_MUTATION,
   DEV_DRAFT_QUERY,
@@ -945,6 +948,97 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           id: res.pageType.create.id,
           name: res.pageType.create.name,
           slug: res.pageType.create.slug,
+        };
+      },
+      getType: async (pageTypeId) => {
+        const res = await client.query<{
+          pageType: {
+            get: {
+              id: string;
+              name: string;
+              slug: string;
+              description?: string | null;
+              icon?: string | null;
+              schemaType?: string | null;
+              urlPrefix?: string | null;
+              allowChildren?: boolean | null;
+              allowedChildTypes?: string[] | null;
+              defaultPublished?: boolean | null;
+              isSystem?: boolean | null;
+              fields?: Array<{
+                key: string;
+                label: string;
+                type: string;
+                required?: boolean | null;
+                description?: string | null;
+                options?: string[] | null;
+                defaultValue?: string | null;
+                multiple?: boolean | null;
+                localized?: boolean | null;
+              }> | null;
+            } | null;
+          };
+        }>(PAGE_TYPE_QUERY, { pageTypeId });
+        const type = res.pageType.get;
+        if (!type) return null;
+        return {
+          id: type.id,
+          name: type.name,
+          slug: type.slug,
+          description: type.description ?? null,
+          icon: type.icon ?? null,
+          urlPrefix: type.urlPrefix ?? null,
+          allowChildren: Boolean(type.allowChildren),
+          allowedChildTypes: type.allowedChildTypes ?? [],
+          defaultPublished: Boolean(type.defaultPublished),
+          schemaType: type.schemaType ?? null,
+          isSystem: Boolean(type.isSystem),
+          fields: (type.fields ?? []).map((field) => ({
+            key: field.key,
+            label: field.label,
+            type: field.type,
+            required: Boolean(field.required),
+            description: field.description ?? null,
+            options: field.options ?? [],
+            defaultValue: field.defaultValue ?? null,
+            multiple: field.multiple ?? null,
+            localized: field.localized ?? null,
+          })),
+        };
+      },
+      updateType: async (input) => {
+        const mutationInput: Record<string, unknown> = { id: input.pageTypeId };
+        if (input.name !== undefined) mutationInput.name = input.name;
+        if (input.slug !== undefined) mutationInput.slug = input.slug;
+        if (input.description !== undefined)
+          mutationInput.description = input.description;
+        if (input.icon !== undefined) mutationInput.icon = input.icon;
+        if (input.urlPrefix !== undefined)
+          mutationInput.urlPrefix = input.urlPrefix;
+        if (input.allowChildren !== undefined)
+          mutationInput.allowChildren = input.allowChildren;
+        if (input.fields !== undefined)
+          mutationInput.fields = toPropertyFields(input.fields);
+        const res = await client.query<{
+          pageType: {
+            update: { id: string; name: string; slug: string } | null;
+          };
+        }>(UPDATE_PAGE_TYPE_MUTATION, { input: mutationInput });
+        const updated = res.pageType.update;
+        if (!updated) throw new Error("Page type not found");
+        return {
+          id: updated.id,
+          name: updated.name,
+          slug: updated.slug,
+        };
+      },
+      deleteType: async (pageTypeId) => {
+        const res = await client.query<{
+          pageType: { delete: { id: string; deleted: boolean } };
+        }>(DELETE_PAGE_TYPE_MUTATION, { id: pageTypeId });
+        return {
+          id: res.pageType.delete.id,
+          deleted: res.pageType.delete.deleted,
         };
       },
       publish: async (pageId) => {
