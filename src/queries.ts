@@ -478,6 +478,60 @@ export const PAGE_TYPES_QUERY = `
   }
 `;
 
+export const PAGE_TYPE_QUERY = `
+  query PageType($pageTypeId: ID!) {
+    pageType {
+      get(pageTypeId: $pageTypeId) {
+        id
+        name
+        slug
+        description
+        icon
+        schemaType
+        urlPrefix
+        allowChildren
+        allowedChildTypes
+        defaultPublished
+        isSystem
+        fields {
+          key
+          label
+          type
+          required
+          description
+          options
+          defaultValue
+          multiple
+          localized
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_PAGE_TYPE_MUTATION = `
+  mutation UpdatePageType($input: UpdatePageTypeInput!) {
+    pageType {
+      update(input: $input) {
+        id
+        name
+        slug
+      }
+    }
+  }
+`;
+
+export const DELETE_PAGE_TYPE_MUTATION = `
+  mutation DeletePageType($id: ID!) {
+    pageType {
+      delete(id: $id) {
+        id
+        deleted
+      }
+    }
+  }
+`;
+
 export const CREATE_PAGE_TYPE_MUTATION = `
   mutation CreatePageType($input: CreatePageTypeInput!) {
     pageType {
