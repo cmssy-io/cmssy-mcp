@@ -60,6 +60,7 @@ import {
   REMOVE_PAGE_MUTATION,
   PATCH_BLOCK_CONTENT_MUTATION,
   SITE_CONFIG_QUERY,
+  SITE_DEFAULT_LANGUAGE_QUERY,
   BLOCK_MANIFEST_QUERY,
   CURRENT_WORKSPACE_QUERY,
   FORM_BY_ID_QUERY,
@@ -1528,9 +1529,14 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const asset = registered.media.upload;
 
         if (input.alt) {
+          const configData = await client.query<{
+            siteConfig: { get: { defaultLanguage?: string } | null };
+          }>(SITE_DEFAULT_LANGUAGE_QUERY);
+          const locale =
+            configData.siteConfig.get?.defaultLanguage ?? "en";
           await client.query<{ media: { update: { id: string } | null } }>(
             UPDATE_MEDIA_MUTATION,
-            { id: asset.id, input: { alt: { en: input.alt } } },
+            { id: asset.id, input: { alt: { [locale]: input.alt } } },
           );
         }
 

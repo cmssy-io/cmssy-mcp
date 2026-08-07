@@ -142,6 +142,16 @@ export const SITE_CONFIG_QUERY = `
   }
 `;
 
+export const SITE_DEFAULT_LANGUAGE_QUERY = `
+  query SiteDefaultLanguage {
+    siteConfig {
+      get {
+        defaultLanguage
+      }
+    }
+  }
+`;
+
 export const UPDATE_CART_CONFIG_MUTATION = `
   mutation UpdateCartConfig($input: CartConfigInput!) {
     siteConfig {
