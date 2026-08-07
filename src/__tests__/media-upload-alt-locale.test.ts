@@ -39,7 +39,7 @@ function clientWith(defaultLanguage: string | null) {
         },
       };
     }
-    if (document.includes("siteConfig")) {
+    if (document.includes("SiteDefaultLanguage")) {
       return {
         siteConfig: {
           get: defaultLanguage === null ? null : { defaultLanguage },
