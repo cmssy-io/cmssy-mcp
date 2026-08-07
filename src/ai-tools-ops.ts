@@ -1610,12 +1610,13 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const f = res.media.updateFolder;
         return { id: f.id, name: f.name, parentId: f.parentId ?? null };
       },
-      deleteFolder: async (id, deleteContents) => {
+      deleteFolder: async (id, deleteContents, force) => {
         const res = await client.query<{
           media: { deleteFolder: { id: string; deleted: boolean } };
         }>(DELETE_MEDIA_FOLDER_MUTATION, {
           id,
           deleteContents: deleteContents ?? false,
+          force: force ?? false,
         });
         return {
           id: res.media.deleteFolder.id,
