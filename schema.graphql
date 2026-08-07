@@ -216,6 +216,35 @@ type ApiTokenWithSecret {
   token: String!
 }
 
+"""
+A workspace-scoped credential for minting signed URLs for private media. Server-side only.
+"""
+type AssetToken {
+  createdAt: DateTime!
+  expiresAt: DateTime
+  id: String!
+  lastUsedAt: DateTime
+  name: String!
+  prefix: String!
+}
+
+type AssetTokenMutations {
+  create(expiresAt: DateTime, name: String!): AssetTokenWithSecret!
+  delete(id: String!): DeletionResult!
+}
+
+type AssetTokenQueries {
+  list: [AssetToken!]!
+}
+
+type AssetTokenWithSecret {
+  createdAt: DateTime!
+  id: String!
+  name: String!
+  prefix: String!
+  token: String!
+}
+
 enum AuditLogAction {
   PAGE_STAGE_CHANGED
   ROLE_CREATED
@@ -1432,10 +1461,8 @@ type MediaAsset {
   caption: JSON
   createdAt: DateTime!
   createdBy: String!
-  duration: Float
   filename: String!
   folderId: String
-  format: String
   height: Int
   id: String!
   mimeType: String!
@@ -1445,6 +1472,7 @@ type MediaAsset {
   type: String!
   updatedAt: DateTime!
   url: String!
+  visibility: String!
   width: Int
 }
 
@@ -1454,10 +1482,11 @@ type MediaBrandingUsage {
 }
 
 input MediaFilterInput {
+  excludeMimeTypes: [String!]
   folderId: String
   search: String
   tags: [String!]
-  type: String
+  types: [String!]
 }
 
 """A media folder for organizing assets"""
@@ -1481,10 +1510,10 @@ type MediaListResponse {
 }
 
 type MediaMutations {
-  authorizeUpload(filename: String!, mimeType: String!, size: Int!): AuthorizeMediaUploadPayload!
+  authorizeUpload(filename: String!, mimeType: String!, size: Int!, visibility: String): AuthorizeMediaUploadPayload!
   createFolder(input: CreateMediaFolderInput!): MediaFolder!
   delete(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
-  deleteFolder(deleteContents: Boolean = false, id: ID!): DeletionResult!
+  deleteFolder(deleteContents: Boolean = false, force: Boolean = false, id: ID!): DeletionResult!
   update(id: ID!, input: UpdateMediaInput!): MediaAsset!
   updateFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
   upload(input: UploadMediaInput!): MediaAsset!
@@ -1505,7 +1534,7 @@ type MediaQueries {
   folders(parentId: ID): MediaFolderListResponse!
   get(id: ID!): MediaAsset
   list(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
-  usages(assetId: ID!): MediaUsageResponse!
+  usages(assetIds: [ID!]!): MediaUsageResponse!
 }
 
 type MediaRecordUsage {
@@ -1717,6 +1746,7 @@ input MovePageInput {
 type Mutation {
   ai: AiMutations!
   apiToken: ApiTokenMutations!
+  assetToken: AssetTokenMutations!
   auth: AuthMutations!
   blockManifest: BlockManifestMutations!
   cart: CartMutations!
@@ -2198,7 +2228,7 @@ type PageCommentQueries {
 
 type PageCustomField {
   fieldKey: String!
-  value: JSON!
+  value: JSON
 }
 
 input PageCustomFieldFilterInput {
@@ -2823,6 +2853,7 @@ type Query {
   adminCart: AdminCartQueries!
   ai: AiQueries!
   apiToken: ApiTokenQueries!
+  assetToken: AssetTokenQueries!
   auditLog: AuditLogQueries!
   blockManifest: BlockManifestQueries!
   cart: CartQueries!
@@ -3577,7 +3608,7 @@ input UploadMediaInput {
   pathname: String!
   size: Int!
   tags: [String!]
-  type: String!
+  type: String
   width: Int
 }
 
