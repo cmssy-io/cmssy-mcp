@@ -322,9 +322,9 @@ export const UPDATE_MEDIA_FOLDER_MUTATION = `
 `;
 
 export const DELETE_MEDIA_FOLDER_MUTATION = `
-  mutation DeleteMediaFolder($id: ID!, $deleteContents: Boolean) {
+  mutation DeleteMediaFolder($id: ID!, $deleteContents: Boolean, $force: Boolean) {
     media {
-      deleteFolder(id: $id, deleteContents: $deleteContents) {
+      deleteFolder(id: $id, deleteContents: $deleteContents, force: $force) {
         id
         deleted
       }
