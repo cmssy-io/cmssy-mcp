@@ -1528,9 +1528,14 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const asset = registered.media.upload;
 
         if (input.alt) {
+          const configData = await client.query<{
+            siteConfig: { get: { defaultLanguage?: string } | null };
+          }>(SITE_CONFIG_QUERY);
+          const locale =
+            configData.siteConfig.get?.defaultLanguage ?? "en";
           await client.query<{ media: { update: { id: string } | null } }>(
             UPDATE_MEDIA_MUTATION,
-            { id: asset.id, input: { alt: { en: input.alt } } },
+            { id: asset.id, input: { alt: { [locale]: input.alt } } },
           );
         }
 
