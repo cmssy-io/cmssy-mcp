@@ -363,6 +363,11 @@ type BlockTranslation {
   translatedBy: String
 }
 
+input BulkTagMediaInput {
+  add: [String!]
+  remove: [String!]
+}
+
 input CancelOrderInput {
   orderId: ID!
 }
@@ -1459,9 +1464,19 @@ enum MediaAcceptedType {
 type MediaAsset {
   alt: JSON!
   caption: JSON
+
+  """
+  The storage ETag of the bytes. Two assets sharing one hold the same file.
+  """
+  contentHash: String
   createdAt: DateTime!
   createdBy: String!
   filename: String!
+
+  """
+  Where the subject sits, 0-1 on each axis. Every crop of this asset aims here; without one the crop is centred by content detection.
+  """
+  focalPoint: JSON
   folderId: String
   height: Int
   id: String!
@@ -1479,6 +1494,12 @@ type MediaAsset {
 type MediaBrandingUsage {
   field: String!
   location: String!
+}
+
+"""Assets in this workspace whose bytes are byte-for-byte equal"""
+type MediaDuplicateGroup {
+  assets: [MediaAsset!]!
+  contentHash: String!
 }
 
 input MediaFilterInput {
@@ -1511,9 +1532,15 @@ type MediaListResponse {
 
 type MediaMutations {
   authorizeUpload(filename: String!, mimeType: String!, size: Int!, visibility: String): AuthorizeMediaUploadPayload!
+
+  """
+  Adds and removes tags across many assets. Tags are added and removed rather than replaced, because a bulk replace would wipe whatever each asset carried of its own.
+  """
+  bulkTag(ids: [ID!]!, input: BulkTagMediaInput!): [MediaAsset!]!
   createFolder(input: CreateMediaFolderInput!): MediaFolder!
   delete(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
   deleteFolder(deleteContents: Boolean = false, force: Boolean = false, id: ID!): DeletionResult!
+  setVisibility(id: ID!, visibility: String!): MediaAsset!
   update(id: ID!, input: UpdateMediaInput!): MediaAsset!
   updateFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
   upload(input: UploadMediaInput!): MediaAsset!
@@ -1531,6 +1558,10 @@ type MediaPageUsage {
 }
 
 type MediaQueries {
+  """
+  Groups of assets sharing a content hash. Assets uploaded before hashing was recorded carry none and never appear here.
+  """
+  duplicates: [MediaDuplicateGroup!]!
   folders(parentId: ID): MediaFolderListResponse!
   get(id: ID!): MediaAsset
   list(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
@@ -3439,6 +3470,7 @@ input UpdateMediaInput {
   alt: JSON
   caption: JSON
   filename: String
+  focalPoint: JSON
   folderId: String
   tags: [String!]
 }
