@@ -2180,6 +2180,7 @@ type OrganizationWorkspaceUsage {
   aiTokensUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
+  mediaSignings: Int!
   membersCount: Int!
   pagesCount: Int!
   storageBytes: Float!
@@ -2465,6 +2466,7 @@ type PooledUsage {
   aiCreditsUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
+  mediaSignings: Int!
   membersCount: Int!
   pagesCount: Int!
   storageBytes: Float!
@@ -3659,6 +3661,7 @@ type UsageHistoryDeltas {
   aiCreditsUsed: Float
   apiRequests: Float
   bandwidthBytes: Float
+  mediaSignings: Float
   storageBytes: Float
 }
 
@@ -3667,6 +3670,7 @@ type UsageHistoryPoint {
   apiRequests: Int!
   bandwidthBytes: Float!
   day: DateTime!
+  mediaSignings: Int!
   storageBytes: Float!
 }
 
@@ -3681,6 +3685,7 @@ type UsageHistoryTotals {
   aiCreditsUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
+  mediaSignings: Int!
   storageBytes: Float!
 }
 
