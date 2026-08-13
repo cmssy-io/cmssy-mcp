@@ -3920,11 +3920,6 @@ type WorkspaceMutations {
   recalculateBlockUsage: Workspace!
   regenerateDraftSecret: String!
   update(id: ID!, input: UpdateWorkspaceInput!): Workspace!
-
-  """
-  Set the block-content validation mode for the workspace: "warn" (default) or "strict".
-  """
-  updateBlockValidation(mode: String!): String!
   updateBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
   updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
 }
@@ -3979,10 +3974,6 @@ type WorkspaceRoleType {
 }
 
 type WorkspaceSettings {
-  """
-  Block content validation mode against the block manifest (CMS-1029): "warn" returns soft warnings, "strict" rejects invalid writes.
-  """
-  blockValidation: String!
   branding: WorkspaceBranding!
   defaultLanguage: String!
   editorialWorkflow: EditorialWorkflow!
