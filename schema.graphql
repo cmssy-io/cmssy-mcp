@@ -179,10 +179,10 @@ type AiStatus {
 
 """AI token usage information for a workspace"""
 type AiUsage {
-  available: Int!
+  available: Int
   currentUsed: Int!
   isConfigured: Boolean!
-  maxAllowed: Int!
+  maxAllowed: Int
   percentUsed: Float!
   resetAt: DateTime!
 }
@@ -2105,13 +2105,13 @@ type OrganizationLimits {
   canRemoveBranding: Boolean!
   canUseCart: Boolean!
   canUseSso: Boolean!
-  maxAiTokensMonth: Int!
-  maxApiRequestsMonth: Int!
-  maxBandwidthGbMonth: Int!
-  maxMembers: Int!
-  maxPages: Int!
-  maxStorageMb: Int!
-  maxWorkspaces: Int!
+  maxAiTokensMonth: Int
+  maxApiRequestsMonth: Int
+  maxBandwidthGbMonth: Int
+  maxMembers: Int
+  maxPages: Int
+  maxStorageMb: Int
+  maxWorkspaces: Int
 }
 
 type OrganizationMember {
