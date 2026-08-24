@@ -76,13 +76,13 @@ export interface SiteConfig {
 }
 
 export type OrganizationLimits = {
-  maxPages: number;
-  maxMembers: number;
-  maxWorkspaces: number;
-  maxStorageMb: number;
-  maxAiTokensMonth: number;
-  maxApiRequestsMonth: number;
-  maxBandwidthGbMonth: number;
+  maxPages: number | null;
+  maxMembers: number | null;
+  maxWorkspaces: number | null;
+  maxStorageMb: number | null;
+  maxAiTokensMonth: number | null;
+  maxApiRequestsMonth: number | null;
+  maxBandwidthGbMonth: number | null;
   canRemoveBranding: boolean;
   canUseCart: boolean;
 };
