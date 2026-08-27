@@ -2698,6 +2698,11 @@ type PropertyQueries {
 
   """List property definitions in a workspace"""
   list(appliesTo: String): [PropertyDefinition!]!
+
+  """
+  Pickable rows for a relation field pointed at one of the relation target collections. Each target is gated by its own view permission.
+  """
+  relationOptions(ids: [ID!], limit: Int, query: String, target: String!): RelationOptionList!
 }
 
 """Per-workspace cart configuration (public surface, no server-side TTLs)"""
@@ -2714,12 +2719,31 @@ type PublicCartConfig {
   taxRates: [TaxRate!]!
 }
 
+type PublicForm {
+  description: String
+  fields: [FormFieldDefinition!]!
+  id: String!
+  name: String!
+  settings: PublicFormSettings!
+  slug: String!
+}
+
 type PublicFormMutations {
   submit(formId: ID!, input: SubmitFormInput!): FormSubmitResponse!
 }
 
 type PublicFormQueries {
-  get(formId: ID!): Form
+  get(formId: ID!): PublicForm
+}
+
+type PublicFormSettings {
+  actionType: FormActionType!
+  enableCaptcha: Boolean!
+  errorMessage: JSON!
+  redirectUrl: String
+  requireLogin: Boolean!
+  submitButtonLabel: JSON!
+  successMessage: JSON!
 }
 
 type PublicFormSubmissionItem {
@@ -2976,6 +3000,18 @@ input RefundOrderInput {
   amount: Int
   orderId: ID!
   reference: String!
+}
+
+"""One pickable row behind a relation field, already labelled for display"""
+type RelationOption {
+  id: ID!
+  label: String!
+}
+
+type RelationOptionList {
+  hasMore: Boolean!
+  items: [RelationOption!]!
+  total: Int!
 }
 
 type ResolvedLayout {
@@ -3917,7 +3953,6 @@ type WorkspaceMutations {
   create(input: CreateWorkspaceInput!): Workspace!
   delete(id: ID!): Boolean!
   recalculateAllUsage: Workspace!
-  recalculateBlockUsage: Workspace!
   regenerateDraftSecret: String!
   update(id: ID!, input: UpdateWorkspaceInput!): Workspace!
   updateBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
