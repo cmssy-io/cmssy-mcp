@@ -79,13 +79,13 @@ already returned a compact ack and don't take `response`.
 
 ### Read Tools
 
-| Tool                 | Description                                            |
-| -------------------- | ------------------------------------------------------ |
-| `list_pages`         | Page tree with hierarchy (optional `search` filter)    |
-| `get_page`           | Full page with blocks and i18n content (by slug or id) |
-| `get_site_config`    | Languages, navigation, site name                       |
-| `get_workspace_info` | Workspace name, plan, limits                           |
-| `list_media`         | Media library listing                                  |
+| Tool                 | Description                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_pages`         | Page tree with hierarchy (optional `search` filter)                                                                                               |
+| `get_page`           | Full page with blocks, i18n content and region settings (own `regionSettings` + resolved `resolvedRegions` with inheritance source) by slug or id |
+| `get_site_config`    | Languages, navigation, site name                                                                                                                  |
+| `get_workspace_info` | Workspace name, plan, limits                                                                                                                      |
+| `list_media`         | Media library listing                                                                                                                             |
 
 ### Write Tools
 
@@ -101,13 +101,34 @@ already returned a compact ack and don't take `response`.
 
 ### Block Helper Tools
 
-| Tool                     | Description                                                     |
-| ------------------------ | --------------------------------------------------------------- |
-| `add_block_to_page`      | Insert a block at position (auto-generates UUID + translations) |
-| `update_block_content`   | Merge content into an existing block                            |
-| `patch_block_content`    | Surgical HTML patch (insert/replace around unique markers)      |
-| `remove_block_from_page` | Remove a block by ID                                            |
-| `update_page_layout`     | Update layout blocks and overrides                              |
+| Tool                     | Description                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `add_block_to_page`      | Insert a block at position (auto-generates UUID + translations)                |
+| `update_block_content`   | Merge content into an existing block                                           |
+| `patch_block_content`    | Surgical HTML patch (insert/replace around unique markers)                     |
+| `remove_block_from_page` | Remove a block by ID                                                           |
+| `update_page_layout`     | Update layout blocks and overrides                                             |
+| `update_region_settings` | Set one layout region's settings (manifest-validated; other regions untouched) |
+
+#### `update_region_settings`
+
+Region (layout position) settings are declared by the workspace's layout
+manifest and validated against it on write. The tool reads the page's current
+`layoutPositionSettings`, replaces only the named region and writes the whole
+list back, so sibling regions keep their values (entries for regions the
+manifest no longer declares, and keys a region's schema no longer has, are
+dropped on the way - the same pruning the admin editor does). The backend's own
+`BAD_USER_INPUT` message is returned verbatim for an unknown region, an unknown
+key, or a non-empty `values` on a region that declares no settings (such a
+region accepts `values: {}` only); `blockWarnings` are surfaced when present.
+
+```jsonc
+{ "pageId": "...", "region": "sidebar", "values": { "width": "wide" } }
+```
+
+Child pages inherit a region's settings unless they set their own -
+`get_page` shows the effective value per region in `resolvedRegions`
+(`settingsAreInherited`, `settingsSourcePageId`).
 
 #### `patch_block_content`
 

@@ -1,7 +1,11 @@
 import { putObject } from "./put-object.js";
 import type { CmssyClient } from "./graphql-client.js";
 import { mediaTypeFromMime, resolveUploadSource } from "./media-upload.js";
-import type { Workspace } from "./types.js";
+import type {
+  RegionSettingsEntry,
+  ResolvedRegion,
+  Workspace,
+} from "./types.js";
 import type {
   BlockTypeDefinition,
   ModelDetail,
@@ -41,6 +45,7 @@ import {
   IMPORT_MODEL_RECORDS_MUTATION,
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
+  PAGE_RESOLVED_LAYOUTS_QUERY,
   PAGE_VERSION_QUERY,
   PAGE_TYPES_QUERY,
   CREATE_PAGE_TYPE_MUTATION,
@@ -223,6 +228,7 @@ interface PageDoc {
   parentId?: string | null;
   blocks?: Array<Record<string, unknown> & { id: string }>;
   layoutBlocks?: Array<Record<string, unknown> & { id: string }>;
+  layoutPositionSettings?: RegionSettingsEntry[] | null;
   customFields?: unknown;
   displayName?: Record<string, string> | null;
   seoTitle?: Record<string, string> | null;
@@ -242,6 +248,16 @@ async function loadPage(
     { pageId },
   );
   return data.page.get;
+}
+
+async function loadResolvedRegions(
+  client: CmssyClient,
+  pageId: string,
+): Promise<ResolvedRegion[]> {
+  const data = await client.query<{
+    page: { resolvedLayouts: ResolvedRegion[] };
+  }>(PAGE_RESOLVED_LAYOUTS_QUERY, { pageId });
+  return data.page.resolvedLayouts;
 }
 
 // Lightweight read for version-only guards - skips the full blocks/layout
@@ -805,7 +821,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       get: async (idOrSlug) => {
         const page = await loadPage(client, idOrSlug);
         if (!page) return null;
-        return {
+        const regions = await loadResolvedRegions(client, page.id);
+        const detail = {
           id: page.id,
           name: page.name,
           slug: page.slug,
@@ -819,9 +836,12 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           seoTitle: page.seoTitle ?? null,
           seoDescription: page.seoDescription ?? null,
           seoKeywords: page.seoKeywords ?? null,
+          regionSettings: page.layoutPositionSettings ?? [],
+          resolvedRegions: regions,
           createdAt: page.createdAt ?? null,
           updatedAt: page.updatedAt ?? null,
         };
+        return detail;
       },
       list: async (search) => {
         const res = await client.query<{
@@ -1532,8 +1552,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           const configData = await client.query<{
             siteConfig: { get: { defaultLanguage?: string } | null };
           }>(SITE_DEFAULT_LANGUAGE_QUERY);
-          const locale =
-            configData.siteConfig.get?.defaultLanguage ?? "en";
+          const locale = configData.siteConfig.get?.defaultLanguage ?? "en";
           await client.query<{ media: { update: { id: string } | null } }>(
             UPDATE_MEDIA_MUTATION,
             { id: asset.id, input: { alt: { [locale]: input.alt } } },

@@ -52,6 +52,15 @@ const PAYLOADS: Array<[string, string, Record<string, unknown>]> = [
       size: 1024,
     },
   ],
+  [
+    "UpdateLayoutPositionSettingsInput",
+    "UpdateLayoutPositionSettingsInput",
+    {
+      pageId: "p1",
+      expectedVersion: 7,
+      settings: [{ position: "sidebar", values: { width: "wide" } }],
+    },
+  ],
 ];
 
 describe("MCP variable payloads satisfy the backend SDL", () => {

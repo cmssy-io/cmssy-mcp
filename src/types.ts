@@ -127,3 +127,17 @@ export interface BlockInput {
   metadata?: Record<string, unknown>;
   blockVersion?: string;
 }
+
+export interface RegionSettingsEntry {
+  position: string;
+  values: Record<string, unknown>;
+}
+
+export interface ResolvedRegion {
+  position: string;
+  isInherited: boolean;
+  sourcePageId: string;
+  settings: Record<string, unknown> | null;
+  settingsAreInherited: boolean;
+  settingsSourcePageId: string | null;
+}

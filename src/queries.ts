@@ -103,9 +103,39 @@ export const PAGE_BY_ID_QUERY = `
         blockVersion
       }
       layoutOverrides { position action blockId }
+      layoutPositionSettings { position values }
       inheritsLayout
       createdAt
       updatedAt
+    } }
+  }
+`;
+
+export const PAGE_RESOLVED_LAYOUTS_QUERY = `
+  query PageResolvedLayouts($pageId: ID!) {
+    page { resolvedLayouts(pageId: $pageId) {
+      position
+      isInherited
+      sourcePageId
+      settings
+      settingsAreInherited
+      settingsSourcePageId
+    } }
+  }
+`;
+
+export const LAYOUT_REGIONS_QUERY = `
+  query LayoutRegions {
+    blockManifest { get { regions } }
+  }
+`;
+
+export const PAGE_REGION_SETTINGS_QUERY = `
+  query PageRegionSettings($pageId: ID!) {
+    page { get(pageId: $pageId) {
+      id
+      version
+      layoutPositionSettings { position values }
     } }
   }
 `;
@@ -673,6 +703,19 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
       }
       layoutOverrides { position action blockId }
       inheritsLayout
+    } }
+  }
+`;
+
+export const UPDATE_LAYOUT_POSITION_SETTINGS_MUTATION = `
+  mutation UpdateLayoutPositionSettings($input: UpdateLayoutPositionSettingsInput!) {
+    page { updateLayoutPositionSettings(input: $input) {
+      id
+      version
+      blockWarnings
+      hasUnpublishedLayoutChanges
+      updatedAt
+      layoutPositionSettings { position values }
     } }
   }
 `;
