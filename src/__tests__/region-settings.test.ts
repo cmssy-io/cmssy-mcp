@@ -33,8 +33,8 @@ const manifestRegions = [
 ];
 
 const existing: RegionSettingsEntry[] = [
-  { position: "header", values: { variant: "dark" } },
-  { position: "sidebar", values: { width: "narrow" } },
+  { region: "header", values: { variant: "dark" } },
+  { region: "sidebar", values: { width: "narrow" } },
 ];
 
 const serverEcho = (vars: Record<string, unknown>) => ({
@@ -56,7 +56,7 @@ function pageReadThenWrite(
   regions: unknown = manifestRegions,
 ) {
   return clientRecording((document, vars) => {
-    if (document.includes("mutation UpdateLayoutPositionSettings"))
+    if (document.includes("mutation UpdateLayoutRegionSettings"))
       return write(vars);
     if (document.includes("query PageRegionSettings"))
       return {
@@ -71,7 +71,7 @@ function pageReadThenWrite(
 function writeInput(sent: Sent[]) {
   const write = sent.find((s) => s.document.includes("mutation"));
   return write?.variables.input as {
-    settings: Array<{ position: string; values: unknown }>;
+    settings: Array<{ region: string; values: unknown }>;
     expectedVersion?: number;
   };
 }
@@ -80,8 +80,8 @@ describe("mergeRegionSettings", () => {
   it("replaces only the named region and keeps the others", () => {
     expect(mergeRegionSettings(existing, "sidebar", { width: "wide" })).toEqual(
       [
-        { position: "header", values: { variant: "dark" } },
-        { position: "sidebar", values: { width: "wide" } },
+        { region: "header", values: { variant: "dark" } },
+        { region: "sidebar", values: { width: "wide" } },
       ],
     );
   });
@@ -89,7 +89,7 @@ describe("mergeRegionSettings", () => {
   it("appends a region the page had no settings for", () => {
     expect(mergeRegionSettings(existing, "footer", { columns: 3 })).toEqual([
       ...existing,
-      { position: "footer", values: { columns: 3 } },
+      { region: "footer", values: { columns: 3 } },
     ]);
   });
 });
@@ -99,7 +99,7 @@ describe("pruneRegionSettings", () => {
     expect(
       pruneRegionSettings(manifestRegions, [
         ...existing,
-        { position: "promo", values: { text: "old" } },
+        { region: "promo", values: { text: "old" } },
       ]),
     ).toEqual(existing);
   });
@@ -107,17 +107,17 @@ describe("pruneRegionSettings", () => {
   it("drops keys a region's schema no longer has", () => {
     expect(
       pruneRegionSettings(manifestRegions, [
-        { position: "sidebar", values: { width: "wide", colour: "red" } },
+        { region: "sidebar", values: { width: "wide", colour: "red" } },
       ]),
-    ).toEqual([{ position: "sidebar", values: { width: "wide" } }]);
+    ).toEqual([{ region: "sidebar", values: { width: "wide" } }]);
   });
 
   it("resets a region without a schema to empty values", () => {
     expect(
       pruneRegionSettings(manifestRegions, [
-        { position: "footer", values: { columns: 3 } },
+        { region: "footer", values: { columns: 3 } },
       ]),
-    ).toEqual([{ position: "footer", values: {} }]);
+    ).toEqual([{ region: "footer", values: {} }]);
   });
 });
 
@@ -160,7 +160,7 @@ describe("update_region_settings (CMS-1710)", () => {
     ).toEqual([
       "PageRegionSettings",
       "LayoutRegions",
-      "UpdateLayoutPositionSettings",
+      "UpdateLayoutRegionSettings",
     ]);
     expect(sent[0].variables).toEqual({ pageId: "p1" });
     expect(sent[2].variables).toStrictEqual({
@@ -168,8 +168,8 @@ describe("update_region_settings (CMS-1710)", () => {
         pageId: "p1",
         expectedVersion: 7,
         settings: [
-          { position: "header", values: { variant: "dark" } },
-          { position: "sidebar", values: { width: "wide" } },
+          { region: "header", values: { variant: "dark" } },
+          { region: "sidebar", values: { width: "wide" } },
         ],
       },
     });
@@ -178,8 +178,8 @@ describe("update_region_settings (CMS-1710)", () => {
       version: 8,
       region: "sidebar",
       regionSettings: [
-        { position: "header", values: { variant: "dark" } },
-        { position: "sidebar", values: { width: "wide" } },
+        { region: "header", values: { variant: "dark" } },
+        { region: "sidebar", values: { width: "wide" } },
       ],
       hasUnpublishedLayoutChanges: true,
       updatedAt: "2026-08-30T10:00:00.000Z",
@@ -188,8 +188,8 @@ describe("update_region_settings (CMS-1710)", () => {
 
   it("returns the server's stored list, not the payload it sent", async () => {
     const stored = [
-      { position: "header", values: { variant: "dark" } },
-      { position: "sidebar", values: { width: "wide", normalised: true } },
+      { region: "header", values: { variant: "dark" } },
+      { region: "sidebar", values: { width: "wide", normalised: true } },
     ];
     const { client } = pageReadThenWrite(() => ({
       page: {
@@ -217,7 +217,7 @@ describe("update_region_settings (CMS-1710)", () => {
   it("drops a stored entry for a region the manifest no longer declares", async () => {
     const { client, sent } = pageReadThenWrite(serverEcho, [
       ...existing,
-      { position: "promo", values: { text: "old" } },
+      { region: "promo", values: { text: "old" } },
     ]);
 
     await updateRegionSettings(client, {
@@ -226,7 +226,7 @@ describe("update_region_settings (CMS-1710)", () => {
       values: { width: "wide" },
     });
 
-    expect(writeInput(sent).settings.map((s) => s.position)).toEqual([
+    expect(writeInput(sent).settings.map((s) => s.region)).toEqual([
       "header",
       "sidebar",
     ]);
@@ -234,7 +234,7 @@ describe("update_region_settings (CMS-1710)", () => {
 
   it("drops a stored key the region's schema no longer has, but sends the caller's values untouched", async () => {
     const { client, sent } = pageReadThenWrite(serverEcho, [
-      { position: "header", values: { variant: "dark", gone: 1 } },
+      { region: "header", values: { variant: "dark", gone: 1 } },
     ]);
 
     await updateRegionSettings(client, {
@@ -244,8 +244,8 @@ describe("update_region_settings (CMS-1710)", () => {
     });
 
     expect(writeInput(sent).settings).toEqual([
-      { position: "header", values: { variant: "dark" } },
-      { position: "sidebar", values: { colour: "red" } },
+      { region: "header", values: { variant: "dark" } },
+      { region: "sidebar", values: { colour: "red" } },
     ]);
   });
 
@@ -253,8 +253,8 @@ describe("update_region_settings (CMS-1710)", () => {
     const { client, sent } = pageReadThenWrite(
       serverEcho,
       [
-        { position: "header", values: {} },
-        { position: "sidebar", values: { width: "narrow" } },
+        { region: "header", values: {} },
+        { region: "sidebar", values: { width: "narrow" } },
       ],
       null,
     );
@@ -266,8 +266,8 @@ describe("update_region_settings (CMS-1710)", () => {
     });
 
     expect(writeInput(sent).settings).toEqual([
-      { position: "header", values: {} },
-      { position: "footer", values: {} },
+      { region: "header", values: {} },
+      { region: "footer", values: {} },
     ]);
   });
 
@@ -364,7 +364,7 @@ describe("update_region_settings (CMS-1710)", () => {
 
     expect(out.isError).toBeUndefined();
     expect(writeInput(sent).settings).toContainEqual({
-      position: "sidebar",
+      region: "sidebar",
       values: { width: "wide" },
     });
     expect(JSON.parse(out.content[0].text)).toMatchObject({
@@ -376,7 +376,7 @@ describe("update_region_settings (CMS-1710)", () => {
 describe("get_page region settings (CMS-1710)", () => {
   const resolved = [
     {
-      position: "sidebar",
+      region: "sidebar",
       isInherited: true,
       sourcePageId: "docs",
       settings: { width: "narrow" },
@@ -398,8 +398,8 @@ describe("get_page region settings (CMS-1710)", () => {
             id: "p1",
             name: "Page",
             slug: "/page",
-            layoutPositionSettings: [
-              { position: "header", values: { variant: "dark" } },
+            layoutRegionSettings: [
+              { region: "header", values: { variant: "dark" } },
             ],
           },
         },
@@ -417,10 +417,10 @@ describe("get_page region settings (CMS-1710)", () => {
     >;
 
     expect(sent[0].document).toContain(
-      "layoutPositionSettings { position values }",
+      "layoutRegionSettings { region values }",
     );
     expect(page.regionSettings).toEqual([
-      { position: "header", values: { variant: "dark" } },
+      { region: "header", values: { variant: "dark" } },
     ]);
     expect(page.resolvedRegions).toEqual(resolved);
   });

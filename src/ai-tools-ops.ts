@@ -228,7 +228,7 @@ interface PageDoc {
   parentId?: string | null;
   blocks?: Array<Record<string, unknown> & { id: string }>;
   layoutBlocks?: Array<Record<string, unknown> & { id: string }>;
-  layoutPositionSettings?: RegionSettingsEntry[] | null;
+  layoutRegionSettings?: RegionSettingsEntry[] | null;
   customFields?: unknown;
   displayName?: Record<string, string> | null;
   seoTitle?: Record<string, string> | null;
@@ -836,7 +836,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           seoTitle: page.seoTitle ?? null,
           seoDescription: page.seoDescription ?? null,
           seoKeywords: page.seoKeywords ?? null,
-          regionSettings: page.layoutPositionSettings ?? [],
+          regionSettings: page.layoutRegionSettings ?? [],
           resolvedRegions: regions,
           createdAt: page.createdAt ?? null,
           updatedAt: page.updatedAt ?? null,
@@ -1167,7 +1167,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           res.page.updateLayout.blockWarnings,
         );
       },
-      addBlock: async (pageId, block, layoutPosition, position) => {
+      addBlock: async (pageId, block, layoutRegion, position) => {
         const page = await loadPage(client, pageId);
         if (!page) throw new Error("Page not found");
         const ev = expectedVersionOf(page);
@@ -1191,11 +1191,11 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           };
         }
         const newBlockId = crypto.randomUUID();
-        if (layoutPosition) {
+        if (layoutRegion) {
           const existingLayout = page.layoutBlocks ?? [];
           const maxOrder = existingLayout
             .filter(
-              (b) => (b as { position?: string }).position === layoutPosition,
+              (b) => (b as { region?: string }).region === layoutRegion,
             )
             .reduce(
               (max, b) => Math.max(max, (b as { order?: number }).order ?? -1),
@@ -1204,7 +1204,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           const newLayoutBlock = {
             id: newBlockId,
             type: block.type,
-            position: layoutPosition,
+            region: layoutRegion,
             order: maxOrder + 1,
             isActive: true,
             content: block.content,

@@ -1,6 +1,6 @@
 {
   "name": "@cmssy/mcp-server",
-  "version": "0.56.0",
+  "version": "0.57.0",
   "description": "MCP server for Cmssy CMS \u2014 enables AI-driven page creation and management",
   "type": "module",
   "bin": {
@@ -25,7 +25,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@cmssy/ai-tools": "0.39.0",
+    "@cmssy/ai-tools": "0.40.0",
     "@cmssy/types": "0.35.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.3.6"
@@ -40,16 +40,16 @@
   "engines": {
     "node": ">=18"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
   "files": [
     "dist"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cmssy-io/cmssy-mcp.git"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

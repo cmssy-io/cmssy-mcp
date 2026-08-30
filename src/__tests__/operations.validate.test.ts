@@ -53,12 +53,12 @@ const PAYLOADS: Array<[string, string, Record<string, unknown>]> = [
     },
   ],
   [
-    "UpdateLayoutPositionSettingsInput",
-    "UpdateLayoutPositionSettingsInput",
+    "UpdateLayoutRegionSettingsInput",
+    "UpdateLayoutRegionSettingsInput",
     {
       pageId: "p1",
       expectedVersion: 7,
-      settings: [{ position: "sidebar", values: { width: "wide" } }],
+      settings: [{ region: "sidebar", values: { width: "wide" } }],
     },
   ],
 ];
