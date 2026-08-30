@@ -91,7 +91,7 @@ import {
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
-import { registerRegionSettingsTool } from "./region-settings.js";
+import { createUpdateRegionSettingsTool } from "./region-settings.js";
 import {
   PAGES_QUERY,
   SITE_CONFIG_QUERY,
@@ -158,7 +158,7 @@ export function createServer(client: CmssyClient) {
   // ─── Layout Tools ──────────────────────────────────────────
 
   bindSharedTool(server, updatePageLayoutTool, sharedOps);
-  registerRegionSettingsTool(server, client);
+  bindSharedTool(server, createUpdateRegionSettingsTool(client), sharedOps);
 
   // ─── Block Helper Tools (read-modify-write) ─────────────────
 

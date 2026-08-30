@@ -819,11 +819,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         );
       },
       get: async (idOrSlug) => {
-        const [page, regions] = await Promise.all([
-          loadPage(client, idOrSlug),
-          loadResolvedRegions(client, idOrSlug),
-        ]);
+        const page = await loadPage(client, idOrSlug);
         if (!page) return null;
+        const regions = await loadResolvedRegions(client, page.id);
         const detail = {
           id: page.id,
           name: page.name,

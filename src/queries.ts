@@ -124,6 +124,12 @@ export const PAGE_RESOLVED_LAYOUTS_QUERY = `
   }
 `;
 
+export const LAYOUT_REGIONS_QUERY = `
+  query LayoutRegions {
+    blockManifest { get { regions } }
+  }
+`;
+
 export const PAGE_REGION_SETTINGS_QUERY = `
   query PageRegionSettings($pageId: ID!) {
     page { get(pageId: $pageId) {

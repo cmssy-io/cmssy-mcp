@@ -1,7 +1,8 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { AiTool } from "@cmssy/ai-tools";
 import type { CmssyClient } from "./graphql-client.js";
 import {
+  LAYOUT_REGIONS_QUERY,
   PAGE_REGION_SETTINGS_QUERY,
   UPDATE_LAYOUT_POSITION_SETTINGS_MUTATION,
 } from "./queries.js";
@@ -18,7 +19,7 @@ export const updateRegionSettingsInputSchema = z.object({
   values: z
     .record(z.string(), z.unknown())
     .describe(
-      "Settings values for the region, keyed as the manifest's region settings schema declares. Replaces this region's values; other regions keep theirs.",
+      "Settings values for the region, keyed as the manifest's region settings schema declares. Replaces this region's values; other regions keep theirs. A region that declares no settings accepts {} only.",
     ),
   expectedVersion: z
     .number()
@@ -43,6 +44,51 @@ export interface UpdateRegionSettingsResult {
   blockWarnings?: string[];
 }
 
+export interface LayoutRegion {
+  id: string;
+  settings?: Record<string, unknown>;
+}
+
+export const DEFAULT_LAYOUT_REGIONS: LayoutRegion[] = [
+  { id: "header" },
+  { id: "footer" },
+];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseLayoutRegions(value: unknown): LayoutRegion[] {
+  if (!Array.isArray(value)) return DEFAULT_LAYOUT_REGIONS;
+  const regions: LayoutRegion[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const { id, settings } = entry;
+    if (typeof id !== "string" || id.length === 0) continue;
+    regions.push(isRecord(settings) ? { id, settings } : { id });
+  }
+  return regions.length > 0 ? regions : DEFAULT_LAYOUT_REGIONS;
+}
+
+export function pruneRegionSettings(
+  regions: LayoutRegion[],
+  entries: RegionSettingsEntry[],
+): RegionSettingsEntry[] {
+  const byId = new Map(regions.map((region) => [region.id, region]));
+  return entries.flatMap((entry) => {
+    const region = byId.get(entry.position);
+    if (!region) return [];
+    const schema = region.settings;
+    if (!schema) return [{ ...entry, values: {} }];
+    const values = Object.fromEntries(
+      Object.entries(entry.values).filter(([key]) =>
+        Object.hasOwn(schema, key),
+      ),
+    );
+    return [{ ...entry, values }];
+  });
+}
+
 export function mergeRegionSettings(
   existing: RegionSettingsEntry[],
   region: string,
@@ -50,6 +96,13 @@ export function mergeRegionSettings(
 ): RegionSettingsEntry[] {
   const others = existing.filter((entry) => entry.position !== region);
   return [...others, { position: region, values }];
+}
+
+async function loadLayoutRegions(client: CmssyClient): Promise<LayoutRegion[]> {
+  const res = await client.query<{
+    blockManifest: { get: { regions?: unknown } | null };
+  }>(LAYOUT_REGIONS_QUERY);
+  return parseLayoutRegions(res.blockManifest.get?.regions);
 }
 
 export async function updateRegionSettings(
@@ -67,8 +120,9 @@ export async function updateRegionSettings(
   }>(PAGE_REGION_SETTINGS_QUERY, { pageId: input.pageId });
   if (!current.page.get) throw new Error("Page not found");
 
+  const regions = await loadLayoutRegions(client);
   const settings = mergeRegionSettings(
-    current.page.get.layoutPositionSettings,
+    pruneRegionSettings(regions, current.page.get.layoutPositionSettings),
     input.region,
     input.values,
   );
@@ -107,33 +161,15 @@ export async function updateRegionSettings(
   return result;
 }
 
-export function registerRegionSettingsTool(
-  server: McpServer,
+export function createUpdateRegionSettingsTool(
   client: CmssyClient,
-): void {
-  server.tool(
-    "update_region_settings",
-    "Set the settings of one layout region (position) on a page, e.g. a sidebar's width or a header's variant. Reads the page's current region settings, replaces only the named region and writes the whole list back (page.updateLayoutPositionSettings). Values are validated against the workspace layout manifest's region settings schema: an unknown key or a region without a schema is rejected with the backend's BAD_USER_INPUT message. Child pages inherit the region's settings unless they set their own (see get_page.resolvedRegions).",
-    updateRegionSettingsInputSchema.shape,
-    async (input) => {
-      try {
-        const result = await updateRegionSettings(client, input);
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify(result, null, 2) },
-          ],
-        };
-      } catch (err) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: err instanceof Error ? err.message : String(err),
-            },
-          ],
-          isError: true,
-        };
-      }
-    },
-  );
+): AiTool<UpdateRegionSettingsInput, UpdateRegionSettingsResult> {
+  return {
+    name: "update_region_settings",
+    description:
+      "Set the settings of one layout region (position) on a page, e.g. a sidebar's width or a header's variant. Reads the page's current region settings, replaces only the named region and writes the whole list back (page.updateLayoutPositionSettings); entries for regions or keys the manifest no longer declares are pruned on the way. Values are validated against the workspace layout manifest's region settings schema: an unknown region, an unknown key, or non-empty values on a region that declares no settings (such a region accepts {} only) is rejected with the backend's BAD_USER_INPUT message. Child pages inherit the region's settings unless they set their own (see get_page.resolvedRegions).",
+    inputSchema: updateRegionSettingsInputSchema,
+    requiredPermissions: ["pages:edit"],
+    execute: (input) => updateRegionSettings(client, input),
+  };
 }

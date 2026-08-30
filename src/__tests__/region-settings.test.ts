@@ -3,8 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import { createServer } from "../server.js";
 import type { CmssyClient } from "../graphql-client.js";
+import type { RegionSettingsEntry } from "../types.js";
+import { PAGE_RESOLVED_LAYOUTS_QUERY } from "../queries.js";
 import {
   mergeRegionSettings,
+  parseLayoutRegions,
+  pruneRegionSettings,
   updateRegionSettings,
 } from "../region-settings.js";
 
@@ -22,39 +26,54 @@ function clientRecording(
   return { client: { query } as unknown as CmssyClient, sent };
 }
 
-const existing = [
+const manifestRegions = [
+  { id: "header", settings: { variant: { type: "select" } } },
+  { id: "sidebar", settings: { width: { type: "select" } } },
+  { id: "footer" },
+];
+
+const existing: RegionSettingsEntry[] = [
   { position: "header", values: { variant: "dark" } },
   { position: "sidebar", values: { width: "narrow" } },
 ];
 
-function pageReadThenWrite(
-  write: (vars: Record<string, unknown>) => unknown = (vars) => {
-    const input = vars.input as { settings: unknown };
-    return {
-      page: {
-        updateLayoutPositionSettings: {
-          id: "p1",
-          version: 8,
-          blockWarnings: null,
-          hasUnpublishedLayoutChanges: true,
-          updatedAt: "2026-08-30T10:00:00.000Z",
-          layoutPositionSettings: input.settings,
-        },
-      },
-    };
+const serverEcho = (vars: Record<string, unknown>) => ({
+  page: {
+    updateLayoutPositionSettings: {
+      id: "p1",
+      version: 8,
+      blockWarnings: null,
+      hasUnpublishedLayoutChanges: true,
+      updatedAt: "2026-08-30T10:00:00.000Z",
+      layoutPositionSettings: (vars.input as { settings: unknown }).settings,
+    },
   },
+});
+
+function pageReadThenWrite(
+  write: (vars: Record<string, unknown>) => unknown = serverEcho,
+  stored: RegionSettingsEntry[] = existing,
+  regions: unknown = manifestRegions,
 ) {
   return clientRecording((document, vars) => {
     if (document.includes("mutation UpdateLayoutPositionSettings"))
       return write(vars);
     if (document.includes("query PageRegionSettings"))
       return {
-        page: {
-          get: { id: "p1", version: 7, layoutPositionSettings: existing },
-        },
+        page: { get: { id: "p1", version: 7, layoutPositionSettings: stored } },
       };
+    if (document.includes("query LayoutRegions"))
+      return { blockManifest: { get: { regions } } };
     throw new Error(`unexpected document: ${document.slice(0, 40)}`);
   });
+}
+
+function writeInput(sent: Sent[]) {
+  const write = sent.find((s) => s.document.includes("mutation"));
+  return write?.variables.input as {
+    settings: Array<{ position: string; values: unknown }>;
+    expectedVersion?: number;
+  };
 }
 
 describe("mergeRegionSettings", () => {
@@ -75,8 +94,59 @@ describe("mergeRegionSettings", () => {
   });
 });
 
+describe("pruneRegionSettings", () => {
+  it("drops regions the manifest no longer declares", () => {
+    expect(
+      pruneRegionSettings(manifestRegions, [
+        ...existing,
+        { position: "promo", values: { text: "old" } },
+      ]),
+    ).toEqual(existing);
+  });
+
+  it("drops keys a region's schema no longer has", () => {
+    expect(
+      pruneRegionSettings(manifestRegions, [
+        { position: "sidebar", values: { width: "wide", colour: "red" } },
+      ]),
+    ).toEqual([{ position: "sidebar", values: { width: "wide" } }]);
+  });
+
+  it("resets a region without a schema to empty values", () => {
+    expect(
+      pruneRegionSettings(manifestRegions, [
+        { position: "footer", values: { columns: 3 } },
+      ]),
+    ).toEqual([{ position: "footer", values: {} }]);
+  });
+});
+
+describe("parseLayoutRegions", () => {
+  it("keeps only entries with a string id and an object schema", () => {
+    expect(
+      parseLayoutRegions([
+        { id: "sidebar", settings: { width: {} } },
+        { id: "header", settings: "nope" },
+        { id: 3 },
+        "header",
+      ]),
+    ).toEqual([{ id: "sidebar", settings: { width: {} } }, { id: "header" }]);
+  });
+
+  it("falls back to header/footer when the manifest declares none", () => {
+    expect(parseLayoutRegions(null)).toEqual([
+      { id: "header" },
+      { id: "footer" },
+    ]);
+    expect(parseLayoutRegions([])).toEqual([
+      { id: "header" },
+      { id: "footer" },
+    ]);
+  });
+});
+
 describe("update_region_settings (CMS-1710)", () => {
-  it("reads first, then sends the full merged list with the version it read", async () => {
+  it("reads the page, then the manifest, then writes the full merged list with the version it read", async () => {
     const { client, sent } = pageReadThenWrite();
 
     const result = await updateRegionSettings(client, {
@@ -85,12 +155,15 @@ describe("update_region_settings (CMS-1710)", () => {
       values: { width: "wide" },
     });
 
-    expect(sent.map((s) => s.document.includes("mutation"))).toEqual([
-      false,
-      true,
+    expect(
+      sent.map((s) => /(query|mutation) (\w+)/.exec(s.document)?.[2]),
+    ).toEqual([
+      "PageRegionSettings",
+      "LayoutRegions",
+      "UpdateLayoutPositionSettings",
     ]);
     expect(sent[0].variables).toEqual({ pageId: "p1" });
-    expect(sent[1].variables).toStrictEqual({
+    expect(sent[2].variables).toStrictEqual({
       input: {
         pageId: "p1",
         expectedVersion: 7,
@@ -113,6 +186,91 @@ describe("update_region_settings (CMS-1710)", () => {
     });
   });
 
+  it("returns the server's stored list, not the payload it sent", async () => {
+    const stored = [
+      { position: "header", values: { variant: "dark" } },
+      { position: "sidebar", values: { width: "wide", normalised: true } },
+    ];
+    const { client } = pageReadThenWrite(() => ({
+      page: {
+        updateLayoutPositionSettings: {
+          id: "p1",
+          version: 9,
+          blockWarnings: null,
+          hasUnpublishedLayoutChanges: true,
+          updatedAt: null,
+          layoutPositionSettings: stored,
+        },
+      },
+    }));
+
+    const result = await updateRegionSettings(client, {
+      pageId: "p1",
+      region: "sidebar",
+      values: { width: "wide" },
+    });
+
+    expect(result.regionSettings).toBe(stored);
+    expect(result.version).toBe(9);
+  });
+
+  it("drops a stored entry for a region the manifest no longer declares", async () => {
+    const { client, sent } = pageReadThenWrite(serverEcho, [
+      ...existing,
+      { position: "promo", values: { text: "old" } },
+    ]);
+
+    await updateRegionSettings(client, {
+      pageId: "p1",
+      region: "sidebar",
+      values: { width: "wide" },
+    });
+
+    expect(writeInput(sent).settings.map((s) => s.position)).toEqual([
+      "header",
+      "sidebar",
+    ]);
+  });
+
+  it("drops a stored key the region's schema no longer has, but sends the caller's values untouched", async () => {
+    const { client, sent } = pageReadThenWrite(serverEcho, [
+      { position: "header", values: { variant: "dark", gone: 1 } },
+    ]);
+
+    await updateRegionSettings(client, {
+      pageId: "p1",
+      region: "sidebar",
+      values: { colour: "red" },
+    });
+
+    expect(writeInput(sent).settings).toEqual([
+      { position: "header", values: { variant: "dark" } },
+      { position: "sidebar", values: { colour: "red" } },
+    ]);
+  });
+
+  it("prunes against header/footer when the manifest declares no regions", async () => {
+    const { client, sent } = pageReadThenWrite(
+      serverEcho,
+      [
+        { position: "header", values: {} },
+        { position: "sidebar", values: { width: "narrow" } },
+      ],
+      null,
+    );
+
+    await updateRegionSettings(client, {
+      pageId: "p1",
+      region: "footer",
+      values: {},
+    });
+
+    expect(writeInput(sent).settings).toEqual([
+      { position: "header", values: {} },
+      { position: "footer", values: {} },
+    ]);
+  });
+
   it("prefers the caller's expectedVersion over the one it read", async () => {
     const { client, sent } = pageReadThenWrite();
 
@@ -123,22 +281,15 @@ describe("update_region_settings (CMS-1710)", () => {
       expectedVersion: 3,
     });
 
-    expect(
-      (sent[1].variables.input as { expectedVersion: number }).expectedVersion,
-    ).toBe(3);
+    expect(writeInput(sent).expectedVersion).toBe(3);
   });
 
   it("surfaces blockWarnings from the write", async () => {
     const { client } = pageReadThenWrite((vars) => ({
       page: {
         updateLayoutPositionSettings: {
-          id: "p1",
-          version: 8,
+          ...serverEcho(vars).page.updateLayoutPositionSettings,
           blockWarnings: ["sidebar.width: expected one of narrow|wide"],
-          hasUnpublishedLayoutChanges: true,
-          updatedAt: null,
-          layoutPositionSettings: (vars.input as { settings: unknown })
-            .settings,
         },
       },
     }));
@@ -156,7 +307,7 @@ describe("update_region_settings (CMS-1710)", () => {
 
   it("passes the backend's BAD_USER_INPUT message through verbatim", async () => {
     const message =
-      'Unknown setting "colour" for region "sidebar" (allowed: width)';
+      'Layout region "sidebar": unknown setting(s) colour - declared: width';
     const { client } = pageReadThenWrite(() => {
       throw new Error(message);
     });
@@ -183,31 +334,64 @@ describe("update_region_settings (CMS-1710)", () => {
     expect(sent).toHaveLength(1);
   });
 
-  it("is registered on the server", () => {
-    const server = createServer({ query: vi.fn() } as unknown as CmssyClient);
-    const registered = (
-      server as unknown as { _registeredTools: Record<string, unknown> }
-    )._registeredTools;
+  it("is bound through the shared binder, so values given as a JSON string are accepted", async () => {
+    const { client, sent } = pageReadThenWrite();
+    const server = createServer(client);
+    const tool = (
+      server as unknown as {
+        _registeredTools: Record<
+          string,
+          {
+            inputSchema: { parse(input: unknown): unknown };
+            handler: (
+              args: unknown,
+              extra: unknown,
+            ) => Promise<{
+              content: Array<{ text: string }>;
+              isError?: boolean;
+            }>;
+          }
+        >;
+      }
+    )._registeredTools.update_region_settings;
 
-    expect(Object.keys(registered)).toContain("update_region_settings");
+    const parsed = tool.inputSchema.parse({
+      pageId: "p1",
+      region: "sidebar",
+      values: '{"width":"wide"}',
+    });
+    const out = await tool.handler(parsed, {});
+
+    expect(out.isError).toBeUndefined();
+    expect(writeInput(sent).settings).toContainEqual({
+      position: "sidebar",
+      values: { width: "wide" },
+    });
+    expect(JSON.parse(out.content[0].text)).toMatchObject({
+      region: "sidebar",
+    });
   });
 });
 
 describe("get_page region settings (CMS-1710)", () => {
-  it("returns the page's own region settings and the resolved (inherited) ones", async () => {
-    const resolved = [
-      {
-        position: "sidebar",
-        isInherited: true,
-        sourcePageId: "docs",
-        settings: { width: "narrow" },
-        settingsAreInherited: true,
-        settingsSourcePageId: "docs",
-      },
-    ];
-    const { client, sent } = clientRecording((document) => {
-      if (document.includes("query PageResolvedLayouts"))
+  const resolved = [
+    {
+      position: "sidebar",
+      isInherited: true,
+      sourcePageId: "docs",
+      settings: { width: "narrow" },
+      settingsAreInherited: true,
+      settingsSourcePageId: "docs",
+    },
+  ];
+
+  function pageClient() {
+    return clientRecording((document, vars) => {
+      if (document.includes("query PageResolvedLayouts")) {
+        if (vars.pageId !== "p1") throw new Error("NOT_FOUND");
         return { page: { resolvedLayouts: resolved } };
+      }
+      if (vars.pageId === "missing") return { page: { get: null } };
       return {
         page: {
           get: {
@@ -221,6 +405,10 @@ describe("get_page region settings (CMS-1710)", () => {
         },
       };
     });
+  }
+
+  it("returns the page's own region settings and the resolved (inherited) ones", async () => {
+    const { client, sent } = pageClient();
     const ops = createMcpWorkspaceOps(client);
 
     const page = (await ops.pages.get("p1")) as unknown as Record<
@@ -235,5 +423,34 @@ describe("get_page region settings (CMS-1710)", () => {
       { position: "header", values: { variant: "dark" } },
     ]);
     expect(page.resolvedRegions).toEqual(resolved);
+  });
+
+  it("resolves a slug to the page id before asking for resolved layouts", async () => {
+    const { client, sent } = pageClient();
+    const ops = createMcpWorkspaceOps(client);
+
+    const page = (await ops.pages.get("page")) as unknown as Record<
+      string,
+      unknown
+    >;
+
+    expect(sent[1].document).toContain("query PageResolvedLayouts");
+    expect(sent[1].variables).toEqual({ pageId: "p1" });
+    expect(page.resolvedRegions).toEqual(resolved);
+  });
+
+  it("returns null for a missing page without asking for resolved layouts", async () => {
+    const { client, sent } = pageClient();
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.pages.get("missing")).toBeNull();
+    expect(sent).toHaveLength(1);
+  });
+
+  it("selects the settings inheritance fields on resolved layouts", () => {
+    expect(PAGE_RESOLVED_LAYOUTS_QUERY).toContain("settingsAreInherited");
+    expect(PAGE_RESOLVED_LAYOUTS_QUERY).toContain("settingsSourcePageId");
+    expect(PAGE_RESOLVED_LAYOUTS_QUERY).toContain("isInherited");
+    expect(PAGE_RESOLVED_LAYOUTS_QUERY).toContain("sourcePageId");
   });
 });
