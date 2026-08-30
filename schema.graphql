@@ -1389,11 +1389,6 @@ input LayoutBlockInput {
   type: String!
 }
 
-enum LayoutMobileBehavior {
-  collapse
-  keep
-}
-
 type LayoutOverride {
   action: LayoutOverrideAction!
   blockId: String
@@ -1412,15 +1407,13 @@ input LayoutOverrideInput {
 }
 
 type LayoutPositionSettings {
-  desktopWidth: Int
-  mobileBehavior: LayoutMobileBehavior!
   position: String!
+  values: JSON!
 }
 
 input LayoutPositionSettingsInput {
-  desktopWidth: Int
-  mobileBehavior: LayoutMobileBehavior!
   position: String!
+  values: JSON!
 }
 
 input LoginInput {
@@ -3010,7 +3003,7 @@ type ResolvedLayout {
   blocks: [ResolvedLayoutBlock!]!
   isInherited: Boolean!
   position: String!
-  settings: LayoutPositionSettings
+  settings: JSON
   settingsAreInherited: Boolean!
   settingsSourcePageId: String
   sourcePageId: String!
