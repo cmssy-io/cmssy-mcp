@@ -338,12 +338,13 @@ input BlockDataInput {
 type BlockManifest {
   blocks: JSON!
   hash: String!
+  regions: JSON!
   source: String!
   updatedAt: DateTime!
 }
 
 type BlockManifestMutations {
-  save(blocks: JSON!): BlockManifest!
+  save(blocks: JSON!, regions: JSON): BlockManifest!
 }
 
 type BlockManifestQueries {
@@ -1365,7 +1366,7 @@ type LayoutBlock {
   isActive: Boolean!
   metadata: BlockMetadata
   order: Int!
-  position: LayoutPosition!
+  position: String!
   settings: JSON!
   style: JSON
   translations: JSON!
@@ -1381,7 +1382,7 @@ input LayoutBlockInput {
   isActive: Boolean
   metadata: JSON
   order: Int!
-  position: LayoutPosition!
+  position: String!
   settings: JSON
   style: JSON
   translations: JSON
@@ -1396,7 +1397,7 @@ enum LayoutMobileBehavior {
 type LayoutOverride {
   action: LayoutOverrideAction!
   blockId: String
-  position: LayoutPosition!
+  position: String!
 }
 
 enum LayoutOverrideAction {
@@ -1407,28 +1408,19 @@ enum LayoutOverrideAction {
 input LayoutOverrideInput {
   action: LayoutOverrideAction!
   blockId: String
-  position: LayoutPosition!
-}
-
-enum LayoutPosition {
-  bottom
-  footer
-  header
-  sidebar_left
-  sidebar_right
-  top
+  position: String!
 }
 
 type LayoutPositionSettings {
   desktopWidth: Int
   mobileBehavior: LayoutMobileBehavior!
-  position: LayoutPosition!
+  position: String!
 }
 
 input LayoutPositionSettingsInput {
   desktopWidth: Int
   mobileBehavior: LayoutMobileBehavior!
-  position: LayoutPosition!
+  position: String!
 }
 
 input LoginInput {
@@ -3017,7 +3009,7 @@ type RelationOptionList {
 type ResolvedLayout {
   blocks: [ResolvedLayoutBlock!]!
   isInherited: Boolean!
-  position: LayoutPosition!
+  position: String!
   settings: LayoutPositionSettings
   settingsAreInherited: Boolean!
   settingsSourcePageId: String
@@ -3035,7 +3027,7 @@ type ResolvedLayoutBlock {
   isInherited: Boolean!
   metadata: BlockMetadata
   order: Int!
-  position: LayoutPosition!
+  position: String!
   settings: JSON!
   sourcePageId: String!
   style: JSON
