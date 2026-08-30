@@ -1,5 +1,16 @@
 # @cmssy/mcp-server
 
+## 0.56.0
+
+- **Region settings via MCP (CMS-1710).** New `update_region_settings`
+  (pageId, region, values, optional expectedVersion) writes
+  `page.updateLayoutPositionSettings` with a read-merge-write over the page's
+  existing region list, so one region can be set without clobbering the rest.
+  Manifest validation errors (`BAD_USER_INPUT`) and `blockWarnings` are
+  surfaced verbatim. `get_page` now returns `regionSettings` (the page's own)
+  and `resolvedRegions` (effective per region, with `isInherited`,
+  `settingsAreInherited` and the source page ids).
+
 ## 0.40.0
 
 - **Optimistic concurrency on `update_model` field patches (CMS-933).** The
