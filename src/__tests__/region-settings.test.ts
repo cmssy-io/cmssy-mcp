@@ -39,13 +39,13 @@ const existing: RegionSettingsEntry[] = [
 
 const serverEcho = (vars: Record<string, unknown>) => ({
   page: {
-    updateLayoutPositionSettings: {
+    updateLayoutRegionSettings: {
       id: "p1",
       version: 8,
       blockWarnings: null,
       hasUnpublishedLayoutChanges: true,
       updatedAt: "2026-08-30T10:00:00.000Z",
-      layoutPositionSettings: (vars.input as { settings: unknown }).settings,
+      layoutRegionSettings: (vars.input as { settings: unknown }).settings,
     },
   },
 });
@@ -60,7 +60,7 @@ function pageReadThenWrite(
       return write(vars);
     if (document.includes("query PageRegionSettings"))
       return {
-        page: { get: { id: "p1", version: 7, layoutPositionSettings: stored } },
+        page: { get: { id: "p1", version: 7, layoutRegionSettings: stored } },
       };
     if (document.includes("query LayoutRegions"))
       return { blockManifest: { get: { regions } } };
@@ -193,13 +193,13 @@ describe("update_region_settings (CMS-1710)", () => {
     ];
     const { client } = pageReadThenWrite(() => ({
       page: {
-        updateLayoutPositionSettings: {
+        updateLayoutRegionSettings: {
           id: "p1",
           version: 9,
           blockWarnings: null,
           hasUnpublishedLayoutChanges: true,
           updatedAt: null,
-          layoutPositionSettings: stored,
+          layoutRegionSettings: stored,
         },
       },
     }));
@@ -287,8 +287,8 @@ describe("update_region_settings (CMS-1710)", () => {
   it("surfaces blockWarnings from the write", async () => {
     const { client } = pageReadThenWrite((vars) => ({
       page: {
-        updateLayoutPositionSettings: {
-          ...serverEcho(vars).page.updateLayoutPositionSettings,
+        updateLayoutRegionSettings: {
+          ...serverEcho(vars).page.updateLayoutRegionSettings,
           blockWarnings: ["sidebar.width: expected one of narrow|wide"],
         },
       },

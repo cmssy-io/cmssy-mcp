@@ -114,7 +114,7 @@ export async function updateRegionSettings(
       get: {
         id: string;
         version: number | null;
-        layoutPositionSettings: RegionSettingsEntry[];
+        layoutRegionSettings: RegionSettingsEntry[];
       } | null;
     };
   }>(PAGE_REGION_SETTINGS_QUERY, { pageId: input.pageId });
@@ -122,7 +122,7 @@ export async function updateRegionSettings(
 
   const regions = await loadLayoutRegions(client);
   const settings = mergeRegionSettings(
-    pruneRegionSettings(regions, current.page.get.layoutPositionSettings),
+    pruneRegionSettings(regions, current.page.get.layoutRegionSettings),
     input.region,
     input.values,
   );
@@ -135,24 +135,24 @@ export async function updateRegionSettings(
 
   const res = await client.query<{
     page: {
-      updateLayoutPositionSettings: {
+      updateLayoutRegionSettings: {
         id: string;
         version: number | null;
         blockWarnings: string[] | null;
         hasUnpublishedLayoutChanges: boolean;
         updatedAt: string | null;
-        layoutPositionSettings: RegionSettingsEntry[];
+        layoutRegionSettings: RegionSettingsEntry[];
       } | null;
     };
   }>(UPDATE_LAYOUT_REGION_SETTINGS_MUTATION, { input: mutationInput });
-  const updated = res.page.updateLayoutPositionSettings;
+  const updated = res.page.updateLayoutRegionSettings;
   if (!updated) throw new Error("Page not found");
 
   const result: UpdateRegionSettingsResult = {
     id: updated.id,
     version: updated.version,
     region: input.region,
-    regionSettings: updated.layoutPositionSettings,
+    regionSettings: updated.layoutRegionSettings,
     hasUnpublishedLayoutChanges: updated.hasUnpublishedLayoutChanges,
     updatedAt: updated.updatedAt,
   };
@@ -167,7 +167,7 @@ export function createUpdateRegionSettingsTool(
   return {
     name: "update_region_settings",
     description:
-      "Set the settings of one layout region on a page, e.g. a sidebar's width or a header's variant. Reads the page's current region settings, replaces only the named region and writes the whole list back (page.updateLayoutPositionSettings); entries for regions or keys the manifest no longer declares are pruned on the way. Values are validated against the workspace layout manifest's region settings schema: an unknown region, an unknown key, or non-empty values on a region that declares no settings (such a region accepts {} only) is rejected with the backend's BAD_USER_INPUT message. Child pages inherit the region's settings unless they set their own (see get_page.resolvedRegions).",
+      "Set the settings of one layout region on a page, e.g. a sidebar's width or a header's variant. Reads the page's current region settings, replaces only the named region and writes the whole list back (page.updateLayoutRegionSettings); entries for regions or keys the manifest no longer declares are pruned on the way. Values are validated against the workspace layout manifest's region settings schema: an unknown region, an unknown key, or non-empty values on a region that declares no settings (such a region accepts {} only) is rejected with the backend's BAD_USER_INPUT message. Child pages inherit the region's settings unless they set their own (see get_page.resolvedRegions).",
     inputSchema: updateRegionSettingsInputSchema,
     requiredPermissions: ["pages:edit"],
     execute: (input) => updateRegionSettings(client, input),
