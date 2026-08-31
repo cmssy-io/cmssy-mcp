@@ -89,21 +89,21 @@ export const PAGE_BY_ID_QUERY = `
         blockVersion
       }
       layoutBlocks {
-        id type position order isActive
+        id type region order isActive
         content settings style advanced
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
       }
       publishedLayoutBlocks {
-        id type position order isActive
+        id type region order isActive
         content settings style advanced
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
       }
-      layoutOverrides { position action blockId }
-      layoutPositionSettings { position values }
+      layoutOverrides { region action blockId }
+      layoutRegionSettings { region values }
       inheritsLayout
       createdAt
       updatedAt
@@ -114,7 +114,7 @@ export const PAGE_BY_ID_QUERY = `
 export const PAGE_RESOLVED_LAYOUTS_QUERY = `
   query PageResolvedLayouts($pageId: ID!) {
     page { resolvedLayouts(pageId: $pageId) {
-      position
+      region
       isInherited
       sourcePageId
       settings
@@ -135,7 +135,7 @@ export const PAGE_REGION_SETTINGS_QUERY = `
     page { get(pageId: $pageId) {
       id
       version
-      layoutPositionSettings { position values }
+      layoutRegionSettings { region values }
     } }
   }
 `;
@@ -695,27 +695,27 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
       hasUnpublishedLayoutChanges
       updatedAt
       layoutBlocks {
-        id type position order isActive
+        id type region order isActive
         content settings style advanced
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
       }
-      layoutOverrides { position action blockId }
+      layoutOverrides { region action blockId }
       inheritsLayout
     } }
   }
 `;
 
-export const UPDATE_LAYOUT_POSITION_SETTINGS_MUTATION = `
-  mutation UpdateLayoutPositionSettings($input: UpdateLayoutPositionSettingsInput!) {
-    page { updateLayoutPositionSettings(input: $input) {
+export const UPDATE_LAYOUT_REGION_SETTINGS_MUTATION = `
+  mutation UpdateLayoutRegionSettings($input: UpdateLayoutRegionSettingsInput!) {
+    page { updateLayoutRegionSettings(input: $input) {
       id
       version
       blockWarnings
       hasUnpublishedLayoutChanges
       updatedAt
-      layoutPositionSettings { position values }
+      layoutRegionSettings { region values }
     } }
   }
 `;

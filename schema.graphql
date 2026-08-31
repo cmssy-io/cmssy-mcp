@@ -1366,7 +1366,7 @@ type LayoutBlock {
   isActive: Boolean!
   metadata: BlockMetadata
   order: Int!
-  position: String!
+  region: String!
   settings: JSON!
   style: JSON
   translations: JSON!
@@ -1382,7 +1382,7 @@ input LayoutBlockInput {
   isActive: Boolean
   metadata: JSON
   order: Int!
-  position: String!
+  region: String!
   settings: JSON
   style: JSON
   translations: JSON
@@ -1392,7 +1392,7 @@ input LayoutBlockInput {
 type LayoutOverride {
   action: LayoutOverrideAction!
   blockId: String
-  position: String!
+  region: String!
 }
 
 enum LayoutOverrideAction {
@@ -1403,16 +1403,16 @@ enum LayoutOverrideAction {
 input LayoutOverrideInput {
   action: LayoutOverrideAction!
   blockId: String
-  position: String!
+  region: String!
 }
 
-type LayoutPositionSettings {
-  position: String!
+type LayoutRegionSettings {
+  region: String!
   values: JSON!
 }
 
-input LayoutPositionSettingsInput {
-  position: String!
+input LayoutRegionSettingsInput {
+  region: String!
   values: JSON!
 }
 
@@ -2190,7 +2190,7 @@ type Page {
   inheritsLayout: Boolean!
   layoutBlocks: [LayoutBlock!]!
   layoutOverrides: [LayoutOverride!]!
-  layoutPositionSettings: [LayoutPositionSettings!]!
+  layoutRegionSettings: [LayoutRegionSettings!]!
   name: String!
   order: Int!
   pageType: String!
@@ -2200,7 +2200,7 @@ type Page {
   publishedBlocks: [BlockData!]!
   publishedLayoutBlocks: [LayoutBlock!]!
   publishedLayoutOverrides: [LayoutOverride!]!
-  publishedLayoutPositionSettings: [LayoutPositionSettings!]!
+  publishedLayoutRegionSettings: [LayoutRegionSettings!]!
   schemaPropertyMap: JSON
   schemaType: String
   seoDescription: JSON
@@ -2292,7 +2292,7 @@ type PageMutations {
   togglePublish(id: ID!): Page
   transitionStage(pageId: ID!, stageId: String!): Page
   updateLayout(input: UpdatePageLayoutInput!): Page
-  updateLayoutPositionSettings(input: UpdateLayoutPositionSettingsInput!): Page
+  updateLayoutRegionSettings(input: UpdateLayoutRegionSettingsInput!): Page
   updateSettings(input: UpdatePageSettingsInput!): Page
 }
 
@@ -3002,7 +3002,7 @@ type RelationOptionList {
 type ResolvedLayout {
   blocks: [ResolvedLayoutBlock!]!
   isInherited: Boolean!
-  position: String!
+  region: String!
   settings: JSON
   settingsAreInherited: Boolean!
   settingsSourcePageId: String
@@ -3020,7 +3020,7 @@ type ResolvedLayoutBlock {
   isInherited: Boolean!
   metadata: BlockMetadata
   order: Int!
-  position: String!
+  region: String!
   settings: JSON!
   sourcePageId: String!
   style: JSON
@@ -3478,10 +3478,10 @@ input UpdateFormInput {
   status: FormStatus
 }
 
-input UpdateLayoutPositionSettingsInput {
+input UpdateLayoutRegionSettingsInput {
   expectedVersion: Int
   pageId: String!
-  settings: [LayoutPositionSettingsInput!]!
+  settings: [LayoutRegionSettingsInput!]!
 }
 
 input UpdateMediaFolderInput {

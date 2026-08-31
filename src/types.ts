@@ -14,7 +14,7 @@ export interface BlockData {
 export interface LayoutBlock {
   id: string;
   type: string;
-  position: string;
+  region: string;
   order: number;
   isActive: boolean;
   content?: Record<string, unknown>;
@@ -27,10 +27,10 @@ export interface LayoutBlock {
   blockVersion?: string;
 }
 
-// LayoutOverride from @cmssy/types uses stricter types (LayoutPosition, LayoutOverrideAction).
+// LayoutOverride from @cmssy/types uses stricter types (LayoutRegionId, LayoutOverrideAction).
 // MCP uses string since GraphQL returns strings. Keep local for compatibility.
 export interface LayoutOverride {
-  position: string;
+  region: string;
   action: string;
   blockId?: string;
 }
@@ -129,12 +129,12 @@ export interface BlockInput {
 }
 
 export interface RegionSettingsEntry {
-  position: string;
+  region: string;
   values: Record<string, unknown>;
 }
 
 export interface ResolvedRegion {
-  position: string;
+  region: string;
   isInherited: boolean;
   sourcePageId: string;
   settings: Record<string, unknown> | null;

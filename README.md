@@ -114,7 +114,7 @@ already returned a compact ack and don't take `response`.
 
 Region (layout position) settings are declared by the workspace's layout
 manifest and validated against it on write. The tool reads the page's current
-`layoutPositionSettings`, replaces only the named region and writes the whole
+`layoutRegionSettings`, replaces only the named region and writes the whole
 list back, so sibling regions keep their values (entries for regions the
 manifest no longer declares, and keys a region's schema no longer has, are
 dropped on the way - the same pruning the admin editor does). The backend's own
