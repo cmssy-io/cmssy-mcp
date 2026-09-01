@@ -814,6 +814,11 @@ type DeletionResult {
   id: ID!
 }
 
+type DeliveryLimits {
+  perIpPerMinute: Int!
+  perWorkspacePerMinute: Int!
+}
+
 type DiscountMutations {
   """
   Create a new discount. Code is canonicalized to upper-case. Duplicate code (per workspace) → BAD_USER_INPUT. Cross-field invariants (percentage <= 100, fixed has currency, etc.) enforced by the Zod schema in DiscountRepository.create.
@@ -2899,6 +2904,7 @@ type Query {
   auditLog: AuditLogQueries!
   blockManifest: BlockManifestQueries!
   cart: CartQueries!
+  deliveryLimits: DeliveryLimits!
   discount: DiscountQueries!
   email: EmailQueries!
   fieldType: FieldTypeQueries!
@@ -3673,6 +3679,7 @@ input UpsertOrderPipelineInput {
 
 type UsageHistory {
   deltas: UsageHistoryDeltas!
+  periodStart: DateTime!
   points: [UsageHistoryPoint!]!
   previousPeriod: UsageHistoryTotals
   totals: UsageHistoryTotals!
