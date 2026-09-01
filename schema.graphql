@@ -3963,10 +3963,10 @@ type WorkspaceOrganization {
 }
 
 type WorkspaceQueries {
+  canAccess(slug: String!): Boolean!
   current: Workspace
   draftSecret: String!
   get(id: ID, organizationSlug: String, slug: String): Workspace
-  isMember(slug: String!): Boolean!
   mine: [Workspace!]!
 }
 
