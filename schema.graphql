@@ -558,7 +558,7 @@ type CartMutations {
   """
   Convert the active cart into an order (public, rate-limited). Attaches the site member as customer when logged in; otherwise a guest order with the supplied customerEmail.
   """
-  checkout(input: CheckoutInput!): Order!
+  checkout(input: CheckoutInput!): PublicOrder!
 
   """Remove all items from the cart (public, rate-limited)"""
   clear(workspaceId: ID!): Cart!
@@ -1218,7 +1218,6 @@ type FormSettings {
   actionType: FormActionType!
   emailConfigurationId: String
   emailRecipients: [String!]!
-  enableCaptcha: Boolean!
   errorMessage: JSON!
   redirectUrl: String
   requireLogin: Boolean!
@@ -1233,7 +1232,6 @@ input FormSettingsInput {
   actionType: FormActionType = contact
   emailConfigurationId: String
   emailRecipients: [String!]
-  enableCaptcha: Boolean = false
   errorMessage: JSON
   redirectUrl: String
   requireLogin: Boolean = false
@@ -2695,6 +2693,21 @@ type PropertyQueries {
   relationOptions(ids: [ID!], limit: Int, query: String, target: String!): RelationOptionList!
 }
 
+"""
+A block as a storefront renders it. Carries no metadata - who created a block and when is the editor's business (CMS-1736).
+"""
+type PublicBlockData {
+  advanced: JSON
+  blockVersion: String
+  content: JSON!
+  defaultLanguage: String!
+  id: String!
+  settings: JSON!
+  style: JSON
+  translations: JSON!
+  type: String!
+}
+
 """Per-workspace cart configuration (public surface, no server-side TTLs)"""
 type PublicCartConfig {
   defaultCurrency: String!
@@ -2728,7 +2741,6 @@ type PublicFormQueries {
 
 type PublicFormSettings {
   actionType: FormActionType!
-  enableCaptcha: Boolean!
   errorMessage: JSON!
   redirectUrl: String
   requireLogin: Boolean!
@@ -2748,6 +2760,24 @@ type PublicFormSubmissionListResult {
   hasMore: Boolean!
   items: [PublicFormSubmissionItem!]!
   total: Int!
+}
+
+"""
+A layout block as a storefront renders it. Carries no metadata (CMS-1736).
+"""
+type PublicLayoutBlock {
+  advanced: JSON
+  blockVersion: String
+  content: JSON!
+  defaultLanguage: String!
+  id: String!
+  isActive: Boolean!
+  order: Int!
+  region: String!
+  settings: JSON!
+  style: JSON
+  translations: JSON!
+  type: String!
 }
 
 type PublicModelDefinition {
@@ -2783,7 +2813,7 @@ type PublicModelQueries {
     """
     stockState: String
     workspaceId: String!
-  ): ModelRecordList!
+  ): PublicModelRecordList!
 
   """
   Batch-resolve records referenced by id - the delivery read behind block relation fields. Records come back in the order of ids; an unknown or foreign-workspace id is skipped, so a dangling reference never breaks a page render. Accepts at most 50 ids per call.
@@ -2796,7 +2826,29 @@ type PublicModelQueries {
     """
     locale: String
     workspaceId: String!
-  ): [ModelRecord!]!
+  ): [PublicModelRecord!]!
+}
+
+type PublicModelRecord {
+  createdAt: DateTime!
+  data: JSON!
+  id: String!
+  modelId: String!
+
+  """
+  Record-level volume breaks. Price a product without variants, and any variant that defines no tiers of its own.
+  """
+  priceTiers: [PriceTier!]!
+  status: String
+  updatedAt: DateTime!
+  variants: [ProductVariant!]!
+  workspaceId: String!
+}
+
+type PublicModelRecordList {
+  hasMore: Boolean!
+  items: [PublicModelRecord!]!
+  total: Int!
 }
 
 type PublicMutations {
@@ -2807,6 +2859,10 @@ type PublicMutations {
 An order as its buyer sees it, fetched with the access token minted at checkout.
 """
 type PublicOrder {
+  """
+  Capability token for the public confirmation page, returned ONLY in the response to the checkout that minted it. Every later read gets null - the order stores just the hash.
+  """
+  accessToken: String
   amountPaid: Int!
 
   """The discount code frozen at order time (CMS-919)"""
@@ -2872,13 +2928,13 @@ type PublicOrderQueries {
 }
 
 type PublicPage {
-  blocks: [BlockData!]!
+  blocks: [PublicBlockData!]!
   customFields: [PageCustomField!]!
   description: String
   displayName: JSON!
   id: String!
   inheritsLayout: Boolean!
-  layoutBlocks: [LayoutBlock!]!
+  layoutBlocks: [PublicLayoutBlock!]!
   layoutOverrides: [LayoutOverride!]!
   layoutRegionSettings: [LayoutRegionSettings!]!
   order: Int!
@@ -2886,8 +2942,8 @@ type PublicPage {
   parentId: String
   published: Boolean!
   publishedAt: DateTime
-  publishedBlocks: [BlockData!]!
-  publishedLayoutBlocks: [LayoutBlock!]!
+  publishedBlocks: [PublicBlockData!]!
+  publishedLayoutBlocks: [PublicLayoutBlock!]!
   publishedLayoutOverrides: [LayoutOverride!]!
   publishedLayoutRegionSettings: [LayoutRegionSettings!]!
   schemaPropertyMap: JSON
@@ -2915,7 +2971,7 @@ type PublicPageQueries {
   byType(customFieldFilters: [PageCustomFieldFilterInput!], includeDrafts: Boolean = false, limit: Int = 9, offset: Int = 0, pageType: String, parentSlug: String, previewSecret: String, search: String, sortBy: PageSortBy = publishedAt_desc, workspaceId: String!): PublicPagesListResult!
   get(devPreview: Boolean, previewSecret: String, slug: String!, workspaceSlug: String!): PublicPage
   getById(pageId: ID!, workspaceSlug: String!): PublicPage
-  layouts(pageSlug: String!, previewSecret: String, workspaceSlug: String!): [ResolvedLayout!]!
+  layouts(pageSlug: String!, previewSecret: String, workspaceSlug: String!): [PublicResolvedLayout!]!
   list(workspaceSlug: String!): [PublicPage!]!
 }
 
@@ -2931,9 +2987,56 @@ type PublicQueries {
   model: PublicModelQueries!
   order: PublicOrderQueries!
   page: PublicPageQueries!
-  siteConfig(workspaceSlug: String): SiteConfig
+  siteConfig(workspaceSlug: String): PublicSiteConfig
   workspaceBranding(workspaceSlug: String!): WorkspaceBranding
   workspaceI18n(workspaceSlug: String!): I18nSettings
+}
+
+"""
+One region's resolved layout as a storefront renders it. Names no page the caller did not ask for (CMS-1736).
+"""
+type PublicResolvedLayout {
+  blocks: [PublicResolvedLayoutBlock!]!
+  isInherited: Boolean!
+  region: String!
+  settings: JSON
+  settingsAreInherited: Boolean!
+}
+
+"""
+A resolved layout block as a storefront renders it. Carries no metadata and names no page the caller did not ask for (CMS-1736).
+"""
+type PublicResolvedLayoutBlock {
+  advanced: JSON
+  blockVersion: String
+  content: JSON!
+  defaultLanguage: String!
+  id: String!
+  isActive: Boolean!
+  isInherited: Boolean!
+  order: Int!
+  region: String!
+  settings: JSON!
+  style: JSON
+  translations: JSON!
+  type: String!
+}
+
+type PublicSiteConfig {
+  branding: SiteBranding
+  canUseCart: Boolean!
+  defaultLanguage: String!
+  enabledFeatures: [String!]!
+  enabledLanguages: [String!]!
+  id: String!
+  memberAuth: MemberAuthConfig
+  notFoundPageId: String
+  previewUrl: String
+  publicCart: PublicCartConfig
+  publicSiteUrl: String
+  siteName: JSON!
+  siteVerifications: SiteVerifications
+  workspaceId: String!
 }
 
 type Query {
