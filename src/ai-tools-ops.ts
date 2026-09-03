@@ -960,8 +960,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           mutationInput.urlPrefix = input.urlPrefix;
         if (input.allowChildren !== undefined)
           mutationInput.allowChildren = input.allowChildren;
-        if (input.fields !== undefined)
-          mutationInput.fields = toPropertyFields(input.fields);
+        if (input.fields !== undefined) mutationInput.fields = input.fields;
         const res = await client.query<{
           pageType: { create: { id: string; name: string; slug: string } };
         }>(CREATE_PAGE_TYPE_MUTATION, { input: mutationInput });
@@ -996,6 +995,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
                 defaultValue?: string | null;
                 multiple?: boolean | null;
                 localized?: boolean | null;
+                relationTo?: string | null;
+                relationType?: ProposedField["relationType"] | null;
               }> | null;
             } | null;
           };
@@ -1024,6 +1025,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             defaultValue: field.defaultValue ?? null,
             multiple: field.multiple ?? null,
             localized: field.localized ?? null,
+            relationTo: field.relationTo ?? null,
+            relationType: field.relationType ?? null,
           })),
         };
       },
@@ -1038,8 +1041,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           mutationInput.urlPrefix = input.urlPrefix;
         if (input.allowChildren !== undefined)
           mutationInput.allowChildren = input.allowChildren;
-        if (input.fields !== undefined)
-          mutationInput.fields = toPropertyFields(input.fields);
+        if (input.fields !== undefined) mutationInput.fields = input.fields;
         const res = await client.query<{
           pageType: {
             update: { id: string; name: string; slug: string } | null;

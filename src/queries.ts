@@ -543,6 +543,8 @@ export const PAGE_TYPE_QUERY = `
           defaultValue
           multiple
           localized
+          relationTo
+          relationType
         }
       }
     }

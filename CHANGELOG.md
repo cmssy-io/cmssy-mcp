@@ -1,5 +1,17 @@
 # @cmssy/mcp-server
 
+## 0.59.0
+
+- **Relation fields on page types (CMS-1686).** `create_page_type` /
+  `update_page_type` accept `relationTo` and `relationType` on a field
+  (via @cmssy/ai-tools 0.41.0) and send `relationTo` to the backend exactly
+  as given - a page-type relation may point at a collection (`pages`,
+  `forms`, `media_assets`, `users`, `model_records`) or at `model:<slug>`,
+  so the `model:` prefixing the model tools do would corrupt it.
+  `get_page_type` now selects and returns both keys, so the documented
+  get -> edit -> update cycle no longer strips a relation field's target
+  and cardinality.
+
 ## 0.58.0
 
 - **`list_forms` / `get_form` / `update_form` work against production again
