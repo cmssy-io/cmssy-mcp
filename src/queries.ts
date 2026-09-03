@@ -739,7 +739,7 @@ const FORM_FIELDS_FRAGMENT = `
   settings {
     actionType webhookUrl emailRecipients
     submitButtonLabel successMessage errorMessage
-    redirectUrl enableCaptcha requireLogin
+    redirectUrl requireLogin
     saveSubmissions sendEmailNotification emailConfigurationId
   }
   submissionCount
