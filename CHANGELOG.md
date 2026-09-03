@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.58.0
+
+- **`list_forms` / `get_form` / `update_form` work against production again
+  (CMS-1728).** The form query stopped selecting `enableCaptcha` in #122, but
+  that change never shipped: 0.57.0 still asks for the field, and since
+  cmssy#2400 reached production on 2026-09-03 every form read fails with
+  `Cannot query field "enableCaptcha" on type "FormSettings"`. This release is
+  that fix plus the vendored SDL synced with production.
+
 ## 0.56.0
 
 - **Region settings via MCP (CMS-1710).** New `update_region_settings`
