@@ -608,6 +608,15 @@ export const CREATE_PAGE_TYPE_MUTATION = `
   }
 `;
 
+export const TAKE_OVER_PAGE_LOCK_MUTATION = `
+  mutation TakeOverPageLock($pageId: ID!) {
+    page { takeOverLock(pageId: $pageId) {
+      lockHolderId
+      lockHeldByMe
+    } }
+  }
+`;
+
 export const TOGGLE_PUBLISH_MUTATION = `
   mutation TogglePublish($id: ID!) {
     page { togglePublish(id: $id) {

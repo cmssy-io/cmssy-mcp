@@ -59,6 +59,7 @@ import {
   PROMOTE_DEV_DRAFT_MUTATION,
   PUBLISH_PAGE_CONTENT_MUTATION,
   PUBLISH_PAGE_LAYOUT_MUTATION,
+  TAKE_OVER_PAGE_LOCK_MUTATION,
   TOGGLE_PUBLISH_MUTATION,
   REVERT_CONTENT_TO_PUBLISHED_MUTATION,
   REVERT_LAYOUT_TO_PUBLISHED_MUTATION,
@@ -1090,6 +1091,19 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         }>(TOGGLE_PUBLISH_MUTATION, { id: pageId });
         if (!res.page.togglePublish) throw new Error("Page not found");
         return { id: res.page.togglePublish.id };
+      },
+      takeOverLock: async (pageId) => {
+        const res = await client.query<{
+          page: {
+            takeOverLock: { lockHolderId: string | null; lockHeldByMe: boolean };
+          };
+        }>(TAKE_OVER_PAGE_LOCK_MUTATION, { pageId });
+        const lock = res.page.takeOverLock;
+        return {
+          pageId,
+          lockHolderId: lock.lockHolderId,
+          lockHeldByMe: lock.lockHeldByMe,
+        };
       },
       revert: async (pageId) => {
         await client.query(REVERT_CONTENT_TO_PUBLISHED_MUTATION, {

@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.63.0
+
+- **`take_over_page_lock` (CMS-1674).** Server-side lock enforcement refuses
+  `publish_page` and every other write with `PAGE_LOCKED` while a human holds
+  the page open, and the holder's TTL does not lapse while their tab stays
+  visible. The new tool reassigns the lock to the caller (`page.takeOverLock`)
+  and reports `lockHeldByMe`, so an agent can decide whether to retry the
+  write. The previous holder is bounced to read-only; the tool description
+  tells the model to confirm first. `@cmssy/ai-tools` 0.45.0.
+
 ## 0.62.0
 
 - **`update_region_settings` writes through `page.updateLayout` (CMS-1672).**
