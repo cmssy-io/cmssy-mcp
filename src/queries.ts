@@ -726,8 +726,8 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
 `;
 
 export const UPDATE_LAYOUT_REGION_SETTINGS_MUTATION = `
-  mutation UpdateLayoutRegionSettings($input: UpdateLayoutRegionSettingsInput!) {
-    page { updateLayoutRegionSettings(input: $input) {
+  mutation UpdateLayoutRegionSettings($input: UpdatePageLayoutInput!) {
+    page { updateLayout(input: $input) {
       id
       version
       blockWarnings

@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.62.0
+
+- **`update_region_settings` writes through `page.updateLayout` (CMS-1672).**
+  The backend folded region settings into `UpdatePageLayoutInput.layoutRegionSettings`
+  and removed `page.updateLayoutRegionSettings`, so a layout save is one
+  version-guarded write instead of two. The tool's read-merge-write, pruning,
+  `expectedVersion` handling and `blockWarnings` are unchanged; only the
+  mutation underneath is. Vendored SDL synced with cmssy#2428. Needs a backend
+  that has cmssy#2428 deployed.
+
 ## 0.59.0
 
 - **Relation fields on page types (CMS-1686).** `create_page_type` /
