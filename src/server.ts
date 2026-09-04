@@ -27,6 +27,7 @@ import {
   deletePageTypeTool,
   publishPageTool,
   unpublishPageTool,
+  takeOverPageLockTool,
   revertToPublishedTool,
   deletePageTool,
   updatePageLayoutTool,
@@ -152,6 +153,7 @@ export function createServer(client: CmssyClient) {
   bindSharedTool(server, deletePageTypeTool, sharedOps);
   bindSharedTool(server, publishPageTool, sharedOps);
   bindSharedTool(server, unpublishPageTool, sharedOps);
+  bindSharedTool(server, takeOverPageLockTool, sharedOps);
   bindSharedTool(server, revertToPublishedTool, sharedOps);
   bindSharedTool(server, deletePageTool, sharedOps);
 
