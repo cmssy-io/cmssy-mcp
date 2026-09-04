@@ -518,6 +518,34 @@ export const PAGE_TYPES_QUERY = `
   }
 `;
 
+// PropertyField is self-recursive (fields/itemFields are JSON on the wire
+// to avoid infinite schema recursion). Keep this in sync with page-type.ts
+// resolver's PropertyField object type.
+const PROPERTY_FIELD_FRAGMENT = `
+  key
+  label
+  type
+  required
+  hidden
+  localized
+  description
+  defaultValue
+  options
+  fields
+  itemType
+  itemFields
+  relationTo
+  relationType
+  acceptedTypes
+  multiple
+  schemaProperty
+  minLength
+  maxLength
+  minValue
+  maxValue
+  pattern
+`;
+
 export const PAGE_TYPE_QUERY = `
   query PageType($pageTypeId: ID!) {
     pageType {
@@ -533,19 +561,7 @@ export const PAGE_TYPE_QUERY = `
         allowedChildTypes
         defaultPublished
         isSystem
-        fields {
-          key
-          label
-          type
-          required
-          description
-          options
-          defaultValue
-          multiple
-          localized
-          relationTo
-          relationType
-        }
+        fields { ${PROPERTY_FIELD_FRAGMENT} }
       }
     }
   }
@@ -851,34 +867,6 @@ export const DELETE_FORM_SUBMISSION_MUTATION = `
 `;
 
 // ─── Model Queries ───────────────────────────────────────────
-
-// PropertyField is self-recursive (fields/itemFields are JSON on the wire
-// to avoid infinite schema recursion). Keep this in sync with page-type.ts
-// resolver's PropertyField object type.
-const PROPERTY_FIELD_FRAGMENT = `
-  key
-  label
-  type
-  required
-  hidden
-  localized
-  description
-  defaultValue
-  options
-  fields
-  itemType
-  itemFields
-  relationTo
-  relationType
-  acceptedTypes
-  multiple
-  schemaProperty
-  minLength
-  maxLength
-  minValue
-  maxValue
-  pattern
-`;
 
 const MODEL_DEFINITION_FRAGMENT = `
   id

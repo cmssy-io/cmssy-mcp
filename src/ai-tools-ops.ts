@@ -425,7 +425,13 @@ interface RawPropertyField {
   pattern?: string | null;
 }
 
-export function toProposedFields(fields: RawPropertyField[]): ProposedField[] {
+const stripModelPrefix = (target: string) => target.replace(/^model:/, "");
+const keepRelationTarget = (target: string) => target;
+
+export function toProposedFields(
+  fields: RawPropertyField[],
+  relationTarget: (target: string) => string = stripModelPrefix,
+): ProposedField[] {
   return fields.map((f) => ({
     key: f.key,
     label: f.label,
@@ -439,7 +445,7 @@ export function toProposedFields(fields: RawPropertyField[]): ProposedField[] {
       ? { itemType: f.itemType as ProposedField["type"] }
       : {}),
     ...(f.relationTo != null
-      ? { relationTo: f.relationTo.replace(/^model:/, "") }
+      ? { relationTo: relationTarget(f.relationTo) }
       : {}),
     ...(f.relationType != null
       ? { relationType: f.relationType as ProposedField["relationType"] }
@@ -456,10 +462,10 @@ export function toProposedFields(fields: RawPropertyField[]): ProposedField[] {
     ...(f.maxValue != null ? { maxValue: f.maxValue } : {}),
     ...(f.pattern != null ? { pattern: f.pattern } : {}),
     ...(Array.isArray(f.fields) && f.fields.length > 0
-      ? { fields: toProposedFields(f.fields) }
+      ? { fields: toProposedFields(f.fields, relationTarget) }
       : {}),
     ...(Array.isArray(f.itemFields) && f.itemFields.length > 0
-      ? { itemFields: toProposedFields(f.itemFields) }
+      ? { itemFields: toProposedFields(f.itemFields, relationTarget) }
       : {}),
   }));
 }
@@ -985,19 +991,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               allowedChildTypes?: string[] | null;
               defaultPublished?: boolean | null;
               isSystem?: boolean | null;
-              fields?: Array<{
-                key: string;
-                label: string;
-                type: string;
-                required?: boolean | null;
-                description?: string | null;
-                options?: string[] | null;
-                defaultValue?: string | null;
-                multiple?: boolean | null;
-                localized?: boolean | null;
-                relationTo?: string | null;
-                relationType?: ProposedField["relationType"] | null;
-              }> | null;
+              fields?: RawPropertyField[] | null;
             } | null;
           };
         }>(PAGE_TYPE_QUERY, { pageTypeId });
@@ -1015,19 +1009,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           defaultPublished: Boolean(type.defaultPublished),
           schemaType: type.schemaType ?? null,
           isSystem: Boolean(type.isSystem),
-          fields: (type.fields ?? []).map((field) => ({
-            key: field.key,
-            label: field.label,
-            type: field.type,
-            required: Boolean(field.required),
-            description: field.description ?? null,
-            options: field.options ?? [],
-            defaultValue: field.defaultValue ?? null,
-            multiple: field.multiple ?? null,
-            localized: field.localized ?? null,
-            relationTo: field.relationTo ?? null,
-            relationType: field.relationType ?? null,
-          })),
+          fields: toProposedFields(type.fields ?? [], keepRelationTarget),
         };
       },
       updateType: async (input) => {

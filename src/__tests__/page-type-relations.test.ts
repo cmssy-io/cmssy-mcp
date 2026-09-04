@@ -32,7 +32,8 @@ function sentFields(sent: Sent[]) {
 const relation = {
   key: "related",
   label: "Related",
-  type: "relation",
+  type: "relation" as const,
+  required: false,
   relationTo: "pages",
   relationType: "hasMany" as const,
 };
@@ -103,7 +104,7 @@ describe("page-type relation fields through the MCP ops (CMS-1686)", () => {
     });
   });
 
-  it("get_page_type reports a field without a relation as null on both keys", async () => {
+  it("get_page_type omits relationTo and relationType on a field that has no relation", async () => {
     const { client } = clientRecording(() => ({
       pageType: {
         get: {
@@ -115,9 +116,11 @@ describe("page-type relation fields through the MCP ops (CMS-1686)", () => {
 
     const detail = await createMcpWorkspaceOps(client).pages.getType("pt1");
 
-    expect(detail?.fields[0]).toMatchObject({
-      relationTo: null,
-      relationType: null,
+    expect(detail?.fields[0]).toStrictEqual({
+      key: "title",
+      label: "Title",
+      type: "text",
+      required: false,
     });
   });
 });
