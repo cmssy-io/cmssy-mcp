@@ -129,13 +129,13 @@ export async function updateRegionSettings(
   const expectedVersion = input.expectedVersion ?? current.page.get.version;
   const mutationInput: Record<string, unknown> = {
     pageId: input.pageId,
-    settings,
+    layoutRegionSettings: settings,
   };
   if (expectedVersion != null) mutationInput.expectedVersion = expectedVersion;
 
   const res = await client.query<{
     page: {
-      updateLayoutRegionSettings: {
+      updateLayout: {
         id: string;
         version: number | null;
         blockWarnings: string[] | null;
@@ -145,7 +145,7 @@ export async function updateRegionSettings(
       } | null;
     };
   }>(UPDATE_LAYOUT_REGION_SETTINGS_MUTATION, { input: mutationInput });
-  const updated = res.page.updateLayoutRegionSettings;
+  const updated = res.page.updateLayout;
   if (!updated) throw new Error("Page not found");
 
   const result: UpdateRegionSettingsResult = {
@@ -167,7 +167,7 @@ export function createUpdateRegionSettingsTool(
   return {
     name: "update_region_settings",
     description:
-      "Set the settings of one layout region on a page, e.g. a sidebar's width or a header's variant. Reads the page's current region settings, replaces only the named region and writes the whole list back (page.updateLayoutRegionSettings); entries for regions or keys the manifest no longer declares are pruned on the way. Values are validated against the workspace layout manifest's region settings schema: an unknown region, an unknown key, or non-empty values on a region that declares no settings (such a region accepts {} only) is rejected with the backend's BAD_USER_INPUT message. Child pages inherit the region's settings unless they set their own (see get_page.resolvedRegions).",
+      "Set the settings of one layout region on a page, e.g. a sidebar's width or a header's variant. Reads the page's current region settings, replaces only the named region and writes the whole list back (page.updateLayout with layoutRegionSettings, one version-guarded write); entries for regions or keys the manifest no longer declares are pruned on the way. Values are validated against the workspace layout manifest's region settings schema: an unknown region, an unknown key, or non-empty values on a region that declares no settings (such a region accepts {} only) is rejected with the backend's BAD_USER_INPUT message. Child pages inherit the region's settings unless they set their own (see get_page.resolvedRegions).",
     inputSchema: updateRegionSettingsInputSchema,
     requiredPermissions: ["pages:edit"],
     execute: (input) => updateRegionSettings(client, input),

@@ -1,3 +1,13 @@
+type AbandonedProduct {
+  abandonedUnits: Int!
+  abandonedValue: Float!
+  currency: String!
+  lastAbandonedAt: DateTime!
+  modelId: String!
+  name: String!
+  recordId: String!
+}
+
 type AcceptOrganizationInvitationResult {
   message: String!
   organizationId: String
@@ -44,6 +54,7 @@ type AdminCartList {
 }
 
 type AdminCartQueries {
+  analytics(range: CartAnalyticsRange!): CartAnalytics!
   list(limit: Int, skip: Int, status: String): AdminCartList!
 }
 
@@ -432,6 +443,21 @@ type Cart {
   workspaceId: String!
 }
 
+type CartAnalytics {
+  conversionRate: Float
+  from: DateTime!
+  funnel: CartFunnel!
+  series: [CartSeriesPoint!]!
+  to: DateTime!
+  topAbandonedProducts(limit: Int): [AbandonedProduct!]!
+}
+
+enum CartAnalyticsRange {
+  LAST_7_DAYS
+  LAST_30_DAYS
+  LAST_90_DAYS
+}
+
 """
 Discount snapshot captured when a code was applied to the cart. Frozen at apply-time so workspace admins editing the source discount cannot retroactively change a cart's total.
 """
@@ -501,6 +527,13 @@ input CartFieldMappingInput {
   price: String
   sku: String
   taxRate: String
+}
+
+type CartFunnel {
+  abandoned: Int!
+  added: Int!
+  converted: Int!
+  viewed: Int!
 }
 
 """Single line item in a shopping cart"""
@@ -604,6 +637,12 @@ type CartQueries {
   Get the active cart for the current session in this workspace. Returns an empty (non-persistent) cart if no session/cart exists.
   """
   get(workspaceId: ID!): Cart!
+}
+
+type CartSeriesPoint {
+  abandoned: Int!
+  added: Int!
+  day: DateTime!
 }
 
 """VAT rollup for one rate: net base and tax, in minor units"""
@@ -2295,7 +2334,6 @@ type PageMutations {
   togglePublish(id: ID!): Page
   transitionStage(pageId: ID!, stageId: String!): Page
   updateLayout(input: UpdatePageLayoutInput!): Page
-  updateLayoutRegionSettings(input: UpdateLayoutRegionSettingsInput!): Page
   updateSettings(input: UpdatePageSettingsInput!): Page
 }
 
@@ -3628,12 +3666,6 @@ input UpdateFormInput {
   status: FormStatus
 }
 
-input UpdateLayoutRegionSettingsInput {
-  expectedVersion: Int
-  pageId: String!
-  settings: [LayoutRegionSettingsInput!]!
-}
-
 input UpdateMediaFolderInput {
   name: String
   parentId: String
@@ -3708,6 +3740,7 @@ input UpdatePageLayoutInput {
   inheritsLayout: Boolean
   layoutBlocks: [LayoutBlockInput!]
   layoutOverrides: [LayoutOverrideInput!]
+  layoutRegionSettings: [LayoutRegionSettingsInput!]
   pageId: String!
 }
 

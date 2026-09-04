@@ -39,13 +39,14 @@ const existing: RegionSettingsEntry[] = [
 
 const serverEcho = (vars: Record<string, unknown>) => ({
   page: {
-    updateLayoutRegionSettings: {
+    updateLayout: {
       id: "p1",
       version: 8,
       blockWarnings: null,
       hasUnpublishedLayoutChanges: true,
       updatedAt: "2026-08-30T10:00:00.000Z",
-      layoutRegionSettings: (vars.input as { settings: unknown }).settings,
+      layoutRegionSettings: (vars.input as { layoutRegionSettings: unknown })
+        .layoutRegionSettings,
     },
   },
 });
@@ -71,7 +72,7 @@ function pageReadThenWrite(
 function writeInput(sent: Sent[]) {
   const write = sent.find((s) => s.document.includes("mutation"));
   return write?.variables.input as {
-    settings: Array<{ region: string; values: unknown }>;
+    layoutRegionSettings: Array<{ region: string; values: unknown }>;
     expectedVersion?: number;
   };
 }
@@ -163,16 +164,20 @@ describe("update_region_settings (CMS-1710)", () => {
       "UpdateLayoutRegionSettings",
     ]);
     expect(sent[0].variables).toEqual({ pageId: "p1" });
-    expect(sent[2].variables).toStrictEqual({
+    expect(
+      sent[2].variables,
+      "One page.updateLayout write carrying layoutRegionSettings (CMS-1672): the separate updateLayoutRegionSettings mutation is gone from the backend.",
+    ).toStrictEqual({
       input: {
         pageId: "p1",
         expectedVersion: 7,
-        settings: [
+        layoutRegionSettings: [
           { region: "header", values: { variant: "dark" } },
           { region: "sidebar", values: { width: "wide" } },
         ],
       },
     });
+    expect(sent[2].document).toContain("updateLayout(input: $input)");
     expect(result).toStrictEqual({
       id: "p1",
       version: 8,
@@ -193,7 +198,7 @@ describe("update_region_settings (CMS-1710)", () => {
     ];
     const { client } = pageReadThenWrite(() => ({
       page: {
-        updateLayoutRegionSettings: {
+        updateLayout: {
           id: "p1",
           version: 9,
           blockWarnings: null,
@@ -226,10 +231,9 @@ describe("update_region_settings (CMS-1710)", () => {
       values: { width: "wide" },
     });
 
-    expect(writeInput(sent).settings.map((s) => s.region)).toEqual([
-      "header",
-      "sidebar",
-    ]);
+    expect(writeInput(sent).layoutRegionSettings.map((s) => s.region)).toEqual(
+      ["header", "sidebar"],
+    );
   });
 
   it("drops a stored key the region's schema no longer has, but sends the caller's values untouched", async () => {
@@ -243,7 +247,7 @@ describe("update_region_settings (CMS-1710)", () => {
       values: { colour: "red" },
     });
 
-    expect(writeInput(sent).settings).toEqual([
+    expect(writeInput(sent).layoutRegionSettings).toEqual([
       { region: "header", values: { variant: "dark" } },
       { region: "sidebar", values: { colour: "red" } },
     ]);
@@ -265,7 +269,7 @@ describe("update_region_settings (CMS-1710)", () => {
       values: {},
     });
 
-    expect(writeInput(sent).settings).toEqual([
+    expect(writeInput(sent).layoutRegionSettings).toEqual([
       { region: "header", values: {} },
       { region: "footer", values: {} },
     ]);
@@ -287,8 +291,8 @@ describe("update_region_settings (CMS-1710)", () => {
   it("surfaces blockWarnings from the write", async () => {
     const { client } = pageReadThenWrite((vars) => ({
       page: {
-        updateLayoutRegionSettings: {
-          ...serverEcho(vars).page.updateLayoutRegionSettings,
+        updateLayout: {
+          ...serverEcho(vars).page.updateLayout,
           blockWarnings: ["sidebar.width: expected one of narrow|wide"],
         },
       },
@@ -363,7 +367,7 @@ describe("update_region_settings (CMS-1710)", () => {
     const out = await tool.handler(parsed, {});
 
     expect(out.isError).toBeUndefined();
-    expect(writeInput(sent).settings).toContainEqual({
+    expect(writeInput(sent).layoutRegionSettings).toContainEqual({
       region: "sidebar",
       values: { width: "wide" },
     });
