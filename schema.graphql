@@ -83,11 +83,6 @@ type AdminDiscountListResult {
   total: Int!
 }
 
-"""AI configuration status"""
-type AiConfiguration {
-  isConfigured: Boolean!
-}
-
 """AI generation history entry"""
 type AiGenerationHistory {
   createdAt: DateTime!
@@ -113,9 +108,6 @@ type AiMutations {
 
   """Generate alt text for an image"""
   generateAltText(input: GenerateAltTextInput!): AiGenerationResult!
-
-  """Reset AI token usage for workspace (admin only)"""
-  resetTokenUsage: Boolean!
 
   """Execute an AI action on rich text content"""
   richText(input: RichTextAiInput!): RichTextResult!
@@ -159,9 +151,6 @@ enum AiProviderType {
 }
 
 type AiQueries {
-  """Get AI configuration status"""
-  configuration: AiConfiguration!
-
   """Get AI generation history for a source"""
   generationHistory(sourceId: String, sourceType: String!): [AiGenerationHistory!]!
 
@@ -173,9 +162,6 @@ type AiQueries {
 
   """Get AI status for the current workspace"""
   status: AiStatus!
-
-  """Get AI token usage information for the current workspace"""
-  usage: AiUsage!
 }
 
 """AI status for a workspace"""
@@ -185,17 +171,6 @@ type AiStatus {
   canUseAi: Boolean!
   hasOwnProvider: Boolean!
   isConfigured: Boolean!
-  tokensRemaining: Int!
-}
-
-"""AI token usage information for a workspace"""
-type AiUsage {
-  available: Int
-  currentUsed: Int!
-  isConfigured: Boolean!
-  maxAllowed: Int
-  percentUsed: Float!
-  resetAt: DateTime!
 }
 
 type ApiToken {
@@ -205,6 +180,7 @@ type ApiToken {
   lastUsedAt: DateTime
   name: String!
   prefix: String!
+  workspaceId: String
 }
 
 type ApiTokenMutations {
@@ -225,6 +201,7 @@ type ApiTokenWithSecret {
   name: String!
   prefix: String!
   token: String!
+  workspaceId: String
 }
 
 """
@@ -707,6 +684,7 @@ type CommentUser {
 input CreateApiTokenInput {
   expiresInDays: Int
   name: String!
+  workspaceId: ID
 }
 
 """
@@ -1518,6 +1496,15 @@ type MediaAsset {
   width: Int
 }
 
+"""
+An asset's id, the name it was uploaded under and its alt map - what a field needs to label a value and to say what alt it falls back to, read without the rest of the document.
+"""
+type MediaAssetName {
+  alt: JSON
+  filename: String!
+  id: ID!
+}
+
 type MediaBrandingUsage {
   field: String!
   location: String!
@@ -1592,6 +1579,11 @@ type MediaQueries {
   folders(parentId: ID): MediaFolderListResponse!
   get(id: ID!): MediaAsset
   list(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
+
+  """
+  The upload names of the assets asked for by id, in one projected read. An id that names nothing in this workspace is left out.
+  """
+  names(ids: [ID!]!): [MediaAssetName!]!
   usages(assetIds: [ID!]!): MediaUsageResponse!
 }
 
@@ -2113,7 +2105,6 @@ type Organization {
 }
 
 type OrganizationBilling {
-  aiCreditsResetAt: DateTime
   billingCycle: String
   cancelAtPeriodEnd: Boolean!
   currency: String
@@ -2132,7 +2123,6 @@ type OrganizationLimits {
   canRemoveBranding: Boolean!
   canUseCart: Boolean!
   canUseSso: Boolean!
-  maxAiTokensMonth: Int
   maxApiRequestsMonth: Int
   maxBandwidthGbMonth: Int
   maxMembers: Int
@@ -2204,7 +2194,6 @@ type OrganizationWorkspace {
 }
 
 type OrganizationWorkspaceUsage {
-  aiTokensUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
   mediaSignings: Int!
@@ -2313,6 +2302,12 @@ type PageHistoryEntry {
   version: Int!
 }
 
+type PageLock {
+  heldByMe: Boolean!
+  holder: PagePresenceUser!
+  pageId: ID!
+}
+
 type PageMutations {
   delete(id: ID!): DeletionResult!
   discardDevDraft(pageId: String!): Boolean!
@@ -2359,6 +2354,7 @@ type PageQueries {
   get(pageId: ID!): Page
   history(limit: Int, pageId: ID!): [PageHistoryEntry!]!
   list(search: String): [Page!]!
+  locks: [PageLock!]!
   presence(pageId: ID!): PagePresenceState!
   resolvedLayouts(pageId: ID!, usePublished: Boolean): [ResolvedLayout!]!
 }
@@ -2489,7 +2485,6 @@ type PermissionInfo {
 }
 
 type PooledUsage {
-  aiCreditsUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
   mediaSignings: Int!
@@ -3863,7 +3858,6 @@ type UsageHistory {
 }
 
 type UsageHistoryDeltas {
-  aiCreditsUsed: Float
   apiRequests: Float
   bandwidthBytes: Float
   mediaSignings: Float
@@ -3871,7 +3865,6 @@ type UsageHistoryDeltas {
 }
 
 type UsageHistoryPoint {
-  aiCreditsUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
   day: DateTime!
@@ -3887,7 +3880,6 @@ enum UsageHistoryRange {
 }
 
 type UsageHistoryTotals {
-  aiCreditsUsed: Int!
   apiRequests: Int!
   bandwidthBytes: Float!
   mediaSignings: Int!
@@ -4145,6 +4137,22 @@ type WorkspaceQueries {
   draftSecret: String!
   get(id: ID, organizationSlug: String, slug: String): Workspace
   mine: [Workspace!]!
+
+  """
+  Every workspace the caller reaches, by name and organization only. Cheaper than mine.
+  """
+  mineRefs: [WorkspaceRef!]!
+}
+
+"""
+A workspace by name alone, for pickers that need no roles, usage or plan.
+"""
+type WorkspaceRef {
+  id: String!
+  name: String!
+  organizationId: String!
+  organizationName: String
+  slug: String!
 }
 
 type WorkspaceRole {
@@ -4186,7 +4194,6 @@ type WorkspaceSettings {
 }
 
 type WorkspaceUsage {
-  aiTokensUsed: Int!
   apiRequestsUsed: Int!
   bandwidthUsedGb: Float!
   membersCount: Int!

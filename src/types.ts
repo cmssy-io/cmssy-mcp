@@ -80,7 +80,6 @@ export type OrganizationLimits = {
   maxMembers: number | null;
   maxWorkspaces: number | null;
   maxStorageMb: number | null;
-  maxAiTokensMonth: number | null;
   maxApiRequestsMonth: number | null;
   maxBandwidthGbMonth: number | null;
   canRemoveBranding: boolean;

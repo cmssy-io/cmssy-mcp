@@ -1,5 +1,16 @@
 # @cmssy/mcp-server
 
+## 0.64.0
+
+- **`get_workspace_info` no longer reports `maxAiTokensMonth` (CMS-1761).**
+  AI in cmssy is bring-your-own-key only; the platform credit allowance and
+  its `OrganizationLimits.maxAiTokensMonth` field are gone from the backend
+  (cmssy#2452), so the workspace query stops selecting it and the limits
+  type drops it. Vendored SDL synced with cmssy#2452, which also removes
+  `AiMutations.resetTokenUsage`, `AiQueries.usage` / `configuration`,
+  `AiStatus.tokensRemaining` and the `aiCredits*` usage fields this server
+  never read.
+
 ## 0.63.0
 
 - **`take_over_page_lock` (CMS-1674).** Server-side lock enforcement refuses
