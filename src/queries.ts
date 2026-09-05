@@ -235,7 +235,6 @@ export const CURRENT_WORKSPACE_QUERY = `
             maxMembers
             maxWorkspaces
             maxStorageMb
-            maxAiTokensMonth
             maxApiRequestsMonth
             maxBandwidthGbMonth
             canRemoveBranding
