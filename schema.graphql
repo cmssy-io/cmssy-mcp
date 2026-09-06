@@ -133,7 +133,6 @@ type AiProvider {
   groqModel: String!
   mistralModel: String!
   openaiModel: String!
-  useOwnProvider: Boolean!
 }
 
 """Result of validating an AI provider API key"""
@@ -169,7 +168,6 @@ type AiStatus {
   activeProvider: AiProviderType
   brandContextEnabled: Boolean!
   canUseAi: Boolean!
-  hasOwnProvider: Boolean!
   isConfigured: Boolean!
 }
 
@@ -3594,7 +3592,6 @@ input UpdateAiProviderInput {
   mistralModel: String
   openaiApiKey: String
   openaiModel: String
-  useOwnProvider: Boolean
 }
 
 input UpdateApiTokenInput {
