@@ -87,7 +87,7 @@ describe("page-type relation fields through the MCP ops (CMS-1686)", () => {
               label: "Author",
               type: "relation",
               relationTo: "model:author",
-              relationType: "manyToMany",
+              relationType: "hasMany",
             },
           ],
         },
@@ -100,7 +100,7 @@ describe("page-type relation fields through the MCP ops (CMS-1686)", () => {
     expect(PAGE_TYPE_QUERY).toMatch(/relationTo\s+relationType/);
     expect(detail?.fields[0]).toMatchObject({
       relationTo: "model:author",
-      relationType: "manyToMany",
+      relationType: "hasMany",
     });
   });
 
