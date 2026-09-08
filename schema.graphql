@@ -109,6 +109,11 @@ type AiMutations {
   """Generate alt text for an image"""
   generateAltText(input: GenerateAltTextInput!): AiGenerationResult!
 
+  """
+  Models the provider currently serves: to the key given, else to the key stored for the workspace
+  """
+  providerModels(apiKey: String, provider: AiProviderType!): [AiProviderModel!]!
+
   """Execute an AI action on rich text content"""
   richText(input: RichTextAiInput!): RichTextResult!
 
@@ -133,6 +138,12 @@ type AiProvider {
   groqModel: String!
   mistralModel: String!
   openaiModel: String!
+}
+
+"""A model the provider serves to the key it was asked with"""
+type AiProviderModel {
+  id: String!
+  label: String!
 }
 
 """Result of validating an AI provider API key"""
@@ -2624,7 +2635,7 @@ type PropertyField {
   options: [String!]!
   pattern: String
   relationTo: String
-  relationType: String
+  relationType: RelationType
   required: Boolean!
   schemaProperty: String
   type: PropertyFieldType!
@@ -2649,7 +2660,7 @@ input PropertyFieldInput {
   options: [String!]
   pattern: String
   relationTo: String
-  relationType: String
+  relationType: RelationType
   required: Boolean
   schemaProperty: String
   type: PropertyFieldType!
@@ -2719,7 +2730,7 @@ type PropertyQueries {
   list(appliesTo: String): [PropertyDefinition!]!
 
   """
-  Pickable rows for a relation field pointed at one of the relation target collections. Each target is gated by its own view permission.
+  Pickable rows for a relation field pointed at one of the relation target collections. Each target is gated by its own view permission; pages narrow to the caller's scoped grants the way page reads do.
   """
   relationOptions(ids: [ID!], limit: Int, query: String, target: String!): RelationOptionList!
 }
@@ -3145,7 +3156,24 @@ type RecordQueries {
     populate: [String!]
     sort: String
   ): ModelRecordList!
+
+  """
+  Relation fields on other records of this workspace that hold this record's id, one entry per field occurrence.
+  """
+  referencedBy(id: ID!): [RecordRelationUsage!]!
   usages(id: ID!): [RecordUsage!]!
+}
+
+"""
+One relation field on another record that holds this record's id. Deleting the record with force removes the id from that field.
+"""
+type RecordRelationUsage {
+  fieldPath: String!
+  modelId: String!
+  modelName: String!
+  modelSlug: String!
+  recordId: String!
+  recordLabel: String!
 }
 
 """
@@ -3178,6 +3206,11 @@ type RelationOptionList {
   hasMore: Boolean!
   items: [RelationOption!]!
   total: Int!
+}
+
+enum RelationType {
+  hasMany
+  hasOne
 }
 
 type ResolvedLayout {
