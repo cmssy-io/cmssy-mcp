@@ -582,6 +582,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (input.statusField !== undefined)
           mutationInput.statusField = input.statusField;
         if (input.product !== undefined) mutationInput.product = input.product;
+        if (input.deliveryAccess !== undefined)
+          mutationInput.deliveryAccess = input.deliveryAccess;
         const res = await client.query<{
           model: {
             create: {
@@ -615,6 +617,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "fields",
           "statusField",
           "product",
+          "deliveryAccess",
         ] as const) {
           if (patch[key] !== undefined) input[key] = patch[key];
         }
@@ -1095,7 +1098,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
       takeOverLock: async (pageId) => {
         const res = await client.query<{
           page: {
-            takeOverLock: { lockHolderId: string | null; lockHeldByMe: boolean };
+            takeOverLock: {
+              lockHolderId: string | null;
+              lockHeldByMe: boolean;
+            };
           };
         }>(TAKE_OVER_PAGE_LOCK_MUTATION, { pageId });
         const lock = res.page.takeOverLock;
@@ -1192,9 +1198,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (layoutRegion) {
           const existingLayout = page.layoutBlocks ?? [];
           const maxOrder = existingLayout
-            .filter(
-              (b) => (b as { region?: string }).region === layoutRegion,
-            )
+            .filter((b) => (b as { region?: string }).region === layoutRegion)
             .reduce(
               (max, b) => Math.max(max, (b as { order?: number }).order ?? -1),
               -1,
