@@ -61,6 +61,7 @@ export const PAGE_BY_ID_QUERY = `
         settings
         style
         advanced
+        shared
         translations
         defaultLanguage
         metadata {
@@ -78,6 +79,7 @@ export const PAGE_BY_ID_QUERY = `
         settings
         style
         advanced
+        shared
         translations
         defaultLanguage
         metadata {
@@ -90,14 +92,14 @@ export const PAGE_BY_ID_QUERY = `
       }
       layoutBlocks {
         id type region order isActive
-        content settings style advanced
+        content settings style advanced shared
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
       }
       publishedLayoutBlocks {
         id type region order isActive
-        content settings style advanced
+        content settings style advanced shared
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
@@ -389,6 +391,7 @@ export const SAVE_PAGE_MUTATION = `
         settings
         style
         advanced
+        shared
         translations
         defaultLanguage
         metadata {
@@ -435,6 +438,7 @@ export const DEV_DRAFT_QUERY = `
         settings
         style
         advanced
+        shared
         translations
         defaultLanguage
         metadata {
@@ -647,6 +651,7 @@ export const PUBLISH_PAGE_CONTENT_MUTATION = `
         settings
         style
         advanced
+        shared
         translations
         defaultLanguage
         metadata {
@@ -722,7 +727,7 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
       updatedAt
       layoutBlocks {
         id type region order isActive
-        content settings style advanced
+        content settings style advanced shared
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
