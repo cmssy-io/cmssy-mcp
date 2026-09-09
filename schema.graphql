@@ -314,6 +314,7 @@ type BlockData {
   id: String!
   metadata: BlockMetadata
   settings: JSON!
+  shared: JSON
   style: JSON
   translations: JSON!
   type: String!
@@ -327,6 +328,7 @@ input BlockDataInput {
   id: String!
   metadata: JSON
   settings: JSON
+  shared: JSON
   style: JSON
   translations: JSON
   type: String!
@@ -1397,6 +1399,7 @@ type LayoutBlock {
   order: Int!
   region: String!
   settings: JSON!
+  shared: JSON
   style: JSON
   translations: JSON!
   type: String!
@@ -1413,6 +1416,7 @@ input LayoutBlockInput {
   order: Int!
   region: String!
   settings: JSON
+  shared: JSON
   style: JSON
   translations: JSON
   type: String!
@@ -3250,6 +3254,7 @@ type ResolvedLayoutBlock {
   order: Int!
   region: String!
   settings: JSON!
+  shared: JSON
   sourcePageId: String!
   style: JSON
   translations: JSON!
