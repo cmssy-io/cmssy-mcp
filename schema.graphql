@@ -1878,6 +1878,20 @@ input OAuthLoginInput {
   provider: String!
 }
 
+type OnboardingStep {
+  done: Boolean!
+  doneAt: DateTime
+  key: OnboardingStepKey!
+}
+
+enum OnboardingStepKey {
+  connect
+  content
+  model
+  publish
+  query
+}
+
 """A placed order (immutable snapshot of the cart at checkout)."""
 type Order {
   """
@@ -4143,11 +4157,17 @@ type WorkspaceMemberType {
 type WorkspaceMutations {
   create(input: CreateWorkspaceInput!): Workspace!
   delete(id: ID!): Boolean!
+  dismissOnboarding: Boolean!
   recalculateAllUsage: Workspace!
   regenerateDraftSecret: String!
   update(id: ID!, input: UpdateWorkspaceInput!): Workspace!
   updateBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
   updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
+}
+
+type WorkspaceOnboarding {
+  dismissed: Boolean!
+  steps: [OnboardingStep!]!
 }
 
 type WorkspaceOrganization {
@@ -4172,6 +4192,7 @@ type WorkspaceQueries {
   Every workspace the caller reaches, by name and organization only. Cheaper than mine.
   """
   mineRefs: [WorkspaceRef!]!
+  onboarding: WorkspaceOnboarding!
 }
 
 """
