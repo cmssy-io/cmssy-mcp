@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
-import { PAGE_BY_ID_QUERY, DEV_DRAFT_QUERY } from "../queries.js";
+import * as queries from "../queries.js";
 import type { CmssyClient } from "../graphql-client.js";
 
 type Sent = { document: string; variables: Record<string, unknown> };
+
+const ROW = { label: "Docs", url: "/docs", icon: "Code" };
 
 const HEADER = {
   id: "b1",
@@ -12,15 +14,14 @@ const HEADER = {
   region: "header",
   order: 0,
   isActive: true,
-  content: { en: { navigation: [{ label: "Docs" }] } },
+  content: {
+    en: { navigation: [ROW] },
+    pl: { navigation: [{ ...ROW, label: "Dokumenty" }] },
+  },
   settings: {},
   style: null,
   advanced: null,
-  shared: {
-    logo: "logo-1",
-    navigation: [{ columns: "3", children: [{ url: "/docs", icon: "Code" }] }],
-  },
-  translations: { en: { status: "completed" } },
+  translations: { en: { status: "completed" }, pl: { status: "completed" } },
   defaultLanguage: "en",
   metadata: null,
   blockVersion: null,
@@ -29,7 +30,10 @@ const HEADER = {
 function pageClient() {
   const sent: Sent[] = [];
   const query = vi.fn(async (document: string, variables?: unknown) => {
-    sent.push({ document, variables: (variables ?? {}) as Record<string, unknown> });
+    sent.push({
+      document,
+      variables: (variables ?? {}) as Record<string, unknown>,
+    });
     if (document.includes("updateLayout")) {
       return { page: { updateLayout: { id: "p1", blockWarnings: null } } };
     }
@@ -52,23 +56,43 @@ function pageClient() {
   return { client: { query } as unknown as CmssyClient, sent };
 }
 
-describe("the shared bucket survives a round trip through MCP (CMS-1792)", () => {
-  it("asks for shared on every block selection", () => {
-    for (const document of [PAGE_BY_ID_QUERY, DEV_DRAFT_QUERY]) {
-      const selections = document.match(/advanced/g) ?? [];
-      expect(selections.length).toBeGreaterThan(0);
-      expect((document.match(/shared/g) ?? []).length).toBe(selections.length);
+function blockDocuments(): Array<[string, string]> {
+  return Object.entries(queries).filter(
+    ([, document]) =>
+      typeof document === "string" && document.includes("advanced"),
+  ) as Array<[string, string]>;
+}
+
+describe("MCP reads whole rows, not the storage split (CMS-1793)", () => {
+  it("reads content folded on every block selection", () => {
+    const documents = blockDocuments();
+    expect(documents.length).toBeGreaterThan(0);
+
+    for (const [name, document] of documents) {
+      expect(
+        (document.match(/contentWithShared/g) ?? []).length,
+        `${name} selects a block without asking for the folded content, so an agent reading it sees labels with no url to address`,
+      ).toBe((document.match(/advanced/g) ?? []).length);
     }
   });
 
-  it("writes the stored shared bucket back untouched", async () => {
+  it("never asks for the raw shared bucket", () => {
+    for (const [name, document] of blockDocuments()) {
+      expect(
+        document.match(/shared/g),
+        `${name} still reads the bucket split; where a field is stored is the server's business`,
+      ).toBeNull();
+    }
+  });
+
+  it("sends whole rows back and names no bucket the server owns", async () => {
     const { client, sent } = pageClient();
     const ops = createMcpWorkspaceOps(client);
 
     await ops.pages.updateBlock(
       "p1",
       "b1",
-      { en: { navigation: [{ label: "Dokumentacja" }] } },
+      { pl: { navigation: [{ ...ROW, label: "Dokumentacja" }] } },
       undefined,
       "merge",
       undefined,
@@ -78,6 +102,17 @@ describe("the shared bucket survives a round trip through MCP (CMS-1792)", () =>
     const written = (
       write?.variables.input as { layoutBlocks: Array<Record<string, unknown>> }
     ).layoutBlocks[0]!;
-    expect(written.shared).toEqual(HEADER.shared);
+
+    expect(
+      Object.hasOwn(written, "shared"),
+      "an omitted bucket keeps its stored value (CMS-1792); naming it here would write back a copy the client never had a say in",
+    ).toBe(false);
+    expect(
+      written.content,
+      "translating one language must not cost the others the url they were read with",
+    ).toStrictEqual({
+      en: { navigation: [ROW] },
+      pl: { navigation: [{ ...ROW, label: "Dokumentacja" }] },
+    });
   });
 });

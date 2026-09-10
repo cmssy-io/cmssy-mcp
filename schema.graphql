@@ -310,6 +310,11 @@ type BlockData {
   advanced: JSON
   blockVersion: String
   content: JSON!
+
+  """
+  content with every shared field folded back into its locale, so a caller reads a whole row instead of the storage split (CMS-1793).
+  """
+  contentWithShared: JSON!
   defaultLanguage: String!
   id: String!
   metadata: BlockMetadata
@@ -1392,6 +1397,11 @@ type LayoutBlock {
   advanced: JSON
   blockVersion: String
   content: JSON!
+
+  """
+  content with every shared field folded back into its locale, so a caller reads a whole row instead of the storage split (CMS-1793).
+  """
+  contentWithShared: JSON!
   defaultLanguage: String!
   id: String!
   isActive: Boolean!
@@ -3245,6 +3255,11 @@ type ResolvedLayoutBlock {
   advanced: JSON
   blockVersion: String
   content: JSON!
+
+  """
+  content with every shared field folded back into its locale, so a caller reads a whole row instead of the storage split (CMS-1793).
+  """
+  contentWithShared: JSON!
   defaultLanguage: String!
   id: String!
   isActive: Boolean!

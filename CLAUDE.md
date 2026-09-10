@@ -11,8 +11,7 @@ MCP (Model Context Protocol) server for Cmssy CMS. Exposes CMS operations (pages
 - `pnpm build` - compile TypeScript to `dist/`
 - `pnpm dev -- --token cs_xxx --workspace-id xxx --api-url http://localhost:4000` - run locally
 - `pnpm typecheck` - type-check without emitting
-
-No test framework is configured.
+- `pnpm test` - Vitest suite in `src/__tests__/`, including `operations.validate` which checks every document in `queries.ts` against the vendored `schema.graphql`.
 
 ## Architecture
 
@@ -21,7 +20,7 @@ No test framework is configured.
 - **index.ts** - CLI entrypoint. Parses `--token`, `--workspace-id`, `--api-url` args (falls back to env vars `CMSSY_API_TOKEN`, `CMSSY_WORKSPACE_ID`, `CMSSY_API_URL`). Wires `CmssyClient` -> `createServer` -> `StdioServerTransport`.
 - **server.ts** - All MCP tool/resource definitions via `McpServer` from `@modelcontextprotocol/sdk`. Contains read tools (list_pages, get_page, list_block_types backed by the backend `blockManifest` namespace, etc.), write tools (create_page, update_page_blocks, publish_page, etc.), block helper tools (add_block_to_page, update_block_content, remove_block_from_page), layout tools, and resources (cmssy://sitemap, cmssy://workspace).
 - **graphql-client.ts** - `CmssyClient` class. Sends GraphQL queries to `{apiUrl}/graphql` with Bearer token + `x-workspace-id` header. Has `buildSelectionSet()` for runtime schema introspection (used for dynamic header/footer fields in site config).
-- **queries.ts** - All GraphQL query/mutation strings as template literals.
+- **queries.ts** - All GraphQL query/mutation strings as template literals. Block selections read `content: contentWithShared` - the server folds fields declared the same in every language back into each locale, so a tool reads whole rows and writes whole rows back, never the storage split (CMS-1793).
 - **types.ts** - TypeScript interfaces for the domain model (Page, BlockData, LayoutBlock, WorkspaceBlock, SiteConfig, etc.).
 
 ### Key patterns

@@ -57,11 +57,10 @@ export const PAGE_BY_ID_QUERY = `
       blocks {
         id
         type
-        content
+        content: contentWithShared
         settings
         style
         advanced
-        shared
         translations
         defaultLanguage
         metadata {
@@ -75,11 +74,10 @@ export const PAGE_BY_ID_QUERY = `
       publishedBlocks {
         id
         type
-        content
+        content: contentWithShared
         settings
         style
         advanced
-        shared
         translations
         defaultLanguage
         metadata {
@@ -92,14 +90,14 @@ export const PAGE_BY_ID_QUERY = `
       }
       layoutBlocks {
         id type region order isActive
-        content settings style advanced shared
+        content: contentWithShared settings style advanced
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
       }
       publishedLayoutBlocks {
         id type region order isActive
-        content settings style advanced shared
+        content: contentWithShared settings style advanced
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
@@ -387,11 +385,10 @@ export const SAVE_PAGE_MUTATION = `
       blocks {
         id
         type
-        content
+        content: contentWithShared
         settings
         style
         advanced
-        shared
         translations
         defaultLanguage
         metadata {
@@ -434,11 +431,10 @@ export const DEV_DRAFT_QUERY = `
       blocks {
         id
         type
-        content
+        content: contentWithShared
         settings
         style
         advanced
-        shared
         translations
         defaultLanguage
         metadata {
@@ -647,11 +643,10 @@ export const PUBLISH_PAGE_CONTENT_MUTATION = `
       blocks {
         id
         type
-        content
+        content: contentWithShared
         settings
         style
         advanced
-        shared
         translations
         defaultLanguage
         metadata {
@@ -690,7 +685,7 @@ export const REVERT_CONTENT_TO_PUBLISHED_MUTATION = `
       hasUnpublishedLayoutChanges
       updatedAt
       blocks {
-        id type content settings style advanced
+        id type content: contentWithShared settings style advanced
         translations defaultLanguage blockVersion
       }
     } }
@@ -727,7 +722,7 @@ export const UPDATE_PAGE_LAYOUT_MUTATION = `
       updatedAt
       layoutBlocks {
         id type region order isActive
-        content settings style advanced shared
+        content: contentWithShared settings style advanced
         translations defaultLanguage
         metadata { createdAt updatedAt createdBy version }
         blockVersion
