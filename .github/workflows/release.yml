@@ -89,9 +89,32 @@ jobs:
             npm publish --access public --provenance
           fi
 
+  catalogue:
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      CMSSY_API_TOKEN: ${{ secrets.CMSSY_DOCS_API_TOKEN }}
+      CMSSY_DOCS_WORKSPACE_ID: ${{ vars.CMSSY_DOCS_WORKSPACE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
       - name: Publish the tool catalogue to the docs
-        if: vars.CMSSY_DOCS_WORKSPACE_ID != ''
+        if: env.CMSSY_API_TOKEN != '' && env.CMSSY_DOCS_WORKSPACE_ID != ''
         run: pnpm catalogue
-        env:
-          CMSSY_API_TOKEN: ${{ secrets.CMSSY_DOCS_API_TOKEN }}
-          CMSSY_DOCS_WORKSPACE_ID: ${{ vars.CMSSY_DOCS_WORKSPACE_ID }}
+
+      - name: Say why the catalogue was skipped
+        if: env.CMSSY_API_TOKEN == '' || env.CMSSY_DOCS_WORKSPACE_ID == ''
+        run: echo "::warning::the docs catalogue was not refreshed - set vars.CMSSY_DOCS_WORKSPACE_ID and secrets.CMSSY_DOCS_API_TOKEN"

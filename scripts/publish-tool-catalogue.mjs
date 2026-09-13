@@ -36,6 +36,7 @@ function parseArgs(argv) {
       flags.get("page") ?? process.env.CMSSY_DOCS_PAGE ?? "/docs/api/mcp-tools",
     language: flags.get("language") ?? "en",
     check: flags.get("check") === "true",
+    force: flags.get("force") === "true",
   };
 }
 
@@ -83,39 +84,59 @@ async function main() {
     );
   }
   const block = blocks[0];
-  const drift = catalogueDrift(built, rowsOf(block, args.language));
+  const pending =
+    page.hasUnpublishedContentChanges === true ||
+    page.hasUnpublishedLayoutChanges === true;
+  if (pending && !args.force) {
+    throw new Error(
+      `${args.page} already carries unpublished changes - publishing would ship someone else's draft. Review the page, then re-run with --force.`,
+    );
+  }
 
-  if (drift.length === 0) {
+  const drift = catalogueDrift(built, rowsOf(block, args.language));
+  const stale = drift.length > 0;
+  const unpublished = page.published !== true;
+
+  if (!stale && !unpublished) {
     console.error("[catalogue] the page already lists what the server exposes");
     return;
   }
 
-  console.error(`[catalogue] ${drift.length} difference(s):`);
-  for (const line of drift.slice(0, 20)) console.error(`  - ${line}`);
-  if (drift.length > 20) console.error(`  ... ${drift.length - 20} more`);
+  if (stale) {
+    console.error(`[catalogue] ${drift.length} difference(s):`);
+    for (const line of drift.slice(0, 20)) console.error(`  - ${line}`);
+    if (drift.length > 20) console.error(`  ... ${drift.length - 20} more`);
+  }
+  if (unpublished) {
+    console.error(`[catalogue] ${args.page} is not published`);
+  }
 
   if (args.check) {
     console.error("[catalogue] --check, so nothing was written");
     process.exit(1);
   }
 
-  const result = await updateBlockContentTool.execute(
-    {
-      pageId: page.id,
-      blockId: block.id,
-      content: { [args.language]: { [FIELD]: built } },
-    },
-    ops,
-  );
-  if (result?.blockWarnings?.length) {
-    for (const warning of result.blockWarnings) {
-      console.error(`[catalogue] warning: ${warning}`);
+  if (stale) {
+    const result = await updateBlockContentTool.execute(
+      {
+        pageId: page.id,
+        blockId: block.id,
+        content: { [args.language]: { [FIELD]: built } },
+      },
+      ops,
+    );
+    const warnings = result?.blockWarnings ?? [];
+    if (warnings.length > 0) {
+      for (const warning of warnings) console.error(`[catalogue] ${warning}`);
+      throw new Error(
+        "the workspace manifest rejected part of the catalogue - the page was written but not published",
+      );
     }
   }
 
   await publishPageTool.execute({ pageId: page.id }, ops);
   console.error(
-    `[catalogue] wrote ${built.length} tools and published ${args.page}`,
+    `[catalogue] ${stale ? `wrote ${built.length} tools and published` : "published"} ${args.page}`,
   );
 }
 

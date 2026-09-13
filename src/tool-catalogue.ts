@@ -74,7 +74,14 @@ export function catalogueDrift(
   published: readonly CatalogueRow[],
 ): string[] {
   const drift: string[] = [];
-  const live = new Map(published.map((row) => [row.name, row]));
+  const live = new Map<string, CatalogueRow>();
+  for (const row of published) {
+    if (live.has(row.name)) {
+      drift.push(`${row.name} is listed twice on the page`);
+      continue;
+    }
+    live.set(row.name, row);
+  }
 
   for (const row of built) {
     const onPage = live.get(row.name);

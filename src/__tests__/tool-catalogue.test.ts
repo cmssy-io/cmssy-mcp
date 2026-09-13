@@ -136,6 +136,12 @@ describe("catalogueDrift", () => {
     ).toEqual(["old_tool is on the page but the server does not expose it"]);
   });
 
+  it("reports a row the page lists twice, which a lookup would swallow", () => {
+    expect(catalogueDrift(built, [...built, ...built])).toEqual([
+      "get_page is listed twice on the page",
+    ]);
+  });
+
   it("reports a permission and a description that moved", () => {
     const drift = catalogueDrift(built, [
       { name: "get_page", permission: "pages:edit", description: "Writes." },
