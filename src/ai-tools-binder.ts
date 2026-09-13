@@ -12,11 +12,21 @@ const jsonPreprocess = (val: unknown) => {
   }
 };
 
+const declarations = new WeakMap<McpServer, Map<string, AiTool>>();
+
+export function boundDeclarations(server: McpServer): Map<string, AiTool> {
+  return declarations.get(server) ?? new Map();
+}
+
 export function bindSharedTool(
   server: McpServer,
   tool: AiTool,
   ops: WorkspaceOps,
 ): void {
+  const declared = declarations.get(server) ?? new Map<string, AiTool>();
+  declared.set(tool.name, tool);
+  declarations.set(server, declared);
+
   const shape = (tool.inputSchema as unknown as z.ZodObject<z.ZodRawShape>)
     .shape;
   const mcpShape: z.ZodRawShape = Object.fromEntries(

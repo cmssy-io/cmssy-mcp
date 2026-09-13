@@ -12,6 +12,8 @@
     "sync-schema": "node scripts/sync-schema.mjs",
     "fetch-prod-schema": "node scripts/fetch-prod-schema.mjs",
     "check-schema-drift": "node scripts/check-schema-drift.mjs",
+    "catalogue": "node scripts/publish-tool-catalogue.mjs",
+    "catalogue:check": "node scripts/publish-tool-catalogue.mjs --check",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
