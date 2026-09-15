@@ -16,8 +16,8 @@ type AcceptOrganizationInvitationResult {
 }
 
 type AccountQueries {
-  order(id: ID!, workspaceId: ID!): Order
-  orders(limit: Int, skip: Int, workspaceId: ID!): OrderListResult!
+  order(id: ID!, workspaceId: ID!): PublicOrder
+  orders(limit: Int, skip: Int, workspaceId: ID!): PublicOrderListResult!
 }
 
 """Input for adding an item to a cart"""
@@ -2982,12 +2982,24 @@ type PublicOrderItem {
   """Unit price charged (volume break applied)"""
   price: Int!
   quantity: Int!
+
+  """The catalogue record this line was bought from no longer exists."""
+  recordDeleted: Boolean!
   sku: String
   taxAmount: Int!
   taxRate: Float!
   taxRateName: String
   tierMinQty: Int
   variantKey: String
+}
+
+"""
+A page of orders as their buyer sees them - the same narrowed type cart.checkout and public.order.byToken return.
+"""
+type PublicOrderListResult {
+  hasMore: Boolean!
+  items: [PublicOrder!]!
+  total: Int!
 }
 
 type PublicOrderQueries {
