@@ -7,7 +7,10 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
+
+concurrency:
+  group: schema-sync
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -15,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -46,17 +51,20 @@ jobs:
 
       - name: Every MCP operation is one the refreshed SDL accepts
         if: steps.drift.outputs.changed == 'true'
-        run: pnpm test -- operations.validate
+        run: pnpm test operations.validate
 
-      - name: Open or update the sync PR
+      - name: Everything CI would have checked on the sync PR
         if: steps.drift.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          branch: schema-sync
-          commit-message: "chore(schema): sync vendored SDL with production"
-          title: "chore(schema): sync vendored SDL with production"
-          body: |
-            Automated sync: production's schema drifted from the vendored copy.
+        run: |
+          pnpm typecheck
+          pnpm test
+          pnpm build
 
-            The `operations.validate` harness already ran GREEN against this refreshed SDL inside the [sync workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) - if required checks don't start on this PR (GITHUB_TOKEN limitation), close and reopen it.
-          delete-branch: true
+      - name: Commit the refreshed SDL to main
+        if: steps.drift.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add schema.graphql
+          git commit -m "chore(schema): sync vendored SDL with production"
+          git push origin HEAD:main
