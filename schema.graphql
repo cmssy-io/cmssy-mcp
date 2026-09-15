@@ -4283,3 +4283,7 @@ type WorkspaceUsage {
   pagesCount: Int!
   storageUsedMb: Float!
 }
+
+type CmssySyncProbe {
+  id: ID!
+}
