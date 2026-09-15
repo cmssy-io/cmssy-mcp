@@ -52,11 +52,16 @@ jobs:
         if: steps.drift.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
+          # Not GITHUB_TOKEN: GitHub starts no workflow run for an event it
+          # raised, so the PR's CI was created with zero jobs and died as a
+          # "workflow file issue" when the branch went away (CMS-1822). Falls
+          # back while the secret is absent, so the sync keeps working.
+          token: ${{ secrets.SCHEMA_SYNC_TOKEN || secrets.GITHUB_TOKEN }}
           branch: schema-sync
           commit-message: "chore(schema): sync vendored SDL with production"
           title: "chore(schema): sync vendored SDL with production"
           body: |
             Automated sync: production's schema drifted from the vendored copy.
 
-            The `operations.validate` harness already ran GREEN against this refreshed SDL inside the [sync workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) - if required checks don't start on this PR (GITHUB_TOKEN limitation), close and reopen it.
+            `operations.validate` already ran GREEN against this refreshed SDL inside the [sync workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}). CI on this PR is the second opinion, not the only one.
           delete-branch: true
