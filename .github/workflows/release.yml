@@ -61,6 +61,8 @@ jobs:
 
       - run: pnpm typecheck
 
+      - run: pnpm test
+
       # A published client is only useful against the deployed backend, so the
       # last gate before npm is production itself: introspect it and validate
       # every operation this build sends. Releasing ahead of the backend fails
@@ -71,7 +73,7 @@ jobs:
           CMSSY_API_URL: ${{ vars.CMSSY_API_URL || 'https://api.cmssy.io/graphql' }}
 
       - name: Every operation is one production accepts
-        run: pnpm test -- operations.validate
+        run: pnpm test operations.validate
         env:
           CMSSY_SCHEMA_FILE: prod-schema.graphql
 

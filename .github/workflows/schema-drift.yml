@@ -28,7 +28,7 @@ jobs:
           CMSSY_API_URL: ${{ vars.CMSSY_API_URL || 'https://api.cmssy.io/graphql' }}
 
       - name: Every MCP operation is one production accepts
-        run: pnpm test -- operations.validate
+        run: pnpm test operations.validate
         env:
           CMSSY_SCHEMA_FILE: prod-schema.graphql
 
