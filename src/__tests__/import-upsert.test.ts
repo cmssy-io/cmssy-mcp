@@ -59,6 +59,21 @@ describe("models.importRecords upsertKey (CMS-1837)", () => {
     expect(result).toStrictEqual(imported);
   });
 
+  it("passes an empty upsertKey through so the backend refuses it", async () => {
+    const { client, sent } = clientAnswering([
+      resolved,
+      { record: { import: imported } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.models.importRecords(MODEL_ID, [{ code: "A" }], {
+      upsertKey: "",
+    });
+
+    const input = sent[sent.length - 1]!.variables.input as object;
+    expect(input).toHaveProperty("upsertKey", "");
+  });
+
   it("leaves upsertKey out of an insert-only import", async () => {
     const { client, sent } = clientAnswering([
       resolved,

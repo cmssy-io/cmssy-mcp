@@ -736,7 +736,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           input: {
             modelId: model.id,
             rows,
-            ...(options?.upsertKey ? { upsertKey: options.upsertKey } : {}),
+            ...(options?.upsertKey != null
+              ? { upsertKey: options.upsertKey }
+              : {}),
           },
         });
         return res.record.import;
