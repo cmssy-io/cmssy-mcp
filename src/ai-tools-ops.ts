@@ -9,6 +9,7 @@ import type {
 import type {
   BlockTypeDefinition,
   ModelDetail,
+  ImportResult,
   ModelSummary,
   ProposedField,
   WorkspaceOps,
@@ -358,6 +359,7 @@ interface RawModelDefinition {
     priceField: string;
     inventoryField: string;
   } | null;
+  uniqueFields?: string[] | null;
   updatedAt?: string | null;
 }
 
@@ -461,6 +463,7 @@ function toModelDetail(m: RawModelDefinition): ModelDetail {
         }
       : null,
     product: m.product ?? null,
+    uniqueFields: m.uniqueFields ?? [],
     fields: toProposedFields(m.fields ?? []),
     updatedAt: m.updatedAt ?? null,
   };
@@ -542,6 +545,8 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (input.statusField !== undefined)
           mutationInput.statusField = input.statusField;
         if (input.product !== undefined) mutationInput.product = input.product;
+        if (input.uniqueFields !== undefined)
+          mutationInput.uniqueFields = input.uniqueFields;
         if (input.deliveryAccess !== undefined)
           mutationInput.deliveryAccess = input.deliveryAccess;
         const res = await client.query<{
@@ -577,6 +582,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "fields",
           "statusField",
           "product",
+          "uniqueFields",
           "deliveryAccess",
         ] as const) {
           if (patch[key] !== undefined) input[key] = patch[key];
@@ -721,18 +727,17 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         });
         return { deleted: Boolean(res.record.delete.deleted) };
       },
-      importRecords: async (modelIdOrSlug, rows) => {
+      importRecords: async (modelIdOrSlug, rows, options) => {
         const model = await resolveModel(client, modelIdOrSlug);
         if (!model) throw new Error(`Model "${modelIdOrSlug}" not found`);
         const res = await client.query<{
-          record: {
-            import: {
-              importedCount: number;
-              errors: Array<{ row: number; message: string }>;
-            };
-          };
+          record: { import: ImportResult };
         }>(IMPORT_MODEL_RECORDS_MUTATION, {
-          input: { modelId: model.id, rows },
+          input: {
+            modelId: model.id,
+            rows,
+            ...(options?.upsertKey ? { upsertKey: options.upsertKey } : {}),
+          },
         });
         return res.record.import;
       },

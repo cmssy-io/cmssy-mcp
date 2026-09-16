@@ -900,6 +900,7 @@ const MODEL_DEFINITION_FRAGMENT = `
     priceField
     inventoryField
   }
+  uniqueFields
   createdAt
   updatedAt
   createdBy
@@ -1067,7 +1068,9 @@ export const IMPORT_MODEL_RECORDS_MUTATION = `
     record {
       import(input: $input) {
         importedCount
+        updatedCount
         errors { row message }
+        records { row id action }
       }
     }
   }

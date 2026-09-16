@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.71.0
+
+- **`import_records` updates by key instead of duplicating (CMS-1837).**
+  `upsertKey` names one of the model's `uniqueFields` or its product
+  `skuField`. A row matching an existing record updates it, and only the
+  row's keys change. Other rows are created. The result adds `updatedCount`
+  and `records { row id action }`. `create_model` / `update_model` take
+  `uniqueFields`, and `get_model` returns it. `@cmssy/ai-tools` 0.48.0;
+  vendored SDL synced with cmssy#2543.
+
 ## 0.64.0
 
 - **`get_workspace_info` no longer reports `maxAiTokensMonth` (CMS-1761).**
