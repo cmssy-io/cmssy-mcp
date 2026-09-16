@@ -770,6 +770,11 @@ input CreateModelDefinitionInput {
   product: ModelProductConfigInput
   slug: String!
   statusField: StatusFieldConfigInput
+
+  """
+  Keys of top-level text, email, url, phone or number fields whose value must be unique within the model. Replaces the whole list.
+  """
+  uniqueFields: [String!]
 }
 
 input CreateModelRecordInput {
@@ -1344,11 +1349,40 @@ type ImportError {
 input ImportModelRecordsInput {
   modelId: ID!
   rows: [JSON!]!
+
+  """
+  A field in the model's `uniqueFields`, or its product SKU field. A row whose value matches an existing record updates that record with the row's fields and leaves the rest untouched; any other row is created.
+  """
+  upsertKey: String
 }
 
 type ImportModelRecordsResult {
   errors: [ImportError!]!
+
+  """Records created by this import."""
   importedCount: Int!
+
+  """
+  One entry per row that was written or matched, with the record id and what happened to it. Rows listed in `errors` are absent.
+  """
+  records: [ImportedRecord!]!
+
+  """
+  Existing records this import changed through `upsertKey`. A matched row that changes nothing is not counted.
+  """
+  updatedCount: Int!
+}
+
+enum ImportRecordAction {
+  CREATED
+  UNCHANGED
+  UPDATED
+}
+
+type ImportedRecord {
+  action: ImportRecordAction!
+  id: ID!
+  row: Int!
 }
 
 type IntegrationMutations {
@@ -1746,6 +1780,11 @@ type ModelDefinition {
   recordCount: Int!
   slug: String!
   statusField: StatusFieldConfig!
+
+  """
+  Keys of the fields whose value no two records of this model may share. `record.import` can update by any of them through `upsertKey`.
+  """
+  uniqueFields: [String!]!
   updatedAt: DateTime!
   workspaceId: String!
 }
@@ -3779,6 +3818,11 @@ input UpdateModelDefinitionInput {
   product: ModelProductConfigInput
   slug: String
   statusField: StatusFieldConfigInput
+
+  """
+  Keys of top-level text, email, url, phone or number fields whose value must be unique within the model. Replaces the whole list.
+  """
+  uniqueFields: [String!]
 }
 
 input UpdateModelRecordInput {
