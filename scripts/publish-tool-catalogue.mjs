@@ -1,24 +1,14 @@
 #!/usr/bin/env node
-import {
-  getPageTool,
-  updateBlockContentTool,
-  publishPageTool,
-} from "@cmssy/ai-tools";
+import { getPageTool, updateBlockContentTool } from "@cmssy/ai-tools";
 import { CmssyClient } from "../dist/graphql-client.js";
 import { createMcpWorkspaceOps } from "../dist/ai-tools-ops.js";
 import { buildCatalogue, catalogueDrift } from "../dist/tool-catalogue.js";
+import {
+  PAGE_DRAFT_STATE_QUERY,
+  PUBLISH_PAGE_AT_VERSION_MUTATION,
+} from "../dist/queries.js";
 
 const BLOCK_TYPE = "docs-tool-catalogue";
-const PAGE_DRAFT_STATE_QUERY = `
-  query PageDraftState($pageId: ID!) {
-    page {
-      get(pageId: $pageId) {
-        hasUnpublishedContentChanges
-        hasUnpublishedLayoutChanges
-      }
-    }
-  }
-`;
 const FIELD = "tools";
 
 function parseArgs(argv) {
@@ -50,21 +40,28 @@ function parseArgs(argv) {
   };
 }
 
-function rowsOf(block, language) {
-  const buckets = block.content ?? {};
-  const shared = block.shared ?? {};
-  const localised =
-    buckets[language] ?? buckets[block.defaultLanguage ?? "en"] ?? {};
-  const rows = Array.isArray(shared[FIELD])
-    ? shared[FIELD]
-    : Array.isArray(localised[FIELD])
-      ? localised[FIELD]
-      : [];
+function rowsOf(bucket) {
+  const rows = Array.isArray(bucket?.[FIELD]) ? bucket[FIELD] : [];
   return rows.map((row) => ({
     name: String(row?.name ?? ""),
     permission: String(row?.permission ?? ""),
     description: String(row?.description ?? ""),
   }));
+}
+
+async function readState(client, pageId) {
+  const res = await client.query(PAGE_DRAFT_STATE_QUERY, { pageId });
+  const page = res?.page?.get;
+  if (!page) throw new Error(`could not read the draft state of ${pageId}`);
+  const blocks = (page.blocks ?? []).filter(
+    (block) => block.type === BLOCK_TYPE,
+  );
+  if (blocks.length !== 1) {
+    throw new Error(
+      `the page carries ${blocks.length} ${BLOCK_TYPE} blocks, expected exactly one`,
+    );
+  }
+  return { page, block: blocks[0] };
 }
 
 async function main() {
@@ -82,33 +79,32 @@ async function main() {
   const client = new CmssyClient(args.apiUrl, args.token, args.workspaceId);
   const ops = createMcpWorkspaceOps(client);
 
-  const page = await getPageTool.execute({ idOrSlug: args.page }, ops);
-  if (!page?.found) throw new Error(`page ${args.page} not found`);
+  const found = await getPageTool.execute({ idOrSlug: args.page }, ops);
+  if (!found?.found) throw new Error(`page ${args.page} not found`);
 
-  const blocks = (page.blocks ?? []).filter(
-    (block) => block.type === BLOCK_TYPE,
-  );
-  if (blocks.length !== 1) {
-    throw new Error(
-      `${args.page} carries ${blocks.length} ${BLOCK_TYPE} blocks, expected exactly one`,
-    );
-  }
-  const block = blocks[0];
-  const state = await client.query(PAGE_DRAFT_STATE_QUERY, {
-    pageId: page.id,
-  });
-  const draft = state?.page?.get;
-  if (!draft) throw new Error(`could not read the draft state of ${args.page}`);
+  const { page, block } = await readState(client, found.id);
   const pending =
-    draft.hasUnpublishedContentChanges === true ||
-    draft.hasUnpublishedLayoutChanges === true;
+    page.hasUnpublishedContentChanges === true ||
+    page.hasUnpublishedLayoutChanges === true;
   if (pending && !args.force) {
     throw new Error(
       `${args.page} already carries unpublished changes - publishing would ship someone else's draft. Review the page, then re-run with --force.`,
     );
   }
 
-  const drift = catalogueDrift(built, rowsOf(block, args.language));
+  const content = block.content ?? {};
+  const languages = [
+    ...new Set([
+      args.language,
+      ...Object.keys(content),
+      ...Object.keys(block.translations ?? {}),
+    ]),
+  ];
+  const drift = languages.flatMap((language) =>
+    catalogueDrift(built, rowsOf(content[language])).map(
+      (line) => `${language}: ${line}`,
+    ),
+  );
   const stale = drift.length > 0;
   const unpublished = page.published !== true;
 
@@ -131,15 +127,14 @@ async function main() {
     process.exit(1);
   }
 
+  let expectedVersion = page.version;
   if (stale) {
     const result = await updateBlockContentTool.execute(
       {
         pageId: page.id,
         blockId: block.id,
         content: Object.fromEntries(
-          [
-            ...new Set([args.language, ...Object.keys(block.content ?? {})]),
-          ].map((language) => [language, { [FIELD]: built }]),
+          languages.map((language) => [language, { [FIELD]: built }]),
         ),
       },
       ops,
@@ -151,9 +146,22 @@ async function main() {
         "the workspace manifest rejected part of the catalogue - the page was written but not published",
       );
     }
+    const after = await readState(client, page.id);
+    if (after.page.version !== page.version + 1) {
+      throw new Error(
+        `${args.page} changed while the catalogue was being written (version ${page.version} -> ${after.page.version}) - the page was written but not published. Review it, then re-run with --force.`,
+      );
+    }
+    expectedVersion = after.page.version;
   }
 
-  await publishPageTool.execute({ pageId: page.id }, ops);
+  const published = await client.query(PUBLISH_PAGE_AT_VERSION_MUTATION, {
+    id: page.id,
+    expectedVersion,
+  });
+  if (!published?.page?.publish) {
+    throw new Error(`${args.page} was not published`);
+  }
   console.error(
     `[catalogue] ${stale ? `wrote ${built.length} tools and published` : "published"} ${args.page}`,
   );

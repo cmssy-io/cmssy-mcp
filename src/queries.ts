@@ -630,6 +630,27 @@ export const TOGGLE_PUBLISH_MUTATION = `
   }
 `;
 
+export const PAGE_DRAFT_STATE_QUERY = `
+  query PageDraftState($pageId: ID!) {
+    page {
+      get(pageId: $pageId) {
+        id
+        version
+        published
+        hasUnpublishedContentChanges
+        hasUnpublishedLayoutChanges
+        blocks { id type content: contentWithShared translations }
+      }
+    }
+  }
+`;
+
+export const PUBLISH_PAGE_AT_VERSION_MUTATION = `
+  mutation PublishPageAtVersion($id: ID!, $expectedVersion: Int) {
+    page { publish(id: $id, expectedVersion: $expectedVersion) { id version } }
+  }
+`;
+
 export const PUBLISH_PAGE_CONTENT_MUTATION = `
   mutation PublishPageContent($id: ID!) {
     page { publishContent(id: $id) {
