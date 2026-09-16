@@ -1146,7 +1146,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         const translations: Record<string, { status: string }> = {};
         for (const lang of enabledLanguages) {
           translations[lang] = {
-            status: content[lang] ? "completed" : "pending",
+            status: content[lang] ? "completed" : "not_translated",
           };
         }
         const newBlockId = crypto.randomUUID();
