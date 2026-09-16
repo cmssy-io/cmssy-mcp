@@ -1031,10 +1031,10 @@ export const CREATE_MODEL_RECORD_MUTATION = `
   }
 `;
 
-export const UPDATE_MODEL_RECORD_MUTATION = `
-  mutation UpdateModelRecord($input: UpdateModelRecordInput!) {
+export const PATCH_MODEL_RECORD_MUTATION = `
+  mutation PatchModelRecord($input: PatchModelRecordInput!) {
     record {
-      update(input: $input) {
+      patch(input: $input) {
         ${MODEL_RECORD_FRAGMENT}
       }
     }
