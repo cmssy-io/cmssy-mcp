@@ -9,6 +9,16 @@ import { createMcpWorkspaceOps } from "../dist/ai-tools-ops.js";
 import { buildCatalogue, catalogueDrift } from "../dist/tool-catalogue.js";
 
 const BLOCK_TYPE = "docs-tool-catalogue";
+const PAGE_DRAFT_STATE_QUERY = `
+  query PageDraftState($pageId: ID!) {
+    page {
+      get(pageId: $pageId) {
+        hasUnpublishedContentChanges
+        hasUnpublishedLayoutChanges
+      }
+    }
+  }
+`;
 const FIELD = "tools";
 
 function parseArgs(argv) {
@@ -84,9 +94,14 @@ async function main() {
     );
   }
   const block = blocks[0];
+  const state = await client.query(PAGE_DRAFT_STATE_QUERY, {
+    pageId: page.id,
+  });
+  const draft = state?.page?.get;
+  if (!draft) throw new Error(`could not read the draft state of ${args.page}`);
   const pending =
-    page.hasUnpublishedContentChanges === true ||
-    page.hasUnpublishedLayoutChanges === true;
+    draft.hasUnpublishedContentChanges === true ||
+    draft.hasUnpublishedLayoutChanges === true;
   if (pending && !args.force) {
     throw new Error(
       `${args.page} already carries unpublished changes - publishing would ship someone else's draft. Review the page, then re-run with --force.`,
@@ -121,7 +136,11 @@ async function main() {
       {
         pageId: page.id,
         blockId: block.id,
-        content: { [args.language]: { [FIELD]: built } },
+        content: Object.fromEntries(
+          [
+            ...new Set([args.language, ...Object.keys(block.content ?? {})]),
+          ].map((language) => [language, { [FIELD]: built }]),
+        ),
       },
       ops,
     );
