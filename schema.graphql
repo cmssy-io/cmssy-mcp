@@ -2485,6 +2485,14 @@ input PatchBlockContentInput {
   pageId: String!
 }
 
+"""
+Partial record update as a JSON merge patch. Fields left out keep their stored value, `null` removes a field, and a translatable or `object` field given an object is merged key by key.
+"""
+input PatchModelRecordInput {
+  data: JSON!
+  id: ID!
+}
+
 enum PatchOp {
   insert_after
   insert_before
@@ -3163,6 +3171,7 @@ type RecordMutations {
   create(input: CreateModelRecordInput!): ModelRecord!
   delete(force: Boolean, id: ID!): DeletionResult!
   import(input: ImportModelRecordsInput!): ImportModelRecordsResult!
+  patch(input: PatchModelRecordInput!): ModelRecord
   setStatus(input: UpdateModelRecordStatusInput!): ModelRecord
   update(input: UpdateModelRecordInput!): ModelRecord
 }
