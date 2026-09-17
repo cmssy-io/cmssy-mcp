@@ -256,6 +256,7 @@ Requires workspace permissions `WEBHOOKS_VIEW` (read) / `WEBHOOKS_MANAGE`
 > List all pages in my workspace
 > Search for pages matching "blog"
 > Show me the available block types
+> Which pages still use block types the site no longer registers?
 > Create a new "Features" page with content in English and Polish
 > Add a hero block to the Features page
 > Publish the Features page

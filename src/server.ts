@@ -8,6 +8,7 @@ import {
   getPageTool,
   getSiteConfigTool,
   listBlockTypesTool,
+  listBlockUsageTool,
   getWorkspaceInfoTool,
   listMediaTool,
   uploadMediaTool,
@@ -129,6 +130,7 @@ export function createServer(client: CmssyClient) {
   bindSharedTool(server, getPageTool, sharedOps);
   bindSharedTool(server, getSiteConfigTool, sharedOps);
   bindSharedTool(server, listBlockTypesTool, sharedOps);
+  bindSharedTool(server, listBlockUsageTool, sharedOps);
   bindSharedTool(server, getWorkspaceInfoTool, sharedOps);
   bindSharedTool(server, listMediaTool, sharedOps);
   bindSharedTool(server, uploadMediaTool, sharedOps);

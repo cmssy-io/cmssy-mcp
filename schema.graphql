@@ -283,7 +283,7 @@ type AuthMutations {
   requestPasswordReset(email: String!): UserAuthResponse!
   resetPassword(newPassword: String!, token: String!): UserAuthResponse!
   signup(input: SignupInput!): AuthResponse!
-  ssoCallback(code: String!, state: String!): AuthResponse!
+  ssoCallback(code: String!, locale: String, state: String!): AuthResponse!
   ssoStart(email: String!): SsoStart!
   verifyEmail(token: String!): UserAuthResponse!
 }
@@ -341,18 +341,39 @@ input BlockDataInput {
 
 type BlockManifest {
   blocks: JSON!
+  canRollback: Boolean!
   hash: String!
+  pending: BlockManifestProposal
   regions: JSON!
   source: String!
   updatedAt: DateTime!
 }
 
+type BlockManifestDiff {
+  addedTypes: [String!]!
+  changedRegions: [String!]!
+  changedTypes: [String!]!
+  movesStoredContent: Boolean!
+  removedRegions: [String!]!
+  removedTypes: [String!]!
+}
+
 type BlockManifestMutations {
-  save(blocks: JSON!, regions: JSON): BlockManifest!
+  activate(hash: String!): BlockManifest!
+  rollback: BlockManifest!
+  save(blocks: JSON!, expectedHash: String, onlyIfAbsent: Boolean, regions: JSON): BlockManifest!
+}
+
+type BlockManifestProposal {
+  diff: BlockManifestDiff
+  hash: String!
+  proposedAt: DateTime!
+  source: String!
 }
 
 type BlockManifestQueries {
   get: BlockManifest
+  usage(includeHistory: Boolean, types: [String!]): BlockUsageReport!
 }
 
 type BlockMetadata {
@@ -366,6 +387,32 @@ type BlockTranslation {
   status: String!
   translatedAt: DateTime
   translatedBy: String
+}
+
+type BlockUsagePage {
+  id: ID!
+  name: String!
+  slug: String!
+  surfaces: [String!]!
+}
+
+type BlockUsageReport {
+  manifestPresent: Boolean!
+  orphanTypes: [String!]!
+  types: [BlockUsageRow!]!
+  unusedTypes: [String!]!
+}
+
+type BlockUsageRow {
+  devDraftCount: Int!
+  draftCount: Int!
+  historyCount: Int
+  layoutDraftCount: Int!
+  layoutPublishedCount: Int!
+  pages: [BlockUsagePage!]!
+  publishedCount: Int!
+  registered: Boolean!
+  type: String!
 }
 
 input BulkTagMediaInput {
@@ -1495,6 +1542,7 @@ input LayoutRegionSettingsInput {
 
 input LoginInput {
   email: String!
+  locale: String
   mfaCode: String
   password: String!
   website: String
@@ -1926,7 +1974,9 @@ type NotificationQueries {
 }
 
 input OAuthLoginInput {
+  attribution: SignupAttributionInput
   idToken: String!
+  locale: String
   name: String
   provider: String!
 }
@@ -3494,8 +3544,19 @@ input ShippingMethodInput {
   taxRateId: String
 }
 
+input SignupAttributionInput {
+  distinctId: String
+  utmCampaign: String
+  utmContent: String
+  utmMedium: String
+  utmSource: String
+  utmTerm: String
+}
+
 input SignupInput {
+  attribution: SignupAttributionInput
   email: String!
+  locale: String
   password: String!
   username: String
   website: String
