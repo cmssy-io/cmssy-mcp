@@ -216,6 +216,29 @@ export const BLOCK_MANIFEST_QUERY = `
   }
 `;
 
+export const BLOCK_USAGE_QUERY = `
+  query BlockUsage($types: [String!], $includeHistory: Boolean) {
+    blockManifest {
+      usage(types: $types, includeHistory: $includeHistory) {
+        manifestPresent
+        orphanTypes
+        unusedTypes
+        types {
+          type
+          registered
+          draftCount
+          publishedCount
+          layoutDraftCount
+          layoutPublishedCount
+          devDraftCount
+          historyCount
+          pages { id name slug surfaces }
+        }
+      }
+    }
+  }
+`;
+
 // ─── Workspace Queries ───────────────────────────────────────
 
 export const CURRENT_WORKSPACE_QUERY = `

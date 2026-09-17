@@ -8,6 +8,7 @@ import type {
 } from "./types.js";
 import type {
   BlockTypeDefinition,
+  BlockUsageReport,
   ModelDetail,
   ImportResult,
   ModelSummary,
@@ -15,6 +16,7 @@ import type {
   WorkspaceOps,
 } from "@cmssy/ai-tools";
 import {
+  BLOCK_USAGE_QUERY,
   MODEL_DEFINITION_BY_ID_QUERY,
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
   MODEL_DEFINITIONS_QUERY,
@@ -2184,6 +2186,15 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             !Array.isArray(entry),
         );
         return { blocks, hash: m.hash, updatedAt: m.updatedAt };
+      },
+      blockUsage: async (input) => {
+        const res = await client.query<{
+          blockManifest: { usage: BlockUsageReport };
+        }>(BLOCK_USAGE_QUERY, {
+          types: input.types ?? null,
+          includeHistory: input.includeHistory ?? null,
+        });
+        return res.blockManifest.usage;
       },
       updateCartConfig: async (input) => {
         const res = await client.query<{

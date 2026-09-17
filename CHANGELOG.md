@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.72.0
+
+- **`list_block_usage` - where each block type is stored (CMS-1881).**
+  Counts every block type across page drafts, published pages, layout
+  drafts, published layouts and dev drafts (optionally history), and lists
+  the pages. `orphanTypes` are used but no longer registered by the site;
+  `unusedTypes` are registered but used nowhere. Needs `pages:view`.
+  Backed by `blockManifest.usage`; `@cmssy/ai-tools` 0.49.0; vendored SDL
+  synced with cmssy (versioned block manifest, block usage).
+
 ## 0.71.0
 
 - **`import_records` updates by key instead of duplicating (CMS-1837).**
