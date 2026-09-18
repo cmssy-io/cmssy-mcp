@@ -339,6 +339,11 @@ input BlockDataInput {
   type: String!
 }
 
+type BlockFieldRemoval {
+  fields: [String!]!
+  type: String!
+}
+
 type BlockManifest {
   blocks: JSON!
   canRollback: Boolean!
@@ -358,10 +363,26 @@ type BlockManifestDiff {
   removedTypes: [String!]!
 }
 
+type BlockManifestImpact {
+  activeHash: String
+  addedTypes: [String!]!
+  changedRegions: [String!]!
+  changedTypes: [String!]!
+  documents: Int!
+  hash: String!
+  heldDocuments: Int!
+  lossyMoves: Int!
+  moves: Int!
+  removedFields: [BlockFieldRemoval!]!
+  removedRegions: [String!]!
+  removedTypes: [BlockTypeRemoval!]!
+  unchanged: Boolean!
+}
+
 type BlockManifestMutations {
   activate(hash: String!): BlockManifest!
   rollback: BlockManifest!
-  save(blocks: JSON!, expectedHash: String, onlyIfAbsent: Boolean, regions: JSON): BlockManifest!
+  save(allowLossy: Boolean, blocks: JSON!, expectedHash: String, onlyIfAbsent: Boolean, regions: JSON): BlockManifest!
 }
 
 type BlockManifestProposal {
@@ -373,6 +394,7 @@ type BlockManifestProposal {
 
 type BlockManifestQueries {
   get: BlockManifest
+  impact(blocks: JSON!, regions: JSON): BlockManifestImpact!
   usage(includeHistory: Boolean, types: [String!]): BlockUsageReport!
 }
 
@@ -387,6 +409,12 @@ type BlockTranslation {
   status: String!
   translatedAt: DateTime
   translatedBy: String
+}
+
+type BlockTypeRemoval {
+  pages: Int!
+  publishedPages: Int!
+  type: String!
 }
 
 type BlockUsagePage {
