@@ -1,3 +1,6 @@
+import { clientHeaders } from "./client-marker.js";
+import { PACKAGE_VERSION } from "./package-version.js";
+
 interface TypeRef {
   name: string | null;
   kind: string;
@@ -53,6 +56,7 @@ export class CmssyClient {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.token}`,
         "x-workspace-id": this.workspaceId,
+        ...clientHeaders(PACKAGE_VERSION),
       },
       body: JSON.stringify({ query, variables }),
     });

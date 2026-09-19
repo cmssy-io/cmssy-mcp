@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { AiTool, WorkspaceOps } from "@cmssy/ai-tools";
+import { runAsTool } from "./client-marker.js";
 
 const jsonPreprocess = (val: unknown) => {
   if (typeof val !== "string") return val;
@@ -38,7 +39,7 @@ export function bindSharedTool(
 
   server.tool(tool.name, tool.description, mcpShape, async (input: unknown) => {
     try {
-      const result = await tool.execute(input, ops);
+      const result = await runAsTool(tool.name, () => tool.execute(input, ops));
       return {
         content: [
           { type: "text" as const, text: JSON.stringify(result, null, 2) },

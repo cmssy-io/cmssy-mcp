@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.73.0
+
+- **The server tells cmssy who is calling (CMS-1865).** Every GraphQL
+  request carries `x-cmssy-client: mcp-server/<version>`, and the first
+  request of each tool call carries `x-cmssy-mcp-tool: <tool>`. cmssy uses
+  the pair to stamp a workspace's first MCP call and to count tool calls in
+  product analytics. No tool argument or content leaves the process for
+  that: only the tool name and the version.
+
 ## 0.72.0
 
 - **`list_block_usage` - where each block type is stored (CMS-1881).**
