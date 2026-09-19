@@ -2444,6 +2444,7 @@ input PageCustomFieldInput {
 }
 
 type PageDevDraft {
+  blockWarnings: [String!]
   blocks: [BlockData!]!
   pageId: String!
   updatedAt: DateTime!
