@@ -99,7 +99,6 @@ import {
 } from "./queries.js";
 import type { Page, SiteConfig, Workspace } from "./types.js";
 
-
 export function createServer(client: CmssyClient) {
   const server = new McpServer({
     name: "cmssy",
