@@ -116,6 +116,24 @@ jobs:
       - name: Authenticate to the MCP registry
         run: ./mcp-publisher login github-oidc
 
+      # The registry validates the version against npm, and npm serves a fresh
+      # publish with a delay of up to a few minutes. Without this wait the step
+      # fails with a 404 on every release and needs a manual re-run.
+      - name: Wait until npm serves the published version
+        run: |
+          set -e
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          for i in $(seq 1 40); do
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is on npm"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "$name@$version not visible on npm after 10 minutes"
+          exit 1
+
       # Skips when that version is already listed, so re-runs stay safe.
       - name: Publish to the MCP registry
         run: |
