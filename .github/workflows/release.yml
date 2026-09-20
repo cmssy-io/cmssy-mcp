@@ -91,6 +91,46 @@ jobs:
             npm publish --access public --provenance
           fi
 
+      # The registry verifies ownership by reading mcpName out of the published
+      # npm tarball, so every step below has to run after the publish above.
+      - name: Install mcp-publisher
+        run: |
+          set -e
+          os=$(uname -s | tr '[:upper:]' '[:lower:]')
+          arch=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_${os}_${arch}.tar.gz" | tar xz mcp-publisher
+
+      # package.json stays the one source of truth for the version; server.json
+      # carries the same number twice and is derived here rather than bumped by
+      # hand, so it cannot drift out of a release.
+      - name: Derive server.json from package.json
+        run: |
+          set -e
+          version=$(node -p "require('./package.json').version")
+          jq --arg v "$version" '.version = $v | .packages[0].version = $v' server.json > server.tmp
+          mv server.tmp server.json
+          ./mcp-publisher validate
+
+      # OIDC grants io.github.<repository owner>/*, which is the org namespace
+      # this repo already sits in. No token to store or rotate.
+      - name: Authenticate to the MCP registry
+        run: ./mcp-publisher login github-oidc
+
+      # Skips when that version is already listed, so re-runs stay safe.
+      - name: Publish to the MCP registry
+        run: |
+          set -e
+          name=$(jq -r .name server.json)
+          version=$(jq -r .version server.json)
+          listed=$(curl -fsS "https://registry.modelcontextprotocol.io/v0/servers?search=${name}" \
+            | jq -r --arg n "$name" '[.servers[]?.server | select(.name == $n) | .version] | last // ""')
+          if [ "$listed" = "$version" ]; then
+            echo "$name@$version already in the registry — skipping"
+          else
+            echo "Publishing $name@$version to the registry"
+            ./mcp-publisher publish
+          fi
+
   catalogue:
     needs: publish
     runs-on: ubuntu-latest
