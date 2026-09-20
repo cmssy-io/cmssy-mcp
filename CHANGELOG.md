@@ -1,5 +1,17 @@
 # @cmssy/mcp-server
 
+## 0.75.0
+
+- **Cart product sources are model slugs only (CMS-1907).**
+  `update_cart_config.productSources` takes `{ modelSlug }` and refuses the
+  old per-source `fieldMapping`; `get_site_config` no longer returns one.
+  Which record fields hold the name, price, currency, image, SKU and tax
+  rate is now set on the model: `create_model`/`update_model` take
+  `product.nameField`, `currencyField`, `imageField` and `taxRateField`
+  (nullable overrides, null clears) on a cmssy backend that has them.
+  Requires `@cmssy/ai-tools` 0.52.0. `get_model` will return the resolved
+  `product.roles` once the backend serving them is in production.
+
 ## 0.74.0
 
 - **`update_page_settings` takes `order` (CMS-1904).** The 0-based
