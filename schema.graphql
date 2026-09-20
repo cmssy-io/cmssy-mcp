@@ -578,25 +578,6 @@ input CartConfigInput {
   taxRates: [TaxRateInput!]
 }
 
-"""Per-workspace field-name overrides for product records"""
-type CartFieldMapping {
-  currency: String!
-  imageUrl: String!
-  name: String!
-  price: String!
-  sku: String!
-  taxRate: String!
-}
-
-input CartFieldMappingInput {
-  currency: String
-  imageUrl: String
-  name: String
-  price: String
-  sku: String
-  taxRate: String
-}
-
 type CartFunnel {
   abandoned: Int!
   added: Int!
@@ -686,9 +667,10 @@ type CartMutations {
   updateItem(input: UpdateCartItemInput!): Cart!
 }
 
-"""A model configured as a cart product source, with its field mapping"""
+"""
+A model configured as a cart product source. Which record fields carry the name, price, currency, image, SKU and tax rate is declared on the model's product config.
+"""
 type CartProductSource {
-  fieldMapping: CartFieldMapping!
   modelSlug: String!
 }
 
@@ -696,7 +678,6 @@ type CartProductSource {
 One cart product source (CMS-929). The full productSources list is replaced wholesale on update - send the complete desired set.
 """
 input CartProductSourceInput {
-  fieldMapping: CartFieldMappingInput
   modelSlug: String!
 }
 
@@ -1814,19 +1795,34 @@ type ModelMutations {
   update(input: UpdateModelDefinitionInput!): ModelDefinition
 }
 
+"""
+Commerce capability of a model. The *Field values are what is stored (null = no override); `roles` is what the cart actually reads.
+"""
 type ModelProductConfig {
+  currencyField: String
   enabled: Boolean!
+  imageField: String
   inventoryField: String!
+  nameField: String
   priceField: String!
+  roles: ProductFieldRoles!
   skuField: String!
+  taxRateField: String
   variantAxes: [String!]!
 }
 
+"""
+Commerce capability PATCH. Role fields name which record field carries the role; null clears an override so the resolved default applies again.
+"""
 input ModelProductConfigInput {
+  currencyField: String
   enabled: Boolean
+  imageField: String
   inventoryField: String
+  nameField: String
   priceField: String
   skuField: String
+  taxRateField: String
   variantAxes: [String!]
 }
 
@@ -2642,6 +2638,18 @@ type ProductCatalogList {
   total: Int!
 }
 
+"""
+Which record fields carry the roles the cart reads, resolved server-side: an unset role falls back to the model's displayField (name) or the conventional key.
+"""
+type ProductFieldRoles {
+  currency: String!
+  image: String!
+  name: String!
+  price: String!
+  sku: String!
+  taxRate: String!
+}
+
 type ProductMutations {
   bulkDelete(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
   bulkUpdate(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
@@ -2918,6 +2926,11 @@ type PublicModelDefinition {
   icon: String!
   id: String!
   name: String!
+
+  """
+  Set when the model is a product source; null for models without the commerce capability.
+  """
+  productRoles: ProductFieldRoles
   recordCount: Int!
   slug: String!
 }
@@ -3891,6 +3904,7 @@ input UpdatePageSettingsInput {
   expectedVersion: Int
   id: String!
   name: String
+  order: Int
   pageType: String
   parentId: String
   seoDescription: JSON

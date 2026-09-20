@@ -154,7 +154,7 @@ const CART_CONFIG_FRAGMENT = `
   enableSavedCarts
   taxRates { id name rate }
   shippingMethods { id label price etaLabel taxRateId enabled }
-  productSources { modelSlug fieldMapping { name price currency sku imageUrl taxRate } }
+  productSources { modelSlug }
 `;
 
 export const SITE_CONFIG_QUERY = `
