@@ -1,0 +1,41 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.cmssy-io/cmssy-mcp",
+  "title": "cmssy",
+  "description": "Headless CMS whose page sections are defined by your own code: pages, records, media, commerce.",
+  "version": "0.73.1",
+  "websiteUrl": "https://cmssy.com",
+  "repository": {
+    "url": "https://github.com/cmssy-io/cmssy-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@cmssy/mcp-server",
+      "version": "0.73.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "CMSSY_API_TOKEN",
+          "description": "Workspace API token, created in Dashboard > API Tokens. Starts with cs_.",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "CMSSY_WORKSPACE_ID",
+          "description": "Id of the workspace the server reads and writes.",
+          "isRequired": true
+        },
+        {
+          "name": "CMSSY_API_URL",
+          "description": "Base URL of the cmssy backend the workspace lives on.",
+          "isRequired": true
+        }
+      ]
+    }
+  ]
+}
