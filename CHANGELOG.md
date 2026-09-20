@@ -1,5 +1,19 @@
 # @cmssy/mcp-server
 
+## 0.76.0
+
+- **Cart config parity (CMS-1908).** `update_cart_config` now takes every
+  field the admin cart page can set: `maxItemsPerCart`, `maxQuantityPerItem`,
+  `sessionTTLDays`, `loggedInTTLDays`, `enableSavedCarts`,
+  `enableQuoteRequests`. `get_site_config` reads the two session lifetimes
+  back, so an agent can read-modify-write the whole cart config without the
+  admin. A test now diffs the backend SDL (`CartConfigInput`,
+  `ShippingMethodInput`, `TaxRateInput`, `CartProductSourceInput`, and the
+  `CartConfig` read side) against the tool schema and the query, so a new
+  backend field fails CI here until the tool knows it. Requires
+  `@cmssy/ai-tools` 0.53.0. Shipping-rule fields (CMS-1906) follow once that
+  backend is in production.
+
 ## 0.75.0
 
 - **Cart product sources are model slugs only (CMS-1907).**
