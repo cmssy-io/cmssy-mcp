@@ -906,6 +906,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "name",
           "slug",
           "parentId",
+          "order",
           "displayName",
           "seoTitle",
           "seoDescription",

@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.74.0
+
+- **`update_page_settings` takes `order` (CMS-1904).** The 0-based
+  position among the siblings under the page's (new or current) parent -
+  the order the admin page tree and any tree-driven navigation show.
+  Reordering a docs section no longer needs a raw `page.move` call.
+  Requires `@cmssy/ai-tools` 0.51.0 and a cmssy backend that accepts
+  `UpdatePageSettingsInput.order`.
+
 ## 0.73.0
 
 - **The server tells cmssy who is calling (CMS-1865).** Every GraphQL
