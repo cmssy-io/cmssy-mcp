@@ -150,6 +150,8 @@ const CART_CONFIG_FRAGMENT = `
   reservationTtlMinutes
   maxItemsPerCart
   maxQuantityPerItem
+  sessionTTLDays
+  loggedInTTLDays
   enableQuoteRequests
   enableSavedCarts
   taxRates { id name rate }
