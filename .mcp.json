@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "cmssy": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@cmssy/mcp-server"],
+      "env": {
+        "CMSSY_API_TOKEN": "${CMSSY_API_TOKEN}",
+        "CMSSY_WORKSPACE_ID": "${CMSSY_WORKSPACE_ID}",
+        "CMSSY_API_URL": "${CMSSY_API_URL}"
+      }
+    }
+  }
+}
