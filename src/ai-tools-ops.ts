@@ -2307,7 +2307,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         return res.product.setTiers;
       },
     },
-    members: {
+    team: {
       list: async (options) => {
         const res = await client.query<{
           user: {

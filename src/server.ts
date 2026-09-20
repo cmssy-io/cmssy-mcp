@@ -86,7 +86,7 @@ import {
   updateWebhookTool,
   rotateWebhookSecretTool,
   deleteWebhookTool,
-  listMembersTool,
+  listTeamTool,
   listRolesTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
@@ -122,7 +122,7 @@ export function createServer(client: CmssyClient) {
   bindSharedTool(server, updateMediaFolderTool, sharedOps);
   bindSharedTool(server, deleteMediaFolderTool, sharedOps);
   bindSharedTool(server, moveMediaTool, sharedOps);
-  bindSharedTool(server, listMembersTool, sharedOps);
+  bindSharedTool(server, listTeamTool, sharedOps);
   bindSharedTool(server, listRolesTool, sharedOps);
 
   // ─── Write Tools ─────────────────────────────────────────────
