@@ -1,5 +1,13 @@
 # @cmssy/mcp-server
 
+## 0.77.0
+
+- **`list_members` is now `list_team` (CMS-1909).** The tool lists the
+  people who manage the workspace (staff, invitations, roles). "Member" is
+  reserved for shoppers from now on - those are records of the customer
+  model, listed with `list_records`. No alias: agents calling `list_members`
+  get "unknown tool". Requires `@cmssy/ai-tools` 0.54.0.
+
 ## 0.76.0
 
 - **Cart config parity (CMS-1908).** `update_cart_config` now takes every
