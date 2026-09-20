@@ -1037,39 +1037,6 @@ type EmailConfigurationType {
   workspaceId: String!
 }
 
-"""Email service integration settings"""
-type EmailIntegration {
-  apiKeyMasked: String
-  fromEmail: String
-  fromName: String
-  hasApiKey: Boolean!
-  hasSmtpPassword: Boolean!
-  mailgunDomain: String
-  mailgunRegion: String!
-  provider: EmailProviderType!
-  replyTo: String
-  smtpHost: String
-  smtpPort: Int
-  smtpUseTls: Boolean!
-  smtpUsername: String
-}
-
-"""Input for updating email integration"""
-input EmailIntegrationInput {
-  apiKey: String
-  fromEmail: String
-  fromName: String
-  mailgunDomain: String
-  mailgunRegion: String
-  provider: EmailProviderType
-  replyTo: String
-  smtpHost: String
-  smtpPassword: String
-  smtpPort: Int
-  smtpUseTls: Boolean
-  smtpUsername: String
-}
-
 """Paginated list of email logs"""
 type EmailLogConnection {
   hasMore: Boolean!
@@ -1115,23 +1082,6 @@ type EmailMutations {
 
   """Update an existing email configuration"""
   updateConfiguration(input: UpdateEmailConfigurationInput!): EmailConfigurationType!
-}
-
-"""Information about an email provider"""
-type EmailProviderInfo {
-  description: String!
-  id: String!
-  name: String!
-  requiresApiKey: Boolean!
-  setupUrl: String
-  supportsCustomFrom: Boolean!
-}
-
-enum EmailProviderType {
-  mailgun
-  resend
-  sendgrid
-  smtp
 }
 
 type EmailQueries {
@@ -1458,22 +1408,6 @@ type ImportedRecord {
   action: ImportRecordAction!
   id: ID!
   row: Int!
-}
-
-type IntegrationMutations {
-  """Send a test email to verify email configuration"""
-  sendTestEmail(email: String!): TestEmailResult!
-
-  """Update workspace integrations configuration"""
-  update(input: UpdateWorkspaceIntegrationsInput!): WorkspaceIntegrations!
-}
-
-type IntegrationQueries {
-  """Get workspace integrations configuration"""
-  config: WorkspaceIntegrations!
-
-  """Get list of supported email providers"""
-  emailProviders: [EmailProviderInfo!]!
 }
 
 type InviteMemberResult {
@@ -1941,7 +1875,6 @@ type Mutation {
   discount: DiscountMutations!
   email: EmailMutations!
   form: FormMutations!
-  integration: IntegrationMutations!
   media: MediaMutations!
   member: MemberMutations!
   model: ModelMutations!
@@ -3262,7 +3195,6 @@ type Query {
   fieldType: FieldTypeQueries!
   form: FormQueries!
   health: String!
-  integration: IntegrationQueries!
   media: MediaQueries!
   model: ModelQueries!
   notification: NotificationQueries!
@@ -3780,13 +3712,6 @@ type TestEmailConfigurationResult {
   success: Boolean!
 }
 
-"""Result of test email operation"""
-type TestEmailResult {
-  message: String!
-  messageId: String
-  success: Boolean!
-}
-
 enum Tone {
   CASUAL
   CONFIDENT
@@ -4037,11 +3962,6 @@ input UpdateWorkspaceBrandingInput {
 input UpdateWorkspaceInput {
   name: String
   slug: String
-}
-
-"""Input for updating workspace integrations"""
-input UpdateWorkspaceIntegrationsInput {
-  email: EmailIntegrationInput
 }
 
 input UpdateWorkspaceRoleInput {
@@ -4309,14 +4229,6 @@ type WorkspaceBranding {
   logoDarkUrl: String
   logoUrl: String
   ogImageUrl: String
-}
-
-"""Workspace integrations configuration"""
-type WorkspaceIntegrations {
-  email: EmailIntegration!
-  id: String!
-  updatedAt: DateTime!
-  updatedBy: String
 }
 
 type WorkspaceMemberType {
