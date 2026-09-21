@@ -1700,6 +1700,28 @@ export const UNSUSPEND_CUSTOMER_MUTATION = `
   }
 `;
 
+export const SEND_CUSTOMER_PASSWORD_RESET_MUTATION = `
+  mutation SendCustomerPasswordReset($id: ID!) {
+    customer {
+      sendPasswordReset(id: $id) { emailSent customer { ${CUSTOMER_FRAGMENT} } }
+    }
+  }
+`;
+
+export const RESEND_CUSTOMER_VERIFICATION_MUTATION = `
+  mutation ResendCustomerVerification($id: ID!) {
+    customer {
+      resendVerification(id: $id) { emailSent customer { ${CUSTOMER_FRAGMENT} } }
+    }
+  }
+`;
+
+export const UNLOCK_CUSTOMER_MUTATION = `
+  mutation UnlockCustomer($id: ID!) {
+    customer { unlock(id: $id) { ${CUSTOMER_FRAGMENT} } }
+  }
+`;
+
 export const ROLES_QUERY = `
   query WorkspaceRoles {
     role {

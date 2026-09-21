@@ -8,6 +8,9 @@ import {
   CUSTOMERS_QUERY,
   SUSPEND_CUSTOMER_MUTATION,
   UNSUSPEND_CUSTOMER_MUTATION,
+  SEND_CUSTOMER_PASSWORD_RESET_MUTATION,
+  RESEND_CUSTOMER_VERIFICATION_MUTATION,
+  UNLOCK_CUSTOMER_MUTATION,
 } from "../queries.js";
 
 interface Sent {
@@ -94,6 +97,9 @@ describe("customers ops (CMS-1911)", () => {
       ["get", CUSTOMER_BY_ID_QUERY, "get"],
       ["suspend", SUSPEND_CUSTOMER_MUTATION, "suspend"],
       ["unsuspend", UNSUSPEND_CUSTOMER_MUTATION, "unsuspend"],
+      ["sendPasswordReset", SEND_CUSTOMER_PASSWORD_RESET_MUTATION, "customer"],
+      ["resendVerification", RESEND_CUSTOMER_VERIFICATION_MUTATION, "customer"],
+      ["unlock", UNLOCK_CUSTOMER_MUTATION, "unlock"],
     ] as const) {
       const selected = selectedUnder(document, parent);
       expect(keys.filter((k) => !selected.has(k)), name).toEqual([]);
@@ -242,6 +248,39 @@ describe("customers ops (CMS-1911)", () => {
     expect(sent[1]!.document).toBe(UNSUSPEND_CUSTOMER_MUTATION);
     expect(sent[1]!.variables).toEqual({ id: "c-1" });
     expect(active).toEqual(summary);
+  });
+
+  it("the account actions send the id to their own mutation and keep emailSent as the backend reported it (CMS-1921)", async () => {
+    const { client, sent } = clientAnswering([
+      { customer: { sendPasswordReset: { emailSent: false, customer: raw } } },
+      { customer: { resendVerification: { emailSent: true, customer: { ...raw, status: "pending" } } } },
+      { customer: { unlock: { ...raw, lockedUntil: undefined } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.customers.sendPasswordReset("c-1")).toEqual({
+      customer: summary,
+      emailSent: false,
+    });
+    expect(await ops.customers.resendVerification("c-1")).toEqual({
+      customer: { ...summary, status: "pending" },
+      emailSent: true,
+    });
+    expect(await ops.customers.unlock("c-1")).toEqual(summary);
+
+    expect(sent.map((s) => s.document)).toEqual([
+      SEND_CUSTOMER_PASSWORD_RESET_MUTATION,
+      RESEND_CUSTOMER_VERIFICATION_MUTATION,
+      UNLOCK_CUSTOMER_MUTATION,
+    ]);
+    expect(sent.map((s) => s.variables)).toEqual([{ id: "c-1" }, { id: "c-1" }, { id: "c-1" }]);
+    for (const document of [
+      SEND_CUSTOMER_PASSWORD_RESET_MUTATION,
+      RESEND_CUSTOMER_VERIFICATION_MUTATION,
+    ]) {
+      const parent = document === SEND_CUSTOMER_PASSWORD_RESET_MUTATION ? "sendPasswordReset" : "resendVerification";
+      expect(selectedUnder(document, parent).has("emailSent")).toBe(true);
+    }
   });
 
   it("lets a refusal from the backend surface unchanged", async () => {

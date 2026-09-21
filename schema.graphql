@@ -929,6 +929,28 @@ type Customer {
   verified: Boolean!
 }
 
+type CustomerAccountEmailResult {
+  customer: Customer!
+
+  """
+  Whether the email was handed to the mailer. False means the link was issued but no email went out (e.g. the workspace email provider refused it).
+  """
+  emailSent: Boolean!
+}
+
+type CustomerBulkRefusal {
+  id: ID!
+  reason: String!
+}
+
+"""
+Outcome of a bulk status change: the customers it changed, and the ones it refused with the reason (already in that state, not verified yet, not found).
+"""
+type CustomerBulkResult {
+  done: [Customer!]!
+  refused: [CustomerBulkRefusal!]!
+}
+
 """
 The company record a customer belongs to, through the accounts model's company field.
 """
@@ -957,12 +979,35 @@ type CustomerModel {
 
 type CustomerMutations {
   """
+  Issue a fresh verification link and email it. Only for a customer who has not verified yet; the previous link stops working.
+  """
+  resendVerification(id: ID!): CustomerAccountEmailResult!
+
+  """
+  Email the customer a password reset link, the same one the forgot-password flow sends. Refuses a suspended or unverified customer.
+  """
+  sendPasswordReset(id: ID!): CustomerAccountEmailResult!
+
+  """
   Block sign-in and end every live session of the customer. Orders and carts stay.
   """
   suspend(id: ID!): Customer!
 
+  """Suspend several customers at once. One refusal does not stop the rest."""
+  suspendMany(ids: [ID!]!): CustomerBulkResult!
+
+  """
+  Clear the failed sign-in counter and any lockout so the customer can sign in again. Refuses a suspended customer.
+  """
+  unlock(id: ID!): Customer!
+
   """Let a suspended customer sign in again."""
   unsuspend(id: ID!): Customer!
+
+  """
+  Reinstate several suspended customers at once. One refusal does not stop the rest.
+  """
+  unsuspendMany(ids: [ID!]!): CustomerBulkResult!
 }
 
 """
@@ -977,8 +1022,25 @@ type CustomerOrderStats {
 type CustomerQueries {
   byIds(ids: [ID!]!): [Customer!]!
   get(id: ID!): Customer
-  list(companyId: ID, limit: Int, modelId: ID, search: String, skip: Int, status: CustomerStatus): CustomerList!
+
+  """
+  Customers of the workspace, newest first unless `sort` says otherwise. Sorting by `ordersCount` counts non-canceled orders and needs `orders:view`.
+  """
+  list(companyId: ID, limit: Int, modelId: ID, search: String, skip: Int, sort: CustomerSortInput, status: CustomerStatus): CustomerList!
   models: [CustomerModel!]!
+}
+
+enum CustomerSortField {
+  createdAt
+  identity
+  lastLoginAt
+  ordersCount
+  status
+}
+
+input CustomerSortInput {
+  direction: SortDirection!
+  field: CustomerSortField!
 }
 
 """

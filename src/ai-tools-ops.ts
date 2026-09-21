@@ -15,6 +15,7 @@ import type {
   ProposedField,
   WorkspaceOps,
   CustomerSummary,
+  CustomerAccountEmailResult,
 } from "@cmssy/ai-tools";
 import {
   BLOCK_USAGE_QUERY,
@@ -36,6 +37,9 @@ import {
   CUSTOMER_BY_ID_QUERY,
   SUSPEND_CUSTOMER_MUTATION,
   UNSUSPEND_CUSTOMER_MUTATION,
+  SEND_CUSTOMER_PASSWORD_RESET_MUTATION,
+  RESEND_CUSTOMER_VERIFICATION_MUTATION,
+  UNLOCK_CUSTOMER_MUTATION,
   FORMS_QUERY,
   ORDERS_QUERY,
   DISCOUNTS_QUERY,
@@ -381,6 +385,20 @@ interface RawCustomer {
   orderStats?: CustomerSummary["orderStats"];
   createdAt?: string | null;
   updatedAt?: string | null;
+}
+
+interface RawAccountEmailResult {
+  emailSent: boolean;
+  customer: RawCustomer;
+}
+
+function toAccountEmailResult(
+  raw: RawAccountEmailResult,
+): CustomerAccountEmailResult {
+  return {
+    customer: toCustomerSummary(raw.customer),
+    emailSent: raw.emailSent,
+  };
 }
 
 function toCustomerSummary(c: RawCustomer): CustomerSummary {
@@ -2478,6 +2496,24 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           customer: { unsuspend: RawCustomer };
         }>(UNSUSPEND_CUSTOMER_MUTATION, { id });
         return toCustomerSummary(res.customer.unsuspend);
+      },
+      sendPasswordReset: async (id) => {
+        const res = await client.query<{
+          customer: { sendPasswordReset: RawAccountEmailResult };
+        }>(SEND_CUSTOMER_PASSWORD_RESET_MUTATION, { id });
+        return toAccountEmailResult(res.customer.sendPasswordReset);
+      },
+      resendVerification: async (id) => {
+        const res = await client.query<{
+          customer: { resendVerification: RawAccountEmailResult };
+        }>(RESEND_CUSTOMER_VERIFICATION_MUTATION, { id });
+        return toAccountEmailResult(res.customer.resendVerification);
+      },
+      unlock: async (id) => {
+        const res = await client.query<{
+          customer: { unlock: RawCustomer };
+        }>(UNLOCK_CUSTOMER_MUTATION, { id });
+        return toCustomerSummary(res.customer.unlock);
       },
     },
   };
