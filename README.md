@@ -233,7 +233,7 @@ with accounts enabled - not the team that manages the workspace
 
 | Tool                 | Description                                                                 |
 | -------------------- | --------------------------------------------------------------------------- |
-| `list_customers`     | List customers with status, verification, last login and company (paginated) |
+| `list_customers`     | List customers with status, verification, last login, company and order stats (paginated) |
 | `get_customer`       | One customer's account summary plus the profile record's data               |
 | `suspend_customer`   | Block sign-in and end every live session (orders and carts stay)            |
 | `unsuspend_customer` | Let a suspended customer sign in again                                      |
