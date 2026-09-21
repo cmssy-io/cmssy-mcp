@@ -1,5 +1,9 @@
 # @cmssy/mcp-server
 
+## 0.78.1
+
+- `list_customers` accepts a model slug as `modelId`, like every other model-taking tool, and refuses an unknown model with an error instead of answering an empty page.
+
 ## 0.78.0
 
 - **Customers (CMS-1911).** `list_customers`, `get_customer`
