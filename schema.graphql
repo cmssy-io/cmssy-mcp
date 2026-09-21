@@ -913,7 +913,17 @@ type Customer {
   modelId: String!
   modelName: String!
   modelSlug: String!
-  record: ModelRecord
+
+  """
+  Order count, last order date and net spend. Null for a caller without `orders:view`.
+  """
+  orderStats: CustomerOrderStats
+  record(
+    """
+    Expand the record's model relations to { id, data }. Ignored without models:view, which is what reading another model's records takes.
+    """
+    populateRelations: Boolean
+  ): ModelRecord
   status: CustomerStatus!
   updatedAt: DateTime!
   verified: Boolean!
@@ -955,11 +965,28 @@ type CustomerMutations {
   unsuspend(id: ID!): Customer!
 }
 
+"""
+Order history of one customer. Canceled orders are left out; spend is what was actually paid minus what was refunded, one entry per currency.
+"""
+type CustomerOrderStats {
+  lastOrderAt: DateTime
+  ordersCount: Int!
+  spent: [CustomerSpend!]!
+}
+
 type CustomerQueries {
   byIds(ids: [ID!]!): [Customer!]!
   get(id: ID!): Customer
   list(companyId: ID, limit: Int, modelId: ID, search: String, skip: Int, status: CustomerStatus): CustomerList!
   models: [CustomerModel!]!
+}
+
+"""
+What a customer has paid in one currency, net of refunds, in minor units. A float because a lifetime sum can outgrow a 32-bit int.
+"""
+type CustomerSpend {
+  amount: Float!
+  currency: String!
 }
 
 enum CustomerStatus {

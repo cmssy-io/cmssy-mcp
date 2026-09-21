@@ -42,6 +42,11 @@ const raw = {
   lastLoginAt: "2026-09-20T10:00:00.000Z",
   company: { id: "co-1", name: "Acme" },
   companyRole: "admin",
+  orderStats: {
+    ordersCount: 3,
+    lastOrderAt: "2026-03-01T00:00:00.000Z",
+    spent: [{ currency: "USD", amount: 4200 }],
+  },
   createdAt: "2026-09-01T00:00:00.000Z",
   updatedAt: "2026-09-20T10:00:00.000Z",
 };
@@ -59,6 +64,11 @@ const summary = {
   lastLoginAt: "2026-09-20T10:00:00.000Z",
   company: { id: "co-1", name: "Acme" },
   companyRole: "admin",
+  orderStats: {
+    ordersCount: 3,
+    lastOrderAt: "2026-03-01T00:00:00.000Z",
+    spent: [{ currency: "USD", amount: 4200 }],
+  },
   createdAt: "2026-09-01T00:00:00.000Z",
   updatedAt: "2026-09-20T10:00:00.000Z",
 };
@@ -168,6 +178,7 @@ describe("customers ops (CMS-1911)", () => {
                 lastLoginAt: null,
                 company: { id: "co-2", name: null },
                 companyRole: undefined,
+                orderStats: undefined,
                 createdAt: undefined,
               },
             ],
@@ -186,6 +197,7 @@ describe("customers ops (CMS-1911)", () => {
       lastLoginAt: null,
       company: { id: "co-2", name: null },
       companyRole: null,
+      orderStats: null,
       createdAt: null,
     });
   });

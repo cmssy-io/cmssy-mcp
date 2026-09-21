@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.80.0
+
+- **Customer order stats (CMS-1920).** `list_customers`, `get_customer`,
+  `suspend_customer` and `unsuspend_customer` return `orderStats` with every
+  customer: the count of non-canceled orders, the date of the last one and
+  net spend (paid minus refunded, minor units) as one entry per currency.
+  `null` when the token may not view orders. Requires `@cmssy/ai-tools`
+  0.57.0 and a backend that serves `Customer.orderStats`.
+
 ## 0.79.1
 
 - **Company hints on `list_orders` (CMS-1915).** The tool now says that

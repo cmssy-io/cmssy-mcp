@@ -1646,6 +1646,7 @@ const CUSTOMER_FRAGMENT = `
   lastLoginAt
   company { id name }
   companyRole
+  orderStats { ordersCount lastOrderAt spent { currency amount } }
   createdAt
   updatedAt
 `;

@@ -378,6 +378,7 @@ interface RawCustomer {
   lastLoginAt?: string | null;
   company?: { id: string; name: string | null } | null;
   companyRole?: string | null;
+  orderStats?: CustomerSummary["orderStats"];
   createdAt?: string | null;
   updatedAt?: string | null;
 }
@@ -396,6 +397,7 @@ function toCustomerSummary(c: RawCustomer): CustomerSummary {
     lastLoginAt: c.lastLoginAt ?? null,
     company: c.company ?? null,
     companyRole: c.companyRole ?? null,
+    orderStats: c.orderStats ?? null,
     createdAt: c.createdAt ?? null,
     updatedAt: c.updatedAt ?? null,
   };
