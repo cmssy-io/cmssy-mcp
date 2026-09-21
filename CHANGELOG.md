@@ -1,5 +1,25 @@
 # @cmssy/mcp-server
 
+## 0.78.0
+
+- **Customers (CMS-1911).** `list_customers`, `get_customer`
+  (`customers:view`), `suspend_customer` and `unsuspend_customer`
+  (`customers:manage`) over the backend's `customer` root: accounts that
+  sign in to the site, with status, verification, last login, company and
+  role. `get_customer` adds the profile record's data.
+- **Accounts config on models (CMS-1912).** `create_model` / `update_model`
+  take an `auth` patch (enabled, strategy, identityField, companyField,
+  companyRoleField, verification, lockout); `get_model` / `list_models`
+  return `auth`. `update_model.auth` merges over the stored config on the
+  backend, so omitted keys keep their values and `null` clears a company key.
+- **Product roles read back (CMS-1913).** The model fragment requests
+  `product.nameField/currencyField/imageField/taxRateField` and the resolved
+  `product.roles`, now that production serves them.
+- **Shipping rules (CMS-1906).** `update_cart_config.shippingMethods[]`
+  take `countries`, `minSubtotal`, `maxSubtotal` and `freeAbove`;
+  `get_site_config` reads them back. Requires `@cmssy/ai-tools` 0.55.0 and
+  a backend at `02d6dd8d0` or later.
+
 ## 0.77.0
 
 - **`list_members` is now `list_team` (CMS-1909).** The tool lists the

@@ -14,6 +14,7 @@ import type {
   ModelSummary,
   ProposedField,
   WorkspaceOps,
+  CustomerSummary,
 } from "@cmssy/ai-tools";
 import {
   BLOCK_USAGE_QUERY,
@@ -31,6 +32,10 @@ import {
   DELETE_MEDIA_FOLDER_MUTATION,
   MEMBERS_QUERY,
   ROLES_QUERY,
+  CUSTOMERS_QUERY,
+  CUSTOMER_BY_ID_QUERY,
+  SUSPEND_CUSTOMER_MUTATION,
+  UNSUSPEND_CUSTOMER_MUTATION,
   FORMS_QUERY,
   ORDERS_QUERY,
   DISCOUNTS_QUERY,
@@ -354,15 +359,46 @@ interface RawModelDefinition {
     transitions?: Array<{ from: string; to: string[] }>;
   } | null;
   fields?: RawPropertyField[] | null;
-  product?: {
-    enabled: boolean;
-    variantAxes: string[];
-    skuField: string;
-    priceField: string;
-    inventoryField: string;
-  } | null;
+  product?: ModelDetail["product"];
+  auth?: ModelDetail["auth"];
   uniqueFields?: string[] | null;
   updatedAt?: string | null;
+}
+
+interface RawCustomer {
+  id: string;
+  modelId: string;
+  modelSlug: string;
+  modelName: string;
+  identity: string;
+  displayName: string;
+  status: CustomerSummary["status"];
+  verified: boolean;
+  lockedUntil?: string | null;
+  lastLoginAt?: string | null;
+  company?: { id: string; name: string | null } | null;
+  companyRole?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+function toCustomerSummary(c: RawCustomer): CustomerSummary {
+  return {
+    id: c.id,
+    modelId: c.modelId,
+    modelSlug: c.modelSlug,
+    modelName: c.modelName,
+    identity: c.identity,
+    displayName: c.displayName,
+    status: c.status,
+    verified: c.verified,
+    lockedUntil: c.lockedUntil ?? null,
+    lastLoginAt: c.lastLoginAt ?? null,
+    company: c.company ?? null,
+    companyRole: c.companyRole ?? null,
+    createdAt: c.createdAt ?? null,
+    updatedAt: c.updatedAt ?? null,
+  };
 }
 
 interface RawPropertyField {
@@ -465,6 +501,7 @@ function toModelDetail(m: RawModelDefinition): ModelDetail {
         }
       : null,
     product: m.product ?? null,
+    auth: m.auth ?? null,
     uniqueFields: m.uniqueFields ?? [],
     fields: toProposedFields(m.fields ?? []),
     updatedAt: m.updatedAt ?? null,
@@ -547,6 +584,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         if (input.statusField !== undefined)
           mutationInput.statusField = input.statusField;
         if (input.product !== undefined) mutationInput.product = input.product;
+        if (input.auth !== undefined) mutationInput.auth = input.auth;
         if (input.uniqueFields !== undefined)
           mutationInput.uniqueFields = input.uniqueFields;
         if (input.deliveryAccess !== undefined)
@@ -584,6 +622,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           "fields",
           "statusField",
           "product",
+          "auth",
           "uniqueFields",
           "deliveryAccess",
         ] as const) {
@@ -2371,6 +2410,53 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           isDefault: r.isDefault,
           isSystem: r.isSystem,
         }));
+      },
+    },
+    customers: {
+      list: async (options) => {
+        const res = await client.query<{
+          customer: {
+            list: { items: RawCustomer[]; total: number; hasMore: boolean };
+          };
+        }>(CUSTOMERS_QUERY, {
+          modelId: options?.modelId,
+          status: options?.status,
+          search: options?.search,
+          companyId: options?.companyId,
+          skip: options?.skip,
+          limit: options?.limit,
+        });
+        return {
+          items: res.customer.list.items.map(toCustomerSummary),
+          total: res.customer.list.total,
+          hasMore: res.customer.list.hasMore,
+        };
+      },
+      get: async (id) => {
+        const res = await client.query<{
+          customer: {
+            get:
+              | (RawCustomer & {
+                  record?: { data?: Record<string, unknown> | null } | null;
+                })
+              | null;
+          };
+        }>(CUSTOMER_BY_ID_QUERY, { id });
+        const c = res.customer.get;
+        if (!c) return null;
+        return { ...toCustomerSummary(c), data: c.record?.data ?? {} };
+      },
+      suspend: async (id) => {
+        const res = await client.query<{
+          customer: { suspend: RawCustomer };
+        }>(SUSPEND_CUSTOMER_MUTATION, { id });
+        return toCustomerSummary(res.customer.suspend);
+      },
+      unsuspend: async (id) => {
+        const res = await client.query<{
+          customer: { unsuspend: RawCustomer };
+        }>(UNSUSPEND_CUSTOMER_MUTATION, { id });
+        return toCustomerSummary(res.customer.unsuspend);
       },
     },
   };

@@ -37,6 +37,7 @@ input AddWorkspaceMemberInput {
 }
 
 type AdminCart {
+  companyId: String
   createdAt: DateTime!
   currency: String
   customerId: String
@@ -55,7 +56,7 @@ type AdminCartList {
 
 type AdminCartQueries {
   analytics(range: CartAnalyticsRange!): CartAnalytics!
-  list(limit: Int, skip: Int, status: String): AdminCartList!
+  list(companyId: ID, customerId: ID, limit: Int, skip: Int, status: String): AdminCartList!
 }
 
 """
@@ -481,6 +482,11 @@ type Cart {
   sessionId: String!
 
   """
+  The address the shopper gave the cart (CMS-1906); shipping methods are offered against its country.
+  """
+  shippingAddress: OrderAddress
+
+  """
   Chosen shipping method, or null when none is selected (or the selection no longer resolves - the storefront should re-ask).
   """
   shippingMethod: ShippingMethod
@@ -657,6 +663,11 @@ type CartMutations {
 
   """Remove an item from the cart (public, rate-limited)"""
   removeItem(itemId: ID!, workspaceId: ID!): Cart!
+
+  """
+  Give the cart a shipping address, or pass an explicit null to clear it (CMS-1906). availableShippingMethods is filtered by the address's country and the cart's subtotal after discount; a selected method that stops being eligible is cleared.
+  """
+  setShippingAddress(shippingAddress: ShippingAddressInput, workspaceId: ID!): Cart!
 
   """
   Choose the cart's shipping method, or pass an explicit null to clear it (public, rate-limited). The argument must be present: omitting it is an error, not a clear. Errors with BAD_USER_INPUT when the id is not an enabled method in this workspace's cart config.
@@ -884,6 +895,77 @@ input CreateWorkspaceRoleInput {
   isDefault: Boolean = false
   name: String!
   permissions: [String!]
+}
+
+"""
+A record of a model with accounts enabled, seen through its sign-in state.
+"""
+type Customer {
+  company: CustomerCompany
+  companyRole: String
+  createdAt: DateTime!
+  displayName: String!
+  id: String!
+  identity: String!
+  lastLoginAt: DateTime
+  lockedUntil: DateTime
+  model: ModelDefinition
+  modelId: String!
+  modelName: String!
+  modelSlug: String!
+  record: ModelRecord
+  status: CustomerStatus!
+  updatedAt: DateTime!
+  verified: Boolean!
+}
+
+"""
+The company record a customer belongs to, through the accounts model's company field.
+"""
+type CustomerCompany {
+  id: String!
+
+  """
+  The company model's display field; null when the record has no usable name.
+  """
+  name: String
+}
+
+type CustomerList {
+  hasMore: Boolean!
+  items: [Customer!]!
+  total: Int!
+}
+
+"""A model with accounts enabled and how many customers it holds."""
+type CustomerModel {
+  customers: Int!
+  id: String!
+  name: String!
+  slug: String!
+}
+
+type CustomerMutations {
+  """
+  Block sign-in and end every live session of the customer. Orders and carts stay.
+  """
+  suspend(id: ID!): Customer!
+
+  """Let a suspended customer sign in again."""
+  unsuspend(id: ID!): Customer!
+}
+
+type CustomerQueries {
+  byIds(ids: [ID!]!): [Customer!]!
+  get(id: ID!): Customer
+  list(companyId: ID, limit: Int, modelId: ID, search: String, skip: Int, status: CustomerStatus): CustomerList!
+  models: [CustomerModel!]!
+}
+
+enum CustomerStatus {
+  active
+  pending
+  suspended
 }
 
 scalar DateTime
@@ -1713,6 +1795,15 @@ type MfaStatus {
 }
 
 type ModelAuthConfig {
+  """
+  Relation field on this model that points at the customer's company (a record of another model).
+  """
+  companyField: String
+
+  """
+  Select field on this model that holds the customer's role in their company.
+  """
+  companyRoleField: String
   enabled: Boolean!
   identityField: String!
   lockout: ModelAuthLockout!
@@ -1721,6 +1812,8 @@ type ModelAuthConfig {
 }
 
 input ModelAuthConfigInput {
+  companyField: String
+  companyRoleField: String
   enabled: Boolean
   identityField: String
   lockout: ModelAuthLockoutInput
@@ -1812,7 +1905,7 @@ type ModelProductConfig {
 }
 
 """
-Commerce capability PATCH. Role fields name which record field carries the role; null clears an override so the resolved default applies again.
+Commerce capability PATCH: omitted keys keep their stored values. nameField/currencyField/imageField/taxRateField are overrides - null clears one so the resolved default applies again; skuField/priceField/inventoryField always hold a key.
 """
 input ModelProductConfigInput {
   currencyField: String
@@ -1868,6 +1961,7 @@ type Mutation {
   auth: AuthMutations!
   blockManifest: BlockManifestMutations!
   cart: CartMutations!
+  customer: CustomerMutations!
   discount: DiscountMutations!
   email: EmailMutations!
   form: FormMutations!
@@ -1965,6 +2059,14 @@ type Order {
   balanceDue: Int!
   canceledAt: DateTime
   cartId: String
+
+  """
+  The customer's company record at the time the order was placed or attached.
+  """
+  companyId: String
+
+  """The company's display name, frozen with the order."""
+  companyName: String
   createdAt: DateTime!
   currency: String!
   customerEmail: String!
@@ -2106,6 +2208,11 @@ type OrderMutations {
   Kill the buyer's confirmation-page link (forwarded email, lost device). Irreversible.
   """
   revokeAccessToken(orderId: ID!): Order!
+
+  """
+  Attach the order to a customer record, or detach it with a null customerId. The order's contact email stays as it was.
+  """
+  setCustomer(customerId: ID, orderId: ID!): Order!
   setPipelineStage(input: SetOrderPipelineStageInput!): Order!
   transitionFulfillment(input: FulfillOrderInput!): Order!
   updateDetails(input: UpdateOrderDetailsInput!): Order!
@@ -2150,15 +2257,36 @@ input OrderPipelineStageInput {
 
 type OrderQueries {
   get(id: ID!): Order
-  list(customerId: ID, dateFrom: DateTime, dateTo: DateTime, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, search: String, skip: Int): OrderListResult!
+  list(companyId: ID, customerId: ID, dateFrom: DateTime, dateTo: DateTime, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, search: String, skip: Int): OrderListResult!
   pipeline: OrderPipeline!
+}
+
+"""
+What the rule was evaluated against at checkout: the address country, the subtotal after discount, and whether freeAbove waived the charge.
+"""
+type OrderShippingMatch {
+  country: String
+  freeAboveApplied: Boolean!
+  subtotal: Int!
 }
 
 type OrderShippingMethod {
   id: String!
   label: String!
+  matched: OrderShippingMatch
   price: Int!
+  rule: OrderShippingRule
   taxRateId: String
+}
+
+"""
+The shipping rule as configured when the order was placed (CMS-1906). Editing settings never rewrites it.
+"""
+type OrderShippingRule {
+  countries: [String!]!
+  freeAbove: Int
+  maxSubtotal: Int
+  minSubtotal: Int
 }
 
 type OrderTaxSummaryLine {
@@ -3202,6 +3330,7 @@ type Query {
   auditLog: AuditLogQueries!
   blockManifest: BlockManifestQueries!
   cart: CartQueries!
+  customer: CustomerQueries!
   deliveryLimits: DeliveryLimits!
   discount: DiscountQueries!
   email: EmailQueries!
@@ -3490,18 +3619,50 @@ input ShippingAddressInput {
 A shipping option configured for the workspace (CMS-912). `price` is in minor units; `taxRateId` is the rate charged on the shipping line, null when shipping is untaxed.
 """
 type ShippingMethod {
+  """The method's list price before any waiver, in minor units."""
+  basePrice: Int!
+
+  """ISO 3166-1 alpha-2 codes the method ships to; empty means everywhere."""
+  countries: [String!]!
   etaLabel: String
+
+  """
+  Subtotal after discount (minor units) at or above which the method is free; null when it never is.
+  """
+  freeAbove: Int
+  freeAboveApplied: Boolean!
   id: String!
   label: String!
+
+  """
+  What this cart pays for the method, in minor units: 0 when a free_shipping code or the method's freeAbove threshold applies.
+  """
   price: Int!
   taxRateId: String
 }
 
 type ShippingMethodConfig {
+  """ISO 3166-1 alpha-2 codes the method ships to; empty means everywhere."""
+  countries: [String!]!
   enabled: Boolean!
   etaLabel: String
+
+  """
+  Subtotal after discount (minor units) at or above which the method is free.
+  """
+  freeAbove: Int
   id: String!
   label: String!
+
+  """
+  Highest cart subtotal after discount (minor units) the method is offered for.
+  """
+  maxSubtotal: Int
+
+  """
+  Lowest cart subtotal after discount (minor units) the method is offered for.
+  """
+  minSubtotal: Int
   price: Int!
   taxRateId: String
 }
@@ -3510,10 +3671,15 @@ type ShippingMethodConfig {
 Shipping option (CMS-912). The full list is replaced wholesale on update. `price` is in minor units; `taxRateId` must reference a configured tax rate, or be null for untaxed shipping.
 """
 input ShippingMethodInput {
+  """ISO 3166-1 alpha-2 codes; omit or pass [] to ship everywhere."""
+  countries: [String!]
   enabled: Boolean
   etaLabel: String
+  freeAbove: Int
   id: String!
   label: String!
+  maxSubtotal: Int
+  minSubtotal: Int
   price: Int!
   taxRateId: String
 }
