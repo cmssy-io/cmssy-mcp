@@ -155,7 +155,18 @@ const CART_CONFIG_FRAGMENT = `
   enableQuoteRequests
   enableSavedCarts
   taxRates { id name rate }
-  shippingMethods { id label price etaLabel taxRateId enabled }
+  shippingMethods {
+    id
+    label
+    price
+    etaLabel
+    taxRateId
+    enabled
+    countries
+    minSubtotal
+    maxSubtotal
+    freeAbove
+  }
   productSources { modelSlug }
 `;
 
@@ -945,6 +956,20 @@ const MODEL_DEFINITION_FRAGMENT = `
     skuField
     priceField
     inventoryField
+    nameField
+    currencyField
+    imageField
+    taxRateField
+    roles { name price currency image sku taxRate }
+  }
+  auth {
+    enabled
+    strategy
+    identityField
+    companyField
+    companyRoleField
+    verification { required }
+    lockout { enabled maxAttempts lockMinutes }
   }
   uniqueFields
   createdAt
@@ -1597,6 +1622,74 @@ export const MEMBERS_QUERY = `
         }
       }
     }
+  }
+`;
+
+// ─── Customer Queries ───
+
+const CUSTOMER_FRAGMENT = `
+  id
+  modelId
+  modelSlug
+  modelName
+  identity
+  displayName
+  status
+  verified
+  lockedUntil
+  lastLoginAt
+  company { id name }
+  companyRole
+  createdAt
+  updatedAt
+`;
+
+export const CUSTOMERS_QUERY = `
+  query Customers(
+    $modelId: ID
+    $status: CustomerStatus
+    $search: String
+    $companyId: ID
+    $skip: Int
+    $limit: Int
+  ) {
+    customer {
+      list(
+        modelId: $modelId
+        status: $status
+        search: $search
+        companyId: $companyId
+        skip: $skip
+        limit: $limit
+      ) {
+        items { ${CUSTOMER_FRAGMENT} }
+        total
+        hasMore
+      }
+    }
+  }
+`;
+
+export const CUSTOMER_BY_ID_QUERY = `
+  query Customer($id: ID!) {
+    customer {
+      get(id: $id) {
+        ${CUSTOMER_FRAGMENT}
+        record { data }
+      }
+    }
+  }
+`;
+
+export const SUSPEND_CUSTOMER_MUTATION = `
+  mutation SuspendCustomer($id: ID!) {
+    customer { suspend(id: $id) { ${CUSTOMER_FRAGMENT} } }
+  }
+`;
+
+export const UNSUSPEND_CUSTOMER_MUTATION = `
+  mutation UnsuspendCustomer($id: ID!) {
+    customer { unsuspend(id: $id) { ${CUSTOMER_FRAGMENT} } }
   }
 `;
 
