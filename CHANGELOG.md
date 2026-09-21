@@ -7,7 +7,7 @@
   over the backend's `customer.sendPasswordReset`, `resendVerification` and
   `unlock`. The two email tools return `{ customer, emailSent }`;
   `emailSent: false` means the link was issued but the mailer did not take
-  the email. Requires `@cmssy/ai-tools` 0.58.0 and a backend that serves the
+  the email. Requires `@cmssy/ai-tools` 0.58.1 and a backend that serves the
   three mutations.
 
 ## 0.80.0
