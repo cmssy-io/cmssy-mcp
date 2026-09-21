@@ -929,6 +929,15 @@ type Customer {
   verified: Boolean!
 }
 
+type CustomerAccountEmailResult {
+  customer: Customer!
+
+  """
+  Whether the email was handed to the mailer. False means the link was issued but no email went out (e.g. the workspace email provider refused it).
+  """
+  emailSent: Boolean!
+}
+
 """
 The company record a customer belongs to, through the accounts model's company field.
 """
@@ -957,9 +966,24 @@ type CustomerModel {
 
 type CustomerMutations {
   """
+  Issue a fresh verification link and email it. Only for a customer who has not verified yet; the previous link stops working.
+  """
+  resendVerification(id: ID!): CustomerAccountEmailResult!
+
+  """
+  Email the customer a password reset link, the same one the forgot-password flow sends. Refuses a suspended or unverified customer.
+  """
+  sendPasswordReset(id: ID!): CustomerAccountEmailResult!
+
+  """
   Block sign-in and end every live session of the customer. Orders and carts stay.
   """
   suspend(id: ID!): Customer!
+
+  """
+  Clear the failed sign-in counter and any lockout so the customer can sign in again. Refuses a suspended customer.
+  """
+  unlock(id: ID!): Customer!
 
   """Let a suspended customer sign in again."""
   unsuspend(id: ID!): Customer!

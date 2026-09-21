@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.81.0
+
+- **Customer account actions (CMS-1921).** `send_customer_password_reset`,
+  `resend_customer_verification` and `unlock_customer` (`customers:manage`)
+  over the backend's `customer.sendPasswordReset`, `resendVerification` and
+  `unlock`. The two email tools return `{ customer, emailSent }`;
+  `emailSent: false` means the link was issued but the mailer did not take
+  the email. Requires `@cmssy/ai-tools` 0.58.0 and a backend that serves the
+  three mutations.
+
 ## 0.80.0
 
 - **Customer order stats (CMS-1920).** `list_customers`, `get_customer`,

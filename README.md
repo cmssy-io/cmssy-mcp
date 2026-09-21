@@ -237,6 +237,9 @@ with accounts enabled - not the team that manages the workspace
 | `get_customer`       | One customer's account summary plus the profile record's data               |
 | `suspend_customer`   | Block sign-in and end every live session (orders and carts stay)            |
 | `unsuspend_customer` | Let a suspended customer sign in again                                      |
+| `send_customer_password_reset` | Email an active customer the forgot-password reset link            |
+| `resend_customer_verification` | Issue and email a fresh verification link to a pending customer    |
+| `unlock_customer`    | Clear the failed sign-in counter and lockout                                |
 
 ### Webhook Tools
 
