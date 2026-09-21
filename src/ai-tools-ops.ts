@@ -1797,6 +1797,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
                 id: string;
                 orderNumber?: number | null;
                 customerEmail?: string | null;
+                customerId?: string | null;
+                companyId?: string | null;
+                companyName?: string | null;
                 poNumber?: string | null;
                 status?: string | null;
                 paymentStatus?: string | null;
@@ -1813,6 +1816,7 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           paymentStatus: options?.paymentStatus,
           fulfillmentStatus: options?.fulfillmentStatus,
           customerId: options?.customerId,
+          companyId: options?.companyId,
           search: options?.search,
           pipelineStageId: options?.pipelineStageId,
           dateFrom: options?.dateFrom,
@@ -1825,6 +1829,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
             id: o.id,
             orderNumber: o.orderNumber ?? null,
             customerEmail: o.customerEmail ?? null,
+            customerId: o.customerId ?? null,
+            companyId: o.companyId ?? null,
+            companyName: o.companyName ?? null,
             poNumber: o.poNumber ?? null,
             status: o.status ?? null,
             paymentStatus: o.paymentStatus ?? null,
@@ -1846,6 +1853,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
               paymentStatus?: string | null;
               fulfillmentStatus?: string | null;
               customerEmail?: string | null;
+              customerId?: string | null;
+              companyId?: string | null;
+              companyName?: string | null;
               subtotal?: number | null;
               discount?: number | null;
               appliedDiscount?: {
@@ -1878,6 +1888,9 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           paymentStatus: o.paymentStatus ?? null,
           fulfillmentStatus: o.fulfillmentStatus ?? null,
           customerEmail: o.customerEmail ?? null,
+          customerId: o.customerId ?? null,
+          companyId: o.companyId ?? null,
+          companyName: o.companyName ?? null,
           subtotal: o.subtotal ?? null,
           discount: o.discount ?? null,
           appliedDiscount: o.appliedDiscount ?? null,

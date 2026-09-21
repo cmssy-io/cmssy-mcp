@@ -1159,6 +1159,8 @@ const ORDER_FRAGMENT = `
   fulfillmentStatus
   orderNumber
   customerId
+  companyId
+  companyName
   customerEmail
   currency
   subtotal
@@ -1229,6 +1231,8 @@ const ORDER_LIST_FRAGMENT = `
   fulfillmentStatus
   orderNumber
   customerId
+  companyId
+  companyName
   customerEmail
   currency
   subtotal
@@ -1249,6 +1253,7 @@ export const ORDERS_QUERY = `
     $paymentStatus: String
     $fulfillmentStatus: String
     $customerId: ID
+    $companyId: ID
     $search: String
     $pipelineStageId: String
     $dateFrom: DateTime
@@ -1261,6 +1266,7 @@ export const ORDERS_QUERY = `
         paymentStatus: $paymentStatus
         fulfillmentStatus: $fulfillmentStatus
         customerId: $customerId
+        companyId: $companyId
         search: $search
         pipelineStageId: $pipelineStageId
         dateFrom: $dateFrom
