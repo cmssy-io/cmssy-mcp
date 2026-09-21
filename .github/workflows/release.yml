@@ -111,11 +111,6 @@ jobs:
           mv server.tmp server.json
           ./mcp-publisher validate
 
-      # OIDC grants io.github.<repository owner>/*, which is the org namespace
-      # this repo already sits in. No token to store or rotate.
-      - name: Authenticate to the MCP registry
-        run: ./mcp-publisher login github-oidc
-
       # The registry validates the version against npm, and npm serves a fresh
       # publish with a delay of up to a few minutes. Without this wait the step
       # fails with a 404 on every release and needs a manual re-run.
@@ -133,6 +128,13 @@ jobs:
           done
           echo "$name@$version not visible on npm after 10 minutes"
           exit 1
+
+      # OIDC grants io.github.<repository owner>/*, which is the org namespace
+      # this repo already sits in. No token to store or rotate. Runs AFTER the
+      # npm wait: the registry JWT it mints is short-lived, and v0.79.0 spent
+      # six minutes waiting for npm and then published with an expired token.
+      - name: Authenticate to the MCP registry
+        run: ./mcp-publisher login github-oidc
 
       # Skips when that version is already listed, so re-runs stay safe.
       - name: Publish to the MCP registry
