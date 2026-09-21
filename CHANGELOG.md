@@ -1,5 +1,13 @@
 # @cmssy/mcp-server
 
+## 0.79.1
+
+- **Company hints on `list_orders` (CMS-1915).** The tool now says that
+  `companyId` wants the company record's id (found with `list_records` on
+  the model named by the account model's `auth.companyField`) and that
+  `search` matches the customer email or the frozen company name. Requires
+  `@cmssy/ai-tools` 0.56.1.
+
 ## 0.79.0
 
 - **Order attribution (CMS-1915).** `list_orders` and `get_order` return
