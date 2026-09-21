@@ -2414,12 +2414,18 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
     },
     customers: {
       list: async (options) => {
+        let modelId: string | undefined;
+        if (options?.modelId) {
+          const model = await resolveModel(client, options.modelId);
+          if (!model) throw new Error(`Model not found: ${options.modelId}`);
+          modelId = model.id;
+        }
         const res = await client.query<{
           customer: {
             list: { items: RawCustomer[]; total: number; hasMore: boolean };
           };
         }>(CUSTOMERS_QUERY, {
-          modelId: options?.modelId,
+          modelId,
           status: options?.status,
           search: options?.search,
           companyId: options?.companyId,

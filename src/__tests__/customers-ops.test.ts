@@ -27,6 +27,8 @@ function clientAnswering(answers: unknown[]) {
   return { client: { query } as unknown as CmssyClient, sent };
 }
 
+const MODEL_ID = "6ab0e6e4f6d2b4fc96c40349";
+
 const raw = {
   id: "c-1",
   modelId: "m-1",
@@ -92,12 +94,13 @@ describe("customers ops (CMS-1911)", () => {
 
   it("list forwards every filter to the customer root and maps the page", async () => {
     const { client, sent } = clientAnswering([
+      { model: { get: { id: MODEL_ID, name: "Buyers", displayField: null } } },
       { customer: { list: { items: [raw], total: 3, hasMore: true } } },
     ]);
     const ops = createMcpWorkspaceOps(client);
 
     const result = await ops.customers.list({
-      modelId: "m-1",
+      modelId: MODEL_ID,
       status: "active",
       search: "ann",
       companyId: "co-1",
@@ -105,9 +108,9 @@ describe("customers ops (CMS-1911)", () => {
       limit: 10,
     });
 
-    expect(sent[0]!.document).toBe(CUSTOMERS_QUERY);
-    expect(sent[0]!.variables).toEqual({
-      modelId: "m-1",
+    expect(sent[1]!.document).toBe(CUSTOMERS_QUERY);
+    expect(sent[1]!.variables).toEqual({
+      modelId: MODEL_ID,
       status: "active",
       search: "ann",
       companyId: "co-1",
@@ -115,6 +118,42 @@ describe("customers ops (CMS-1911)", () => {
       limit: 10,
     });
     expect(result).toEqual({ items: [summary], total: 3, hasMore: true });
+  });
+
+  it("list resolves a model slug to its id before asking the backend", async () => {
+    const { client, sent } = clientAnswering([
+      { model: { list: [{ id: MODEL_ID, slug: "buyers" }] } },
+      { model: { get: { id: MODEL_ID, name: "Buyers", displayField: null } } },
+      { customer: { list: { items: [], total: 0, hasMore: false } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.customers.list({ modelId: "buyers" });
+
+    expect(sent[2]!.document).toBe(CUSTOMERS_QUERY);
+    expect(sent[2]!.variables).toMatchObject({ modelId: MODEL_ID });
+  });
+
+  it("list refuses an unknown model instead of answering an empty page", async () => {
+    const { client, sent } = clientAnswering([{ model: { list: [] } }]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await expect(ops.customers.list({ modelId: "ghost" })).rejects.toThrow(
+      "Model not found: ghost",
+    );
+    expect(sent.some((s) => s.document === CUSTOMERS_QUERY)).toBe(false);
+  });
+
+  it("list skips model resolution when no model is given", async () => {
+    const { client, sent } = clientAnswering([
+      { customer: { list: { items: [], total: 0, hasMore: false } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.customers.list({ search: "ann" });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.variables).toMatchObject({ modelId: undefined, search: "ann" });
   });
 
   it("list nulls the optional fields the backend left out and keeps a nameless company", async () => {
