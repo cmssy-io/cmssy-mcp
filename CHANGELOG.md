@@ -1,5 +1,13 @@
 # @cmssy/mcp-server
 
+## 0.79.0
+
+- **Order attribution (CMS-1915).** `list_orders` and `get_order` return
+  `customerId`, `companyId` and `companyName` (null on guest orders), and
+  `list_orders` takes a `companyId` filter, so a B2B company's orders can be
+  found and attributed. Requires `@cmssy/ai-tools` 0.56.0; the backend has
+  served the fields since CMS-1912.
+
 ## 0.78.1
 
 - `list_customers` accepts a model slug as `modelId`, like every other model-taking tool, and refuses an unknown model with an error instead of answering an empty page.
