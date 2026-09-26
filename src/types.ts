@@ -27,8 +27,6 @@ export interface LayoutBlock {
   blockVersion?: string;
 }
 
-// LayoutOverride from @cmssy/types uses stricter types (LayoutRegionId, LayoutOverrideAction).
-// MCP uses string since GraphQL returns strings. Keep local for compatibility.
 export interface LayoutOverride {
   region: string;
   action: string;
