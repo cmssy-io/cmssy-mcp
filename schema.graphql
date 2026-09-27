@@ -1493,8 +1493,6 @@ enum FormSubmissionStatus {
 }
 
 type FormSubmitResponse {
-  accessToken: String
-  customer: JSON
   message: String!
   redirectUrl: String
   submissionId: String

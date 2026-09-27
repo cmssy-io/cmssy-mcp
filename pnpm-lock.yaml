@@ -12,8 +12,8 @@ importers:
         specifier: 0.60.0
         version: 0.60.0(zod@4.4.3)
       '@cmssy/types':
-        specifier: 0.53.0
-        version: 0.53.0
+        specifier: 0.54.0
+        version: 0.54.0
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
@@ -46,6 +46,9 @@ packages:
 
   '@cmssy/types@0.53.0':
     resolution: {integrity: sha512-nQGhdo8RvDhyS/qGw6gD1KwzSBq++MldOSSjsZSeVtM5ze3kRlVN6P62z/Grd1t5BYwqsDNflOzp54L6RFB/ug==}
+
+  '@cmssy/types@0.54.0':
+    resolution: {integrity: sha512-ul6+iLUExt5nbym+3ZSt37iVtMJjXHJKXEzhkZC+JorjPwMdW38sESkVuRr9CSytkB0L6vGfKbvCMojkFwFCLQ==}
 
   '@esbuild/aix-ppc64@0.27.3':
     resolution: {integrity: sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg==}
@@ -984,6 +987,8 @@ snapshots:
       zod: 4.4.3
 
   '@cmssy/types@0.53.0': {}
+
+  '@cmssy/types@0.54.0': {}
 
   '@esbuild/aix-ppc64@0.27.3':
     optional: true
