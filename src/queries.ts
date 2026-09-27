@@ -817,7 +817,7 @@ const FORM_FIELDS_FRAGMENT = `
     defaultValue
     validation { required minLength maxLength minValue maxValue pattern customMessage }
     options { value label disabled }
-    width order showWhen
+    width order showWhen requiredWhen
   }
   settings {
     actionType webhookUrl emailRecipients
