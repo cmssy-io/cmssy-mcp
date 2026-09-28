@@ -11,6 +11,7 @@ import {
   validate,
   visit,
   visitWithTypeInfo,
+  type GraphQLSchema,
 } from "graphql";
 import * as operations from "../queries.js";
 
@@ -38,12 +39,11 @@ describe("MCP operations validate against the backend SDL", () => {
     expect(errors.map((e) => e.message)).toEqual([]);
   });
 
-  // A deprecated field still answers, so `validate` says nothing about it. The
-  // backend deprecates a field when it is about to delete it (CMS-1952), and a
-  // published server that keeps selecting one breaks on the release that lands
-  // the deletion - after this package shipped.
-  function deprecatedSelections(op: string): string[] {
-    const typeInfo = new TypeInfo(schema);
+  function selectionsDeprecatedIn(
+    against: GraphQLSchema,
+    op: string,
+  ): string[] {
+    const typeInfo = new TypeInfo(against);
     const hits: string[] = [];
     visit(
       parse(op),
@@ -59,20 +59,20 @@ describe("MCP operations validate against the backend SDL", () => {
     return hits;
   }
 
-  it("the SDL this harness reads does mark something deprecated", () => {
-    const deprecated = Object.values(schema.getTypeMap()).flatMap((type) =>
-      "getFields" in type
-        ? Object.values(type.getFields()).filter(
-            (field) => "deprecationReason" in field && field.deprecationReason,
-          )
-        : [],
-    );
+  it("sees a deprecated selection, and only that one", () => {
+    const fixture = buildSchema(`
+      type Query { thing: Thing }
+      type Thing { old: Boolean @deprecated(reason: "read new") new: Boolean }
+    `);
 
-    expect(deprecated.length).toBeGreaterThan(0);
+    expect(selectionsDeprecatedIn(fixture, "{ thing { old new } }")).toEqual([
+      "Thing.old",
+    ]);
+    expect(selectionsDeprecatedIn(fixture, "{ thing { new } }")).toEqual([]);
   });
 
   it.each(ops)("%s selects nothing the backend has deprecated", (_name, op) => {
-    expect(deprecatedSelections(op)).toEqual([]);
+    expect(selectionsDeprecatedIn(schema, op)).toEqual([]);
   });
 });
 
