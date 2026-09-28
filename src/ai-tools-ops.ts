@@ -108,6 +108,7 @@ import {
   WEBHOOK_EVENT_TYPES_QUERY,
   CREATE_WEBHOOK_ENDPOINT_MUTATION,
   UPDATE_WEBHOOK_ENDPOINT_MUTATION,
+  REDELIVER_WEBHOOK_DELIVERY_MUTATION,
   ROTATE_WEBHOOK_SECRET_MUTATION,
   DELETE_WEBHOOK_ENDPOINT_MUTATION,
   ADMIN_CARTS_QUERY,
@@ -2328,6 +2329,13 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           { id },
         );
         return res.webhook.rotateSecret;
+      },
+      redeliver: async (deliveryId) => {
+        const res = await client.query<{ webhook: { redeliver: unknown } }>(
+          REDELIVER_WEBHOOK_DELIVERY_MUTATION,
+          { deliveryId },
+        );
+        return res.webhook.redeliver;
       },
       delete: async (id) => {
         const res = await client.query<{

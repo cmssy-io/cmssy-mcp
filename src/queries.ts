@@ -1522,6 +1522,28 @@ export const ROTATE_WEBHOOK_SECRET_MUTATION = `
   }
 `;
 
+export const REDELIVER_WEBHOOK_DELIVERY_MUTATION = `
+  mutation RedeliverWebhookDelivery($deliveryId: ID!) {
+    webhook {
+      redeliver(deliveryId: $deliveryId) {
+        id
+        endpointId
+        webhookId
+        event
+        url
+        status
+        attempts
+        responseCode
+        error
+        replayOf
+        nextAttemptAt
+        deliveredAt
+        createdAt
+      }
+    }
+  }
+`;
+
 export const DELETE_WEBHOOK_ENDPOINT_MUTATION = `
   mutation DeleteWebhookEndpoint($id: ID!) {
     webhook { delete(id: $id) { id deleted } }
