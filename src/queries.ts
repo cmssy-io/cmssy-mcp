@@ -858,7 +858,8 @@ export const FORM_SUBMISSIONS_QUERY = `
         submissions {
           id formId formSlug data status
           ipAddress userAgent referrer customerId
-          processedAt emailSent webhookSent createdAt
+          processedAt emailSent createdAt
+          webhookDelivery { status at responseCode error }
         }
         total
         hasMore
@@ -873,7 +874,8 @@ export const FORM_SUBMISSION_BY_ID_QUERY = `
       submission(submissionId: $submissionId) {
         id formId formSlug data status
         ipAddress userAgent referrer customerId
-        processedAt emailSent webhookSent createdAt
+        processedAt emailSent createdAt
+        webhookDelivery { status at responseCode error }
       }
     }
   }

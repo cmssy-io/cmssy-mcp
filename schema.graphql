@@ -1476,7 +1476,8 @@ type FormSubmission {
   referrer: String
   status: FormSubmissionStatus!
   userAgent: String
-  webhookSent: Boolean!
+  webhookDelivery: FormWebhookDelivery
+  webhookSent: Boolean! @deprecated(reason: "Read webhookDelivery.status instead. Removed once @cmssy/mcp-server stops selecting it (CMS-1952).")
 }
 
 type FormSubmissionListResponse {
@@ -1497,6 +1498,20 @@ type FormSubmitResponse {
   redirectUrl: String
   submissionId: String
   success: Boolean!
+}
+
+type FormWebhookDelivery {
+  at: DateTime!
+  error: String
+  responseCode: Int
+  status: FormWebhookDeliveryStatus!
+}
+
+enum FormWebhookDeliveryStatus {
+  delivered
+  pending
+  refused
+  unknown
 }
 
 input FulfillOrderInput {

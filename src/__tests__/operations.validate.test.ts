@@ -7,7 +7,10 @@ import {
   coerceInputValue,
   isInputObjectType,
   parse,
+  TypeInfo,
   validate,
+  visit,
+  visitWithTypeInfo,
 } from "graphql";
 import * as operations from "../queries.js";
 
@@ -33,6 +36,43 @@ describe("MCP operations validate against the backend SDL", () => {
   it.each(ops)("%s is valid", (_name, op) => {
     const errors = validate(schema, parse(op));
     expect(errors.map((e) => e.message)).toEqual([]);
+  });
+
+  // A deprecated field still answers, so `validate` says nothing about it. The
+  // backend deprecates a field when it is about to delete it (CMS-1952), and a
+  // published server that keeps selecting one breaks on the release that lands
+  // the deletion - after this package shipped.
+  function deprecatedSelections(op: string): string[] {
+    const typeInfo = new TypeInfo(schema);
+    const hits: string[] = [];
+    visit(
+      parse(op),
+      visitWithTypeInfo(typeInfo, {
+        Field(node) {
+          const def = typeInfo.getFieldDef();
+          if (def?.deprecationReason) {
+            hits.push(`${typeInfo.getParentType()?.name}.${node.name.value}`);
+          }
+        },
+      }),
+    );
+    return hits;
+  }
+
+  it("the SDL this harness reads does mark something deprecated", () => {
+    const deprecated = Object.values(schema.getTypeMap()).flatMap((type) =>
+      "getFields" in type
+        ? Object.values(type.getFields()).filter(
+            (field) => "deprecationReason" in field && field.deprecationReason,
+          )
+        : [],
+    );
+
+    expect(deprecated.length).toBeGreaterThan(0);
+  });
+
+  it.each(ops)("%s selects nothing the backend has deprecated", (_name, op) => {
+    expect(deprecatedSelections(op)).toEqual([]);
   });
 });
 

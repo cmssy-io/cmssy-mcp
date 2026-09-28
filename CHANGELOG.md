@@ -1,5 +1,20 @@
 # @cmssy/mcp-server
 
+## 0.84.0
+
+- **Form submissions report what the webhook dispatch established (CMS-1954).**
+  `list_form_submissions` and `get_form_submission` read
+  `webhookDelivery { status at responseCode error }` instead of the boolean
+  `webhookSent`, which the backend deprecated in CMS-1952 and will delete.
+  `status` is `pending`, `delivered`, `refused` or `unknown`: an abort, a
+  timeout, `ECONNRESET` and 408/502/503/504 are `unknown`, because the receiver
+  may have committed before the connection went away. A `refused` carrying a
+  `responseCode` arrived and was rejected; one without never arrived. Requires a
+  backend that serves `FormSubmission.webhookDelivery`.
+- The operation harness now also fails on any selection of a field the SDL marks
+  `@deprecated`, so the next field the backend schedules for deletion cannot
+  ship inside a published server.
+
 ## 0.81.0
 
 - **Customer account actions (CMS-1921).** `send_customer_password_reset`,
