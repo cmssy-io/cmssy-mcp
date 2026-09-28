@@ -85,6 +85,7 @@ import {
   createWebhookTool,
   updateWebhookTool,
   rotateWebhookSecretTool,
+  redeliverWebhookDeliveryTool,
   deleteWebhookTool,
   listTeamTool,
   listRolesTool,
@@ -239,6 +240,7 @@ export function createServer(client: CmssyClient) {
   bindSharedTool(server, createWebhookTool, sharedOps);
   bindSharedTool(server, updateWebhookTool, sharedOps);
   bindSharedTool(server, rotateWebhookSecretTool, sharedOps);
+  bindSharedTool(server, redeliverWebhookDeliveryTool, sharedOps);
   bindSharedTool(server, deleteWebhookTool, sharedOps);
 
   // ─── Resources ───────────────────────────────────────────────
