@@ -3,7 +3,7 @@
     "cmssy": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@cmssy/mcp-server"],
+      "args": ["-y", "@cmssy/mcp-server@latest"],
       "env": {
         "CMSSY_API_TOKEN": "${CMSSY_API_TOKEN}",
         "CMSSY_WORKSPACE_ID": "${CMSSY_WORKSPACE_ID}",
