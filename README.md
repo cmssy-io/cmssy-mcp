@@ -22,7 +22,7 @@ Add to `.mcp.json` in your project root:
       "command": "npx",
       "args": [
         "-y",
-        "@cmssy/mcp-server",
+        "@cmssy/mcp-server@latest",
         "--token",
         "cs_YOUR_TOKEN",
         "--workspace-id",
