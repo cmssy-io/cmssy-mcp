@@ -257,8 +257,19 @@ enum AuditLogAction {
   USER_SCOPED_GRANT_ADDED
   USER_SCOPED_GRANT_REVOKED
   USER_STATUS_CHANGED
+  WEBHOOK_AUTO_DISABLED
+  WEBHOOK_CREATED
+  WEBHOOK_DELETED
+  WEBHOOK_DELIVERY_REPLAYED
+  WEBHOOK_SECRET_ROTATED
+  WEBHOOK_UPDATED
   WORKSPACE_DRAFT_SECRET_REGENERATED
   WORKSPACE_SETTINGS_UPDATED
+}
+
+enum AuditLogActorKind {
+  SYSTEM
+  USER
 }
 
 enum AuditLogEntityType {
@@ -266,6 +277,7 @@ enum AuditLogEntityType {
   ROLE
   TOKEN
   USER
+  WEBHOOK
   WORKSPACE
 }
 
@@ -4502,14 +4514,15 @@ type Workspace {
 """Workspace activity log entry"""
 type WorkspaceAuditLog {
   action: AuditLogAction!
+  actorKind: AuditLogActorKind!
   createdAt: String!
   diff: JSON
   entityId: String!
   entityName: String!
   entityType: AuditLogEntityType!
   id: String!
-  userId: String!
-  userName: String!
+  userId: String
+  userName: String
   workspaceId: String!
 }
 
