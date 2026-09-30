@@ -4,8 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CmssyClient } from "./graphql-client.js";
 import {
   DEFAULT_API_URL,
-  VALUE_FLAGS,
   informationalOutput,
+  readValueFlags,
   type GivenOptions,
 } from "./cli-flags.js";
 import { createServer } from "./server.js";
@@ -15,17 +15,8 @@ function parseArgs(args: string[]): GivenOptions {
     token: process.env.CMSSY_API_TOKEN ?? "",
     workspaceId: process.env.CMSSY_WORKSPACE_ID ?? "",
     apiUrl: process.env.CMSSY_API_URL ?? "",
+    ...readValueFlags(args),
   };
-
-  for (let i = 0; i < args.length; i++) {
-    const key = VALUE_FLAGS[args[i]];
-    const next = args[i + 1];
-
-    if (key && next) {
-      given[key] = next;
-      i++;
-    }
-  }
 
   if (!given.token) {
     console.error(

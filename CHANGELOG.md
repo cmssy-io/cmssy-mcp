@@ -11,6 +11,20 @@
   it. Both flags, and their short forms `-v` and `-h`, now print to stdout and
   exit 0 before anything reads a credential. The version comes from
   `package.json`, so it cannot drift from what npm served.
+- **Also in this release, from commits that landed on `main` without an entry.**
+  The vendored SDL was synced with production twice (3c6bc72, 9c883c6): the
+  audit-log surface gained `AuditLogActorKind` with `SYSTEM`/`USER`, the
+  `actorKind`, `userId` and `userName` fields on an entry, a `WEBHOOK` entity
+  type, and the `USER_ADDED`, `WEBHOOK_AUTO_DISABLED`, `WEBHOOK_CREATED`,
+  `WEBHOOK_DELETED`, `WEBHOOK_DELIVERY_REPLAYED`, `WEBHOOK_SECRET_ROTATED` and
+  `WEBHOOK_UPDATED` actions. `USER_OWNERSHIP_TRANSFERRED` went, so an operation
+  selecting it no longer validates - the backend deleted the action in CMS-1590
+  after it produced zero rows on production and on staging.
+- **The npx spec in `.mcp.json` and the README is pinned to `@latest`
+  (CMS-1971, 452ecce).** An unpinned spec lets a warm `npx` cache serve a
+  server from before a schema cutover. The README's diagnostic now asks the
+  *unpinned* spec first and compares: `@latest --version` re-resolves, so it is
+  the one command that cannot see a stale cache.
 
 ## 0.85.0
 

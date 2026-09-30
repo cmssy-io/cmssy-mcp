@@ -2,7 +2,11 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_API_URL, informationalOutput } from "../cli-flags.js";
+import {
+  DEFAULT_API_URL,
+  informationalOutput,
+  readValueFlags,
+} from "../cli-flags.js";
 import { PACKAGE_VERSION } from "../package-version.js";
 
 const ENTRY = fileURLToPath(new URL("../index.ts", import.meta.url));
@@ -125,5 +129,106 @@ describe("the started process answers before it asks for credentials", () => {
       "Positive control for the two assertions above: without it, a harness that failed to reach the token check at all would report the same clean stderr and prove nothing.",
     ).toBe(1);
     expect(run.stderr).toContain(TOKEN_ERROR);
+  });
+});
+
+describe("readValueFlags", () => {
+  it("puts each flag's value in the field that flag names", () => {
+    expect(
+      readValueFlags([
+        "--token",
+        "cs_abc",
+        "--workspace-id",
+        "ws_1",
+        "--api-url",
+        "http://localhost:4000",
+      ]),
+      "The flag-to-field mapping is one table and every value in it is a key of the same object, so swapping two entries typechecks. This is the only thing that would notice: a token sent as the workspace header and a workspace id sent as the bearer token both start a server that fails every request with 401.",
+    ).toStrictEqual({
+      token: "cs_abc",
+      workspaceId: "ws_1",
+      apiUrl: "http://localhost:4000",
+    });
+  });
+
+  it("sets no key for a flag nobody passed", () => {
+    expect(
+      Object.keys(readValueFlags(["--token", "cs_abc"])),
+      "The result is spread over the environment defaults, so a key present with an undefined value would blank out CMSSY_WORKSPACE_ID instead of leaving it alone.",
+    ).toStrictEqual(["token"]);
+  });
+
+  it.each(["--token", "--workspace-id", "--api-url"])(
+    "does not read %s as a value for the flag before it",
+    (flag) => {
+      expect(readValueFlags([flag, "-v"])).toStrictEqual({
+        [flag === "--token"
+          ? "token"
+          : flag === "--workspace-id"
+            ? "workspaceId"
+            : "apiUrl"]: "-v",
+      });
+    },
+  );
+
+  it("ignores a value flag with nothing after it", () => {
+    expect(
+      readValueFlags(["--token"]),
+      "A trailing flag with no value is silently dropped, so the caller gets 'API token required' rather than 'missing value for --token'. Unchanged from before the extraction; asserted so a later reader knows it is the behaviour, not an accident.",
+    ).toStrictEqual({});
+  });
+
+  it("does not answer for a key that only Object.prototype has", () => {
+    expect(
+      readValueFlags(["constructor", "--token", "cs_abc"]),
+      "The table is a plain object indexed by the raw argument, so before the Object.hasOwn guard `VALUE_FLAGS[\"constructor\"]` was Object.prototype.constructor - truthy - and the stray word swallowed the --token that followed it. A configured invocation with one unexpected word in argv stopped starting.",
+    ).toStrictEqual({ token: "cs_abc" });
+  });
+
+  it.each(["toString", "__proto__", "valueOf", "hasOwnProperty"])(
+    "treats %s as an ordinary unknown argument",
+    (arg) => {
+      expect(readValueFlags([arg, "--api-url", "http://x"])).toStrictEqual({
+        apiUrl: "http://x",
+      });
+    },
+  );
+});
+
+describe("informationalOutput and inherited keys", () => {
+  it.each(["constructor", "toString", "__proto__"])(
+    "still answers --version after a stray %s",
+    (arg) => {
+      expect(
+        informationalOutput([arg, "--version"]),
+        "Same prototype-chain hole on the other reader: the stray word used to consume --version, so the one command that is supposed to work without configuration went back to starting a server.",
+      ).toBe(PACKAGE_VERSION);
+    },
+  );
+});
+
+describe("the version flag on an already-configured server", () => {
+  it("answers and exits instead of serving", () => {
+    const run = spawnSync(
+      process.execPath,
+      ["--import", "tsx", ENTRY, "-v"],
+      {
+        env: {
+          ...process.env,
+          CMSSY_API_TOKEN: "cs_test",
+          CMSSY_WORKSPACE_ID: "ws_test",
+          CMSSY_API_URL: "http://localhost:4000",
+        },
+        encoding: "utf8",
+        timeout: 60_000,
+      },
+    );
+
+    expect(run.status).toBe(0);
+    expect(
+      run.stdout.trim(),
+      "-v is read from anywhere in argv, so it reaches a server that has everything it needs to start. That is the point for a support thread, and the cost is that a launcher passing -v for verbosity gets a version string and a process that exits - which an MCP client reports as a server that died. Pinned so the trade is a decision and not a surprise.",
+    ).toBe(PACKAGE_VERSION);
+    expect(run.stdout).not.toContain("running");
   });
 });
