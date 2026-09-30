@@ -43,6 +43,18 @@ Instead of CLI args, you can set:
 - `CMSSY_WORKSPACE_ID` — Workspace ID
 - `CMSSY_API_URL` — API URL (required, e.g. `https://api.your-cmssy.com`)
 
+### Checking which build is running
+
+`--version` and `--help` need no token, so they answer even when the server is
+not configured:
+
+```bash
+npx -y @cmssy/mcp-server@latest --version
+```
+
+That is the first thing to check when a tool fails on a field the API should
+serve: a warm `npx` cache can hold an older server than the one the tag names.
+
 ## Response shape (write tools)
 
 As of 0.6.0, most write tools accept an optional `response` arg:

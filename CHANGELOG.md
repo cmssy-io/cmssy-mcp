@@ -1,5 +1,25 @@
 # @cmssy/mcp-server
 
+## 0.86.0
+
+- **`--version` and `--help` work with no credentials present (CMS-1974).**
+  The token check used to run ahead of argument handling, so
+  `npx @cmssy/mcp-server --version` answered
+  `Error: API token required` and there was no way to ask a running install
+  which build it was. That is the first diagnostic question when a stale npx
+  cache serves a pre-cutover server (CMS-1971), and the server could not answer
+  it. Both flags, and their short forms `-v` and `-h`, now print to stdout and
+  exit 0 before anything reads a credential. The version comes from
+  `package.json`, so it cannot drift from what npm served.
+
+## 0.85.0
+
+- **`redeliver_webhook_delivery` runs against the live mutation (CMS-1955).**
+  The vendored SDL was refreshed from production, which now serves
+  `webhook.redeliver`, `WebhookDelivery.replayOf` and
+  `WebhookDelivery.responseBody`. Published without an entry here; recorded
+  after the fact.
+
 ## 0.84.0
 
 - **Form submissions report what the webhook dispatch established (CMS-1954).**
