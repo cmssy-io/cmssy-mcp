@@ -41,7 +41,28 @@ Instead of CLI args, you can set:
 
 - `CMSSY_API_TOKEN` — API token (`cs_xxx`)
 - `CMSSY_WORKSPACE_ID` — Workspace ID
-- `CMSSY_API_URL` — API URL (required, e.g. `https://api.your-cmssy.com`)
+- `CMSSY_API_URL` — API URL (optional; defaults to `https://api.cmssy.io`, so set it only for a self-hosted backend)
+
+### Checking which build is running
+
+`--version` and `--help` need no token, so they answer even when the server is
+not configured. Run the flag against **the same spec your client launches**,
+copied out of your `mcp.json`:
+
+```bash
+npx -y @cmssy/mcp-server --version          # what an unpinned config runs
+npx -y @cmssy/mcp-server@latest --version   # what the registry serves today
+npm view @cmssy/mcp-server version          # the newest published version
+```
+
+The first two can disagree, and that disagreement is the answer: a warm `npx`
+cache holds the build an unpinned spec resolved to earlier, while `@latest`
+re-resolves and reports the newest one. So `@latest --version` cannot diagnose
+a stale cache - it is the command that hides it. Ask the unpinned spec first
+when a tool fails on a field the API should serve, then compare.
+
+Clearing the cache is `npx clear-npx-cache`, or pin the version in your config
+so nothing has to be diagnosed.
 
 ## Response shape (write tools)
 

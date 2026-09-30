@@ -32,8 +32,8 @@
         },
         {
           "name": "CMSSY_API_URL",
-          "description": "Base URL of the cmssy backend the workspace lives on.",
-          "isRequired": true
+          "description": "Base URL of the cmssy backend the workspace lives on. Defaults to https://api.cmssy.io.",
+          "isRequired": false
         }
       ]
     }

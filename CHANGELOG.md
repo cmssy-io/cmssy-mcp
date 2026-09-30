@@ -1,5 +1,39 @@
 # @cmssy/mcp-server
 
+## 0.86.0
+
+- **`--version` and `--help` work with no credentials present (CMS-1974).**
+  The token check used to run ahead of argument handling, so
+  `npx @cmssy/mcp-server --version` answered
+  `Error: API token required` and there was no way to ask a running install
+  which build it was. That is the first diagnostic question when a stale npx
+  cache serves a pre-cutover server (CMS-1971), and the server could not answer
+  it. Both flags, and their short forms `-v` and `-h`, now print to stdout and
+  exit 0 before anything reads a credential. The version comes from
+  `package.json`, so it cannot drift from what npm served.
+- **Also in this release, from commits that landed on `main` without an entry.**
+  The vendored SDL was synced with production twice (3c6bc72, 9c883c6): the
+  audit-log surface gained `AuditLogActorKind` with `SYSTEM`/`USER`, the
+  `actorKind`, `userId` and `userName` fields on an entry, a `WEBHOOK` entity
+  type, and the `USER_ADDED`, `WEBHOOK_AUTO_DISABLED`, `WEBHOOK_CREATED`,
+  `WEBHOOK_DELETED`, `WEBHOOK_DELIVERY_REPLAYED`, `WEBHOOK_SECRET_ROTATED` and
+  `WEBHOOK_UPDATED` actions. `USER_OWNERSHIP_TRANSFERRED` went, so an operation
+  selecting it no longer validates - the backend deleted the action in CMS-1590
+  after it produced zero rows on production and on staging.
+- **The npx spec in `.mcp.json` and the README is pinned to `@latest`
+  (CMS-1971, 452ecce).** An unpinned spec lets a warm `npx` cache serve a
+  server from before a schema cutover. The README's diagnostic now asks the
+  *unpinned* spec first and compares: `@latest --version` re-resolves, so it is
+  the one command that cannot see a stale cache.
+
+## 0.85.0
+
+- **`redeliver_webhook_delivery` runs against the live mutation (CMS-1955).**
+  The vendored SDL was refreshed from production, which now serves
+  `webhook.redeliver`, `WebhookDelivery.replayOf` and
+  `WebhookDelivery.responseBody`. Published without an entry here; recorded
+  after the fact.
+
 ## 0.84.0
 
 - **Form submissions report what the webhook dispatch established (CMS-1954).**
