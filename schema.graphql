@@ -244,7 +244,20 @@ type AssetTokenWithSecret {
 }
 
 enum AuditLogAction {
+  FORM_DELETED
+  FORM_SUBMISSION_DELETED
+  MODEL_DELETED
+  PAGE_DELETED
+  PAGE_DEV_DRAFT_PROMOTED
+  PAGE_DRAFT_DISCARDED
+  PAGE_LAYOUT_DRAFT_DISCARDED
+  PAGE_LAYOUT_PUBLISHED
+  PAGE_LOCK_TAKEN_OVER
+  PAGE_PUBLISHED
   PAGE_STAGE_CHANGED
+  PAGE_UNPUBLISHED
+  PRODUCT_BULK_DELETED
+  RECORD_DELETED
   ROLE_CREATED
   ROLE_DELETED
   ROLE_UPDATED
@@ -263,6 +276,7 @@ enum AuditLogAction {
   WEBHOOK_DELIVERY_REPLAYED
   WEBHOOK_SECRET_ROTATED
   WEBHOOK_UPDATED
+  WORKSPACE_BRAND_CONTEXT_UPDATED
   WORKSPACE_DRAFT_SECRET_REGENERATED
   WORKSPACE_SETTINGS_UPDATED
 }
@@ -273,7 +287,10 @@ enum AuditLogActorKind {
 }
 
 enum AuditLogEntityType {
+  FORM
+  MODEL
   PAGE
+  RECORD
   ROLE
   TOKEN
   USER
@@ -285,7 +302,15 @@ type AuditLogQueries {
   """
   Paginated activity log for the current workspace. Gated by ROLES_MANAGE; per-workspace only (no admin-wide view).
   """
-  list(action: AuditLogAction, entityId: String, entityType: AuditLogEntityType, limit: Int = 50, skip: Int = 0, userId: ID): WorkspaceAuditLogConnection!
+  list(action: AuditLogAction, entityId: String, entityType: AuditLogEntityType, limit: Int = 50, skip: Int = 0, userId: ID, via: AuditLogVia): WorkspaceAuditLogConnection!
+}
+
+"""
+The machine surface the write came through. Absent on a write made in a browser session.
+"""
+enum AuditLogVia {
+  MCP
+  SPOTLIGHT
 }
 
 type AuthMutations {
@@ -1452,7 +1477,6 @@ type FormSettings {
   sendEmailNotification: Boolean!
   submitButtonLabel: JSON!
   successMessage: JSON!
-  webhookUrl: String
 }
 
 input FormSettingsInput {
@@ -1466,7 +1490,6 @@ input FormSettingsInput {
   sendEmailNotification: Boolean = true
   submitButtonLabel: JSON
   successMessage: JSON
-  webhookUrl: String
 }
 
 enum FormStatus {
@@ -1488,7 +1511,6 @@ type FormSubmission {
   referrer: String
   status: FormSubmissionStatus!
   userAgent: String
-  webhookDelivery: FormWebhookDelivery
 }
 
 type FormSubmissionListResponse {
@@ -1509,20 +1531,6 @@ type FormSubmitResponse {
   redirectUrl: String
   submissionId: String
   success: Boolean!
-}
-
-type FormWebhookDelivery {
-  at: DateTime!
-  error: String
-  responseCode: Int
-  status: FormWebhookDeliveryStatus!
-}
-
-enum FormWebhookDeliveryStatus {
-  delivered
-  pending
-  refused
-  unknown
 }
 
 input FulfillOrderInput {
@@ -1719,6 +1727,7 @@ type MediaAsset {
   contentHash: String
   createdAt: DateTime!
   createdBy: String!
+  duration: Float
   filename: String!
 
   """
@@ -2410,6 +2419,34 @@ type OrderTaxSummaryLine {
   rateId: String
 }
 
+enum OrgAuditLogAction {
+  MEMBER_INVITATION_ACCEPTED
+  MEMBER_INVITATION_CANCELLED
+  MEMBER_INVITED
+  MEMBER_REMOVED
+  MEMBER_ROLE_CHANGED
+  ORGANIZATION_CREATED
+  ORGANIZATION_DELETED
+  ORGANIZATION_OWNERSHIP_TRANSFERRED
+  ORGANIZATION_SETTINGS_UPDATED
+  ORGANIZATION_UPDATED
+  SSO_CONFIGURED
+  SSO_CONNECTION_TESTED
+  SSO_DOMAIN_ADDED
+  SSO_DOMAIN_REMOVED
+  SSO_DOMAIN_VERIFIED
+  SSO_ENFORCEMENT_CHANGED
+  WORKSPACE_MOVED
+}
+
+enum OrgAuditLogEntityType {
+  MEMBER
+  ORGANIZATION
+  SSO_CONFIG
+  SSO_DOMAIN
+  WORKSPACE
+}
+
 type Organization {
   billing: OrganizationBilling!
   id: ID!
@@ -2426,6 +2463,32 @@ type Organization {
   usage: PooledUsage!
   workspaceCount: Int!
   workspaces: [OrganizationWorkspace!]!
+}
+
+type OrganizationAuditLog {
+  action: OrgAuditLogAction!
+  createdAt: String!
+  diff: JSON
+  entityId: String!
+  entityName: String!
+  entityType: OrgAuditLogEntityType!
+  id: String!
+  organizationId: String!
+  userId: String
+  userName: String
+}
+
+type OrganizationAuditLogConnection {
+  hasMore: Boolean!
+  items: [OrganizationAuditLog!]!
+  total: Int!
+}
+
+type OrganizationAuditLogQueries {
+  """
+  Paginated activity log for one organization. Gated on managing that organization - the workspace permission vocabulary does not reach this surface, because an organization event has no workspace to name.
+  """
+  list(action: OrgAuditLogAction, entityId: String, entityType: OrgAuditLogEntityType, limit: Int = 50, organizationId: ID!, skip: Int = 0, userId: ID): OrganizationAuditLogConnection!
 }
 
 type OrganizationBilling {
@@ -3455,6 +3518,7 @@ type Query {
   notification: NotificationQueries!
   order: OrderQueries!
   organization: OrganizationQueries!
+  organizationAuditLog: OrganizationAuditLogQueries!
   page: PageQueries!
   pageComment: PageCommentQueries!
   pageTask: PageTaskQueries!
@@ -4266,6 +4330,7 @@ input UpdateWorkspaceRoleInput {
 }
 
 input UploadMediaInput {
+  duration: Float
   filename: String!
   folderId: String
   height: Int
@@ -4521,8 +4586,10 @@ type WorkspaceAuditLog {
   entityName: String!
   entityType: AuditLogEntityType!
   id: String!
+  toolName: String
   userId: String
   userName: String
+  via: AuditLogVia
   workspaceId: String!
 }
 

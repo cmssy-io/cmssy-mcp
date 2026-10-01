@@ -1,5 +1,37 @@
 # @cmssy/mcp-server
 
+## 0.87.0
+
+- **The per-form webhook is gone from every form operation (CMS-1956).**
+  `FormSettings.webhookUrl`, `FormSettingsInput.webhookUrl` and
+  `FormSubmission.webhookDelivery` were deleted from the backend, so
+  `list_forms`, `get_form`, `create_form`, `update_form`,
+  `list_form_submissions` and `get_form_submission` stopped selecting them.
+  A form never had a webhook setting of its own worth keeping: the submission
+  event has travelled the durable workspace transport as `form.submitted` since
+  CMS-1955 - signed, retried eight times, swept and visible in a delivery log
+  you can replay - while the per-form field was a second, unsigned, single-shot
+  dispatch whose `webhookDelivery` sub-document could sit at `pending` forever
+  because nothing reconciled it. To get a submission to an external system,
+  subscribe a workspace endpoint to `form.submitted` with `create_webhook`; the
+  event carries the submission id, and `get_form_submission` reads the answers
+  on the same `forms:submissions:view` permission the subscription already
+  needs.
+- `@cmssy/ai-tools` moves to **0.62.0**, which drops `webhookUrl` from the
+  `create_form` and `update_form` input schemas. On 0.61.0 the argument was
+  silently stripped by Zod, so an agent that set it was told the write
+  succeeded and no webhook was ever sent.
+- The vendored SDL was synced with the proposed backend schema. That also brings
+  three surfaces the copy had drifted behind, measured from the diff rather than
+  assumed: the audit-log origin axis `AuditLogVia` with `MCP`/`SPOTLIGHT` and the
+  `via` filter on `auditLog.list` (CMS-1772), the deletion and page-lifecycle
+  actions `FORM_DELETED`, `FORM_SUBMISSION_DELETED`, `MODEL_DELETED`,
+  `RECORD_DELETED`, `PRODUCT_BULK_DELETED`, `PAGE_DELETED`,
+  `PAGE_LOCK_TAKEN_OVER` and the rest (CMS-1989), and the whole organization
+  audit log - `OrganizationAuditLog`, `OrgAuditLogAction`,
+  `OrgAuditLogEntityType` (CMS-1967). No operation here selects them yet; the
+  harness can now see them.
+
 ## 0.86.0
 
 - **`--version` and `--help` work with no credentials present (CMS-1974).**
