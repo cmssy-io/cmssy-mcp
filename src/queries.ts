@@ -820,7 +820,7 @@ const FORM_FIELDS_FRAGMENT = `
     width order showWhen requiredWhen
   }
   settings {
-    actionType webhookUrl emailRecipients
+    actionType emailRecipients
     submitButtonLabel successMessage errorMessage
     redirectUrl requireLogin
     saveSubmissions sendEmailNotification emailConfigurationId
@@ -859,7 +859,6 @@ export const FORM_SUBMISSIONS_QUERY = `
           id formId formSlug data status
           ipAddress userAgent referrer customerId
           processedAt emailSent createdAt
-          webhookDelivery { status at responseCode error }
         }
         total
         hasMore
@@ -875,7 +874,6 @@ export const FORM_SUBMISSION_BY_ID_QUERY = `
         id formId formSlug data status
         ipAddress userAgent referrer customerId
         processedAt emailSent createdAt
-        webhookDelivery { status at responseCode error }
       }
     }
   }
