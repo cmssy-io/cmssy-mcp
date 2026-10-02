@@ -19,6 +19,24 @@ export function boundDeclarations(server: McpServer): Map<string, AiTool> {
   return declarations.get(server) ?? new Map();
 }
 
+function coerceJson(schema: z.ZodTypeAny): z.ZodTypeAny {
+  const wrapped = z.preprocess(jsonPreprocess, schema);
+  return schema.safeParse(undefined).success ? wrapped : wrapped.nonoptional();
+}
+
+export function toolInputSchema(
+  tool: Pick<AiTool, "inputSchema">,
+): z.ZodObject<z.ZodRawShape> {
+  const declared = tool.inputSchema as unknown as z.ZodObject<z.ZodRawShape>;
+  const coerced = Object.fromEntries(
+    Object.entries(declared.shape).map(([key, schema]) => [
+      key,
+      coerceJson(schema as z.ZodTypeAny),
+    ]),
+  );
+  return declared.safeExtend(coerced).strict();
+}
+
 export function bindSharedTool(
   server: McpServer,
   tool: AiTool,
@@ -28,33 +46,33 @@ export function bindSharedTool(
   declared.set(tool.name, tool);
   declarations.set(server, declared);
 
-  const shape = (tool.inputSchema as unknown as z.ZodObject<z.ZodRawShape>)
-    .shape;
-  const mcpShape: z.ZodRawShape = Object.fromEntries(
-    Object.entries(shape).map(([key, schema]) => [
-      key,
-      z.preprocess(jsonPreprocess, schema as z.ZodTypeAny),
-    ]),
+  server.registerTool(
+    tool.name,
+    {
+      description: tool.description,
+      inputSchema: toolInputSchema(tool),
+    },
+    async (input: unknown) => {
+      try {
+        const result = await runAsTool(tool.name, () =>
+          tool.execute(input, ops),
+        );
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(result, null, 2) },
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: err instanceof Error ? err.message : String(err),
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
   );
-
-  server.tool(tool.name, tool.description, mcpShape, async (input: unknown) => {
-    try {
-      const result = await runAsTool(tool.name, () => tool.execute(input, ops));
-      return {
-        content: [
-          { type: "text" as const, text: JSON.stringify(result, null, 2) },
-        ],
-      };
-    } catch (err) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: err instanceof Error ? err.message : String(err),
-          },
-        ],
-        isError: true,
-      };
-    }
-  });
 }
