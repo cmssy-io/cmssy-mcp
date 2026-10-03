@@ -12,6 +12,7 @@ import type {
   ModelDetail,
   ImportResult,
   ModelSummary,
+  ProductBulkDeleteResult,
   ProposedField,
   WorkspaceOps,
   CustomerSummary,
@@ -2373,11 +2374,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         return { count: res.product.bulkUpdate };
       },
       bulkDelete: async (modelId, selection) => {
-        const res = await client.query<{ product: { bulkDelete: number } }>(
-          BULK_DELETE_PRODUCT_RECORDS_MUTATION,
-          { modelId, selection },
-        );
-        return { count: res.product.bulkDelete };
+        const res = await client.query<{
+          product: { bulkDelete: ProductBulkDeleteResult };
+        }>(BULK_DELETE_PRODUCT_RECORDS_MUTATION, { modelId, selection });
+        return res.product.bulkDelete;
       },
       setTiers: async (recordId, tiers) => {
         const res = await client.query<{ product: { setTiers: unknown } }>(

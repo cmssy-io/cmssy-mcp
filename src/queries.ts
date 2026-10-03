@@ -1626,7 +1626,14 @@ export const BULK_DELETE_PRODUCT_RECORDS_MUTATION = `
     $selection: ProductBulkSelectionInput!
   ) {
     product {
-      bulkDelete(modelId: $modelId, selection: $selection)
+      bulkDelete(modelId: $modelId, selection: $selection) {
+        deleted
+        skipped {
+          id
+          name
+          reason
+        }
+      }
     }
   }
 `;
