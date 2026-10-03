@@ -2435,6 +2435,7 @@ enum OrgAuditLogAction {
   MEMBER_INVITATION_ACCEPTED
   MEMBER_INVITATION_CANCELLED
   MEMBER_INVITED
+  MEMBER_PROVISIONED
   MEMBER_REMOVED
   MEMBER_ROLE_CHANGED
   ORGANIZATION_CREATED
@@ -2479,6 +2480,7 @@ type Organization {
 
 type OrganizationAuditLog {
   action: OrgAuditLogAction!
+  actorKind: AuditLogActorKind!
   createdAt: String!
   diff: JSON
   entityId: String!
