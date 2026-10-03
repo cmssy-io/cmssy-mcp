@@ -246,7 +246,9 @@ type AssetTokenWithSecret {
 enum AuditLogAction {
   FORM_DELETED
   FORM_SUBMISSION_DELETED
+  MODEL_CREATED
   MODEL_DELETED
+  MODEL_UPDATED
   PAGE_CREATED
   PAGE_DELETED
   PAGE_DEV_DRAFT_PROMOTED
@@ -260,7 +262,14 @@ enum AuditLogAction {
   PAGE_UNPUBLISHED
   PAGE_VERSION_RESTORED
   PRODUCT_BULK_DELETED
+  PRODUCT_BULK_UPDATED
+  PRODUCT_TIERS_SET
+  PRODUCT_VARIANTS_SET
+  RECORDS_IMPORTED
+  RECORD_CREATED
   RECORD_DELETED
+  RECORD_STATUS_CHANGED
+  RECORD_UPDATED
   ROLE_CREATED
   ROLE_DELETED
   ROLE_UPDATED
@@ -2426,6 +2435,7 @@ enum OrgAuditLogAction {
   MEMBER_INVITATION_ACCEPTED
   MEMBER_INVITATION_CANCELLED
   MEMBER_INVITED
+  MEMBER_PROVISIONED
   MEMBER_REMOVED
   MEMBER_ROLE_CHANGED
   ORGANIZATION_CREATED
@@ -2470,6 +2480,7 @@ type Organization {
 
 type OrganizationAuditLog {
   action: OrgAuditLogAction!
+  actorKind: AuditLogActorKind!
   createdAt: String!
   diff: JSON
   entityId: String!
@@ -2910,6 +2921,28 @@ input PriceTierInput {
   price: Int!
 }
 
+"""
+Outcome of a bulk delete (CMS-1990). `deleted` counts what went; `skipped` names what the selection asked for and did not get, so the screen can say which products are still there and why.
+"""
+type ProductBulkDeleteResult {
+  deleted: Int!
+  skipped: [ProductBulkDeleteSkip!]!
+}
+
+type ProductBulkDeleteSkip {
+  id: ID!
+  name: String!
+  reason: ProductBulkDeleteSkipReason!
+}
+
+"""
+Why a selected product survived a bulk delete. `openOrder` is not bypassable - the single-record path refuses it too, even with `force` - and `page` means a block on a page still points at it.
+"""
+enum ProductBulkDeleteSkipReason {
+  openOrder
+  page
+}
+
 input ProductBulkPatchInput {
   adjustPrice: Float
   adjustStock: Int
@@ -2958,7 +2991,7 @@ type ProductFieldRoles {
 }
 
 type ProductMutations {
-  bulkDelete(modelId: ID!, selection: ProductBulkSelectionInput!): Int!
+  bulkDelete(modelId: ID!, selection: ProductBulkSelectionInput!): ProductBulkDeleteResult!
   bulkUpdate(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
 
   """Replace a product's record-level volume price breaks (CMS-910)."""
