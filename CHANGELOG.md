@@ -1,5 +1,27 @@
 # @cmssy/mcp-server
 
+## 0.90.0
+
+- **A tool that reads before it writes now names itself on the write (CMS-2004).**
+  The client announced the tool on the first request of a tool call and stayed
+  quiet on the rest, which was right while the only consumer was a client
+  marker. Once the backend started writing an audit entry keyed off that
+  header, the name had to land on a specific request instead of on any one:
+  `update_page_settings` loads the page to carry `expectedVersion`, so the read
+  took the announcement and the mutation the backend audits went out unnamed.
+  Measured on production on 2026-10-02 - the row said `MCP server` with no
+  tool. Ten page operations read before they write and were all affected:
+  `update_page_blocks`, `update_page_settings`, `publish_page`,
+  `update_page_layout`, `add_block_to_page`, `promote_dev_draft`,
+  `update_block_content`, `patch_block_content`, `remove_block_from_page` and
+  the dev-draft save behind them.
+- `x-cmssy-mcp-tool` now rides every request inside a tool call, and the new
+  `x-cmssy-mcp-call-start` header says which of them opened it (`1` on the
+  first, `0` after). The tool-call analytics event is one per call, so without
+  that second header a page edit would be counted once per request it makes.
+  A backend that does not read the new header counts those requests separately
+  until it is deployed; the audit entry is correct either way.
+
 ## 0.87.0
 
 - **The per-form webhook is gone from every form operation (CMS-1956).**
