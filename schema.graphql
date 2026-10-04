@@ -2889,9 +2889,7 @@ type PermissionCategory {
 """Information about a single permission"""
 type PermissionInfo {
   category: String!
-  description: String!
   key: String!
-  name: String!
 }
 
 type PooledUsage {
