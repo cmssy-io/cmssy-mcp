@@ -1,5 +1,19 @@
 # @cmssy/mcp-server
 
+## 0.91.0
+
+- **`update_form` stops clearing the settings keys you did not name (CMS-1948).**
+  The tool's contract is a patch, but `settings` went to the server whole, and
+  the server assigns that subtree wholesale and fills whatever is missing from
+  its defaults. So `update_form { idOrSlug: "contact", settings: { successMessage:
+  { pl: "Dziękujemy" } } }` - a copy change - also stored `emailRecipients: []`,
+  `emailConfigurationId: null` and `redirectUrl: null`, and reset four more keys.
+  `@cmssy/ai-tools@0.64.0` now reads the form first and lays the named keys over
+  the stored ones.
+- `fields` is unchanged and still replaces the whole array. That difference now
+  appears in the tool's description, where an agent reads it, rather than inside
+  one field's `describe()`.
+
 ## 0.90.0
 
 - **A tool that reads before it writes now names itself on the write (CMS-2004).**
