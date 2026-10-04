@@ -3,7 +3,9 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CmssyClient } from "../graphql-client.js";
+import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import {
+  CALL_START_HEADER,
   CLIENT_HEADER,
   TOOL_HEADER,
   clientHeaders,
@@ -34,14 +36,20 @@ describe("the client marker the backend reads (CMS-1865)", () => {
     });
   });
 
-  it("names the tool on the first request of a tool call and stays quiet on the rest", async () => {
-    const inside = await runAsTool("list_pages", async () => [
+  it("names the tool on every request of a tool call and marks only the first as its start (CMS-2004)", async () => {
+    const inside = await runAsTool("update_page_settings", async () => [
       clientHeaders("1.2.3"),
       clientHeaders("1.2.3"),
     ]);
 
-    expect(inside[0][TOOL_HEADER]).toBe("list_pages");
-    expect(inside[1]).not.toHaveProperty(TOOL_HEADER);
+    expect(
+      inside.map((headers) => headers[TOOL_HEADER]),
+      "the backend writes the audit entry on the request that mutates, which for a read-modify-write tool is never the first one",
+    ).toEqual(["update_page_settings", "update_page_settings"]);
+    expect(
+      inside.map((headers) => headers[CALL_START_HEADER]),
+      "the tool-call analytics event is one per call, so exactly one request has to say it opened the call",
+    ).toEqual(["1", "0"]);
   });
 
   it("keeps two overlapping tool calls apart", async () => {
@@ -75,6 +83,46 @@ describe("the client marker the backend reads (CMS-1865)", () => {
       [CLIENT_HEADER]: `mcp-server/${PACKAGE_VERSION}`,
     });
     expect(seen[1]).not.toHaveProperty(TOOL_HEADER);
+  });
+
+  it("names the tool on the write a read-modify-write tool audits (CMS-2004)", async () => {
+    const seen: Array<{
+      query: string;
+      headers: Record<string, string>;
+    }> = [];
+    const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+      const { query } = JSON.parse(init.body as string) as { query: string };
+      seen.push({ query, headers: init.headers as Record<string, string> });
+      return {
+        ok: true,
+        json: async () => ({
+          data: /^\s*mutation/.test(query)
+            ? { page: { updateSettings: { id: "p-1" } } }
+            : { page: { get: { id: "p-1", version: 7 } } },
+        }),
+      } as unknown as Response;
+    });
+    vi.stubGlobal("fetch", fetch);
+    const ops = createMcpWorkspaceOps(
+      new CmssyClient("https://api.example", "cs_x", "ws-1"),
+    );
+
+    await runAsTool("update_page_settings", () =>
+      ops.pages.updateSettings("p-1", { name: "Plans" }),
+    );
+
+    expect(seen.map(({ query }) => /^\s*mutation/.test(query))).toEqual([
+      false,
+      true,
+    ]);
+    expect(
+      seen[1]!.headers[TOOL_HEADER],
+      "measured blank on production 2026-10-02: the version read took the announcement and the write that the backend audits went out unnamed",
+    ).toBe("update_page_settings");
+    expect([
+      seen[0]!.headers[CALL_START_HEADER],
+      seen[1]!.headers[CALL_START_HEADER],
+    ]).toEqual(["1", "0"]);
   });
 
   it("reads the version the package actually ships, not the fallback", () => {
