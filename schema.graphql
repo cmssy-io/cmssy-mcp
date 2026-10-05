@@ -4490,6 +4490,11 @@ type ViewerMutations {
   confirmMfa(code: String!): [String!]!
   deleteAccount: DeletionResult!
   disableMfa(code: String!): MfaStatus!
+
+  """
+  Mint a fresh set of recovery codes and invalidate every outstanding one. Gated on a current authenticator or recovery code, so a hijacked session cannot lock the owner out.
+  """
+  reissueRecoveryCodes(code: String!): [String!]!
   resendVerificationEmail: UserAuthResponse!
   updateLocale(locale: String!): User!
 }
