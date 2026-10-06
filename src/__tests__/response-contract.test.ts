@@ -2,7 +2,12 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import ts from "typescript";
-import { parse, type FieldNode, type SelectionSetNode } from "graphql";
+import {
+  parse,
+  type FieldNode,
+  type FragmentDefinitionNode,
+  type SelectionSetNode,
+} from "graphql";
 import * as operations from "../queries.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -69,37 +74,81 @@ function requiredPaths(
   return paths.length > 0 ? paths : [[]];
 }
 
+type Fragments = ReadonlyMap<string, FragmentDefinitionNode>;
+
 function responseFields(
   set: SelectionSetNode,
+  fragments: Fragments,
+  expanded: ReadonlySet<string> = new Set(),
 ): Map<string, SelectionSetNode[]> {
   const byKey = new Map<string, SelectionSetNode[]>();
+
+  const take = (from: Map<string, SelectionSetNode[]>): void => {
+    for (const [key, sets] of from) {
+      byKey.set(key, [...(byKey.get(key) ?? []), ...sets]);
+    }
+  };
+
   for (const selection of set.selections) {
-    if (selection.kind !== "Field") continue;
-    const field = selection as FieldNode;
-    const key = field.alias?.value ?? field.name.value;
-    const nested = byKey.get(key) ?? [];
-    if (field.selectionSet) nested.push(field.selectionSet);
-    byKey.set(key, nested);
+    if (selection.kind === "Field") {
+      const field = selection as FieldNode;
+      const key = field.alias?.value ?? field.name.value;
+      const nested = byKey.get(key) ?? [];
+      if (field.selectionSet) nested.push(field.selectionSet);
+      byKey.set(key, nested);
+      continue;
+    }
+    if (selection.kind === "InlineFragment") {
+      take(responseFields(selection.selectionSet, fragments, expanded));
+      continue;
+    }
+    const name = selection.name.value;
+    if (expanded.has(name)) continue;
+    const definition = fragments.get(name);
+    if (!definition) {
+      throw new Error(`document spreads an undefined fragment: ${name}`);
+    }
+    take(
+      responseFields(
+        definition.selectionSet,
+        fragments,
+        new Set(expanded).add(name),
+      ),
+    );
   }
   return byKey;
 }
 
-function missingFrom(set: SelectionSetNode, path: readonly string[]): boolean {
-  const nested = responseFields(set).get(path[0]);
+function missingFrom(
+  set: SelectionSetNode,
+  fragments: Fragments,
+  path: readonly string[],
+): boolean {
+  const nested = responseFields(set, fragments).get(path[0]);
   if (nested === undefined) return true;
   if (path.length === 1) return false;
   if (nested.length === 0) return true;
-  return nested.every((inner) => missingFrom(inner, path.slice(1)));
+  return nested.every((inner) => missingFrom(inner, fragments, path.slice(1)));
 }
 
-function rootSelectionSet(document: string): SelectionSetNode {
-  const definition = parse(document).definitions.find(
+function responseOf(document: string): {
+  root: SelectionSetNode;
+  fragments: Fragments;
+} {
+  const parsed = parse(document);
+  const definition = parsed.definitions.find(
     (candidate) => candidate.kind === "OperationDefinition",
   );
   if (!definition || definition.kind !== "OperationDefinition") {
     throw new Error("no operation definition");
   }
-  return definition.selectionSet;
+  const fragments = new Map<string, FragmentDefinitionNode>();
+  for (const candidate of parsed.definitions) {
+    if (candidate.kind === "FragmentDefinition") {
+      fragments.set(candidate.name.value, candidate);
+    }
+  }
+  return { root: definition.selectionSet, fragments };
 }
 
 function unsuppliedPaths(
@@ -107,9 +156,9 @@ function unsuppliedPaths(
   document: string,
   type: ts.Type,
 ): string[] {
-  const set = rootSelectionSet(document);
+  const { root, fragments } = responseOf(document);
   return requiredPaths(typeChecker, type)
-    .filter((path) => path.length > 0 && missingFrom(set, path))
+    .filter((path) => path.length > 0 && missingFrom(root, fragments, path))
     .map((path) => path.join("."));
 }
 
@@ -268,6 +317,67 @@ describe("the response-contract checker reports what it is given", () => {
 
     expect(check("{ a { y: z } }")).toEqual([]);
     expect(check("{ a { z: y } }")).toEqual(["a.y"]);
+  });
+
+  it("counts a field an inline fragment supplies", () => {
+    const check = fixtureCheck(
+      "export type Response = { a: { x: string; y: string } };",
+    );
+
+    expect(check("{ a { x ... on Thing { y } } }")).toEqual([]);
+    expect(check("{ a { x ... on Thing { z } } }")).toEqual(["a.y"]);
+  });
+
+  it("counts a field a named fragment supplies", () => {
+    const check = fixtureCheck(
+      "export type Response = { a: { x: string; y: string } };",
+    );
+
+    expect(check("{ a { x ...F } } fragment F on Thing { y }")).toEqual([]);
+    expect(check("{ a { x ...F } } fragment F on Thing { z }")).toEqual([
+      "a.y",
+    ]);
+  });
+
+  it("follows a fragment into a nested selection", () => {
+    const check = fixtureCheck(
+      "export type Response = { a: { b: { x: string } } };",
+    );
+
+    expect(check("{ a { ...F } } fragment F on Thing { b { x } }")).toEqual([]);
+    expect(check("{ a { ...F } } fragment F on Thing { b { y } }")).toEqual([
+      "a.b.x",
+    ]);
+  });
+
+  it("keeps what the field selected when a fragment adds to the same key", () => {
+    const check = fixtureCheck(
+      "export type Response = { a: { b: { x: string } } };",
+    );
+
+    expect(
+      check("{ a { b { x } ...F } } fragment F on Thing { b { y } }"),
+    ).toEqual([]);
+    expect(
+      check("{ a { b { w } ...F } } fragment F on Thing { b { y } }"),
+    ).toEqual(["a.b.x"]);
+  });
+
+  it("refuses a document that spreads a fragment it does not define", () => {
+    const check = fixtureCheck("export type Response = { a: { x: string } };");
+
+    expect(() => check("{ a { ...Missing } }")).toThrow(
+      "document spreads an undefined fragment: Missing",
+    );
+  });
+
+  it("stops where a fragment spreads itself", () => {
+    const check = fixtureCheck("export type Response = { a: { x: string } };");
+
+    expect(check("{ a { ...F } } fragment F on Thing { x ...F }")).toEqual([]);
+    expect(check("{ a { ...F } } fragment F on Thing { y ...F }")).toEqual([
+      "a.x",
+    ]);
   });
 
   it("merges two selections of the same response key", () => {
