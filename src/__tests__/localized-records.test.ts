@@ -4,8 +4,14 @@ import { toProposedFields } from "../ai-tools-ops.js";
 describe("toProposedFields", () => {
   it("tells the agent which fields are translatable", () => {
     const [title, sku] = toProposedFields([
-      { key: "title", label: "Title", type: "text", localized: true },
-      { key: "sku", label: "SKU", type: "text" },
+      {
+        key: "title",
+        label: "Title",
+        type: "text",
+        required: false,
+        localized: true,
+      },
+      { key: "sku", label: "SKU", type: "text", required: true },
     ]);
     expect(title?.localized).toBe(true);
     expect(sku?.localized).toBeUndefined();

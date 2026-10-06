@@ -63,14 +63,32 @@ export interface Page {
   updatedAt: string;
 }
 
+export type PageListEntry = Pick<
+  Page,
+  | "id"
+  | "name"
+  | "slug"
+  | "description"
+  | "displayName"
+  | "published"
+  | "publishedAt"
+  | "hasUnpublishedContentChanges"
+  | "hasUnpublishedLayoutChanges"
+  | "pageType"
+  | "parentId"
+  | "customFields"
+  | "order"
+  | "version"
+  | "createdAt"
+  | "updatedAt"
+>;
+
 export interface SiteConfig {
   id: string;
   defaultLanguage: string;
   enabledLanguages: string[];
   siteName: Record<string, string>;
   enabledFeatures: string[];
-  header: unknown;
-  footer: unknown;
 }
 
 export type OrganizationLimits = {
