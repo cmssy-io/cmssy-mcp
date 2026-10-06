@@ -1062,11 +1062,18 @@ export const MODEL_RECORD_BY_ID_QUERY = `
 
 // ─── Model Mutations ─────────────────────────────────────────
 
+const MODEL_DEFINITION_ACK_FRAGMENT = `
+  id
+  name
+  slug
+  fields { key }
+`;
+
 export const CREATE_MODEL_DEFINITION_MUTATION = `
   mutation CreateModelDefinition($input: CreateModelDefinitionInput!) {
     model {
       create(input: $input) {
-        ${MODEL_DEFINITION_FRAGMENT}
+        ${MODEL_DEFINITION_ACK_FRAGMENT}
       }
     }
   }
@@ -1076,7 +1083,7 @@ export const UPDATE_MODEL_DEFINITION_MUTATION = `
   mutation UpdateModelDefinition($input: UpdateModelDefinitionInput!) {
     model {
       update(input: $input) {
-        ${MODEL_DEFINITION_FRAGMENT}
+        ${MODEL_DEFINITION_ACK_FRAGMENT}
       }
     }
   }
@@ -1282,6 +1289,11 @@ export const ORDERS_QUERY = `
   }
 `;
 
+const ORDER_ACK_FRAGMENT = `
+  id
+  orderNumber
+`;
+
 export const ORDER_BY_ID_QUERY = `
   query Order($id: ID!) {
     order { get(id: $id) { ${ORDER_FRAGMENT} } }
@@ -1300,61 +1312,61 @@ export const ORDER_PIPELINE_QUERY = `
 
 export const CREATE_MANUAL_ORDER_MUTATION = `
   mutation CreateManualOrder($input: CreateManualOrderInput!) {
-    order { create(input: $input) { ${ORDER_FRAGMENT} } }
+    order { create(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const EDIT_ORDER_MUTATION = `
   mutation EditOrder($input: EditOrderInput!) {
-    order { updateItems(input: $input) { ${ORDER_FRAGMENT} } }
+    order { updateItems(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const UPDATE_ORDER_DETAILS_MUTATION = `
   mutation UpdateOrderDetails($input: UpdateOrderDetailsInput!) {
-    order { updateDetails(input: $input) { ${ORDER_FRAGMENT} } }
+    order { updateDetails(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const MARK_ORDER_PAID_MUTATION = `
   mutation MarkOrderPaid($input: MarkOrderPaidInput!) {
-    order { markPaid(input: $input) { ${ORDER_FRAGMENT} } }
+    order { markPaid(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const RECORD_ORDER_PAYMENT_MUTATION = `
   mutation RecordOrderPayment($input: RecordOrderPaymentInput!) {
-    order { recordPayment(input: $input) { ${ORDER_FRAGMENT} } }
+    order { recordPayment(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const REFUND_ORDER_MUTATION = `
   mutation RefundOrder($input: RefundOrderInput!) {
-    order { refund(input: $input) { ${ORDER_FRAGMENT} } }
+    order { refund(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const CANCEL_ORDER_MUTATION = `
   mutation CancelOrder($input: CancelOrderInput!) {
-    order { cancel(input: $input) { ${ORDER_FRAGMENT} } }
+    order { cancel(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const TRANSITION_ORDER_FULFILLMENT_MUTATION = `
   mutation TransitionOrderFulfillment($input: FulfillOrderInput!) {
-    order { transitionFulfillment(input: $input) { ${ORDER_FRAGMENT} } }
+    order { transitionFulfillment(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const SET_ORDER_PIPELINE_STAGE_MUTATION = `
   mutation SetOrderPipelineStage($input: SetOrderPipelineStageInput!) {
-    order { setPipelineStage(input: $input) { ${ORDER_FRAGMENT} } }
+    order { setPipelineStage(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
 export const RECORD_ORDER_INVOICE_MUTATION = `
   mutation RecordOrderInvoice($input: RecordOrderInvoiceInput!) {
-    order { recordInvoice(input: $input) { ${ORDER_FRAGMENT} } }
+    order { recordInvoice(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
