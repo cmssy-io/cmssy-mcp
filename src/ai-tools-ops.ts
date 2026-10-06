@@ -352,23 +352,23 @@ interface RawModelDefinition {
   id: string;
   name: string;
   slug: string;
-  description?: string | null;
-  icon?: string | null;
-  color?: string | null;
-  displayField?: string | null;
-  recordCount?: number | null;
-  defaultSort?: { field: string; direction: "asc" | "desc" } | null;
-  statusField?: {
+  description: string | null;
+  icon: string | null;
+  color: string | null;
+  displayField: string | null;
+  recordCount: number | null;
+  defaultSort: { field: string; direction: "asc" | "desc" } | null;
+  statusField: {
     enabled?: boolean;
     values?: string[];
     defaultValue?: string | null;
     transitions?: Array<{ from: string; to: string[] }>;
   } | null;
-  fields?: RawPropertyField[] | null;
-  product?: ModelDetail["product"];
-  auth?: ModelDetail["auth"];
+  fields: RawPropertyField[] | null;
+  product: ModelDetail["product"];
+  auth: ModelDetail["auth"];
   uniqueFields?: string[] | null;
-  updatedAt?: string | null;
+  updatedAt: string | null;
 }
 
 interface RawCustomer {
@@ -380,13 +380,13 @@ interface RawCustomer {
   displayName: string;
   status: CustomerSummary["status"];
   verified: boolean;
-  lockedUntil?: string | null;
-  lastLoginAt?: string | null;
-  company?: { id: string; name: string | null } | null;
-  companyRole?: string | null;
-  orderStats?: CustomerSummary["orderStats"];
-  createdAt?: string | null;
-  updatedAt?: string | null;
+  lockedUntil: string | null;
+  lastLoginAt: string | null;
+  company: { id: string; name: string | null } | null;
+  companyRole: string | null;
+  orderStats: CustomerSummary["orderStats"];
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 interface RawAccountEmailResult {
@@ -427,7 +427,7 @@ interface RawPropertyField {
   key: string;
   label: string;
   type: string;
-  required?: boolean | null;
+  required: boolean | null;
   hidden?: boolean | null;
   localized?: boolean | null;
   description?: string | null;

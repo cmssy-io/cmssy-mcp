@@ -105,7 +105,7 @@ import {
   SITE_CONFIG_QUERY,
   CURRENT_WORKSPACE_QUERY,
 } from "./queries.js";
-import type { Page, SiteConfig, Workspace } from "./types.js";
+import type { PageListEntry, SiteConfig, Workspace } from "./types.js";
 
 export function createServer(client: CmssyClient) {
   const server = new McpServer({
@@ -253,7 +253,9 @@ export function createServer(client: CmssyClient) {
       mimeType: "application/json",
     },
     async (uri) => {
-      const data = await client.query<{ page: { list: Page[] } }>(PAGES_QUERY);
+      const data = await client.query<{ page: { list: PageListEntry[] } }>(
+        PAGES_QUERY,
+      );
       return {
         contents: [
           {
