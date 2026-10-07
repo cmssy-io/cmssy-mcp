@@ -1,6 +1,6 @@
 {
   "name": "@cmssy/mcp-server",
-  "version": "0.92.1",
+  "version": "0.92.2",
   "description": "MCP server for Cmssy CMS \u2014 enables AI-driven page creation and management",
   "mcpName": "io.github.cmssy-io/cmssy-mcp",
   "homepage": "https://cmssy.com",
@@ -29,7 +29,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@cmssy/ai-tools": "0.64.1",
+    "@cmssy/ai-tools": "0.64.2",
     "@cmssy/types": "0.54.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.3.6"
