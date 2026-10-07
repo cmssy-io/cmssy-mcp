@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.92.2
+
+- **`create_model` / `update_model` / page-type tools describe two more rules the
+  server grades (CMS-1691).** `@cmssy/ai-tools@0.64.2`: `variantAxes` says every
+  axis must be a distinct existing select field with at least one option, and
+  `defaultValue` states the seed rule - a default is a string, seeds only a
+  field holding one string, number or boolean, and a structured type or a
+  hasMany relation is refused on a model. Describe text only.
+
 ## 0.92.1
 
 - **`create_model` / `update_model` now say what each product role's field must be (CMS-2060).**
