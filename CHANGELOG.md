@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.92.1
+
+- **`create_model` / `update_model` now say what each product role's field must be (CMS-2060).**
+  `@cmssy/ai-tools@0.64.1`: every role names the field type the server accepts
+  (number for price/inventory, string-valued for name/currency/sku/taxRate,
+  media / list of media / text / url for image), that `skuField`,
+  `currencyField` and `taxRateField` may not name a translatable field, and when
+  the field has to exist. `update_model` also says that a fields-only change is
+  graded against the roles while the product is enabled. Describe text only.
+
 ## 0.91.0
 
 - **`update_form` stops clearing the settings keys you did not name (CMS-1948).**
