@@ -27,6 +27,7 @@
     "ai",
     "claude"
   ],
+  "packageManager": "pnpm@11.1.2",
   "license": "MIT",
   "dependencies": {
     "@cmssy/ai-tools": "0.64.2",
