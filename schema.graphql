@@ -2039,7 +2039,7 @@ type ModelProductConfig {
 }
 
 """
-Commerce capability PATCH: omitted keys keep their stored values. nameField/currencyField/imageField/taxRateField are overrides - null clears one so the resolved default applies again; skuField/priceField/inventoryField always hold a key. Every role is graded against the key it RESOLVES to, cleared or not: that field must exist and must be of a type the role can read - a number for priceField/inventoryField, a string-valued type for nameField/currencyField/skuField/taxRateField (and taxRateField may not be translatable), media, a list of media, text or url for imageField. A role resolving to nothing is refused only where the reader cannot do without it: nameField always, priceField while variantAxes is empty.
+Commerce capability PATCH: omitted keys keep their stored values. nameField/currencyField/imageField/taxRateField are overrides - null clears one so the resolved default applies again; skuField/priceField/inventoryField always hold a key. Every role is graded against the key it RESOLVES to, cleared or not: that field must exist and must be of a type the role can read - a number for priceField/inventoryField, a string-valued type for nameField/currencyField/skuField/taxRateField (and currencyField/skuField/taxRateField may not name a translatable field: something reads each of those three without resolving a locale), media, a list of media, text or url for imageField. A role resolving to nothing is refused only where the reader cannot do without it: nameField always, priceField while variantAxes is empty.
 """
 input ModelProductConfigInput {
   currencyField: String
