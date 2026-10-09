@@ -2621,7 +2621,13 @@ type Page {
   id: String!
   inheritsLayout: Boolean!
   layoutBlocks: [LayoutBlock!]!
+
+  """
+  Draft per-page layout overrides - publishedLayoutOverrides is the live set.
+  """
   layoutOverrides: [LayoutOverride!]!
+
+  """Draft region settings - publishedLayoutRegionSettings is the live set."""
   layoutRegionSettings: [LayoutRegionSettings!]!
   name: String!
   order: Int!
@@ -2631,7 +2637,11 @@ type Page {
   publishedAt: DateTime
   publishedBlocks: [BlockData!]!
   publishedLayoutBlocks: [LayoutBlock!]!
+
+  """Per-page layout overrides as last published."""
   publishedLayoutOverrides: [LayoutOverride!]!
+
+  """Region settings as last published."""
   publishedLayoutRegionSettings: [LayoutRegionSettings!]!
   schemaPropertyMap: JSON
   schemaType: String
@@ -3420,23 +3430,44 @@ type PublicOrderQueries {
 }
 
 type PublicPage {
+  """
+  The draft working copy - what the editor shows. With devPreview it carries the caller's dev overlay, or the published blocks when no overlay is active. A storefront rendering live content reads publishedBlocks.
+  """
   blocks: [PublicBlockData!]!
   customFields: [PageCustomField!]!
   description: String
   displayName: JSON!
   id: String!
   inheritsLayout: Boolean!
+
+  """The layout's draft blocks - publishedLayoutBlocks is the live set."""
   layoutBlocks: [PublicLayoutBlock!]!
+
+  """
+  Draft per-page layout overrides - publishedLayoutOverrides is the live set.
+  """
   layoutOverrides: [LayoutOverride!]!
+
+  """Draft region settings - publishedLayoutRegionSettings is the live set."""
   layoutRegionSettings: [LayoutRegionSettings!]!
   order: Int!
   pageType: String!
   parentId: String
   published: Boolean!
   publishedAt: DateTime
+
+  """The blocks as last published - what a live storefront renders."""
   publishedBlocks: [PublicBlockData!]!
+
+  """
+  The layout's blocks as last published - what a live storefront renders.
+  """
   publishedLayoutBlocks: [PublicLayoutBlock!]!
+
+  """Per-page layout overrides as last published."""
   publishedLayoutOverrides: [LayoutOverride!]!
+
+  """Region settings as last published."""
   publishedLayoutRegionSettings: [LayoutRegionSettings!]!
   schemaPropertyMap: JSON
   schemaType: String
