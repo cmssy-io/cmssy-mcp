@@ -1075,7 +1075,17 @@ type CustomerQueries {
   """
   Customers of the workspace, newest first unless `sort` says otherwise. Sorting by `ordersCount` counts non-canceled orders and needs `orders:view`.
   """
-  list(companyId: ID, limit: Int, modelId: ID, search: String, skip: Int, sort: CustomerSortInput, status: CustomerStatus): CustomerList!
+  list(
+    companyId: ID
+    limit: Int
+
+    """Only customers of this accounts model, by id or slug"""
+    modelId: ID
+    search: String
+    skip: Int
+    sort: CustomerSortInput
+    status: CustomerStatus
+  ): CustomerList!
   models: [CustomerModel!]!
 }
 
@@ -2999,8 +3009,17 @@ type ProductFieldRoles {
 }
 
 type ProductMutations {
-  bulkDelete(modelId: ID!, selection: ProductBulkSelectionInput!): ProductBulkDeleteResult!
-  bulkUpdate(modelId: ID!, patch: ProductBulkPatchInput!, selection: ProductBulkSelectionInput!): Int!
+  bulkDelete(
+    """The product model's id or slug"""
+    modelId: ID!
+    selection: ProductBulkSelectionInput!
+  ): ProductBulkDeleteResult!
+  bulkUpdate(
+    """The product model's id or slug"""
+    modelId: ID!
+    patch: ProductBulkPatchInput!
+    selection: ProductBulkSelectionInput!
+  ): Int!
 
   """Replace a product's record-level volume price breaks (CMS-910)."""
   setTiers(input: SetProductTiersInput!): ModelRecord!
@@ -3008,7 +3027,15 @@ type ProductMutations {
 }
 
 type ProductQueries {
-  list(filter: ProductCatalogFilterInput, limit: Int, modelId: ID!, offset: Int, sort: String): ProductCatalogList!
+  list(
+    filter: ProductCatalogFilterInput
+    limit: Int
+
+    """The product model's id or slug"""
+    modelId: ID!
+    offset: Int
+    sort: String
+  ): ProductCatalogList!
 }
 
 type ProductVariant {
@@ -4462,6 +4489,11 @@ type User {
   profile: UserProfile!
   updatedAt: DateTime!
   username: String
+
+  """
+  When this unverified account is deleted, together with every organization it owns and all of their workspaces. Null once verified, and for accounts that were never sent a verification email.
+  """
+  verificationDeadline: DateTime
   workspaceRole: WorkspaceRole
 }
 
