@@ -1620,6 +1620,24 @@ export const SET_PRODUCT_TIERS_MUTATION = `
   }
 `;
 
+export const SET_PRODUCT_VARIANTS_MUTATION = `
+  mutation SetProductVariants($input: SetProductVariantsInput!) {
+    product {
+      setVariants(input: $input) {
+        id
+        variants {
+          id
+          sku
+          price
+          inventory
+          tiers { minQty price }
+          selectedOptions { name value }
+        }
+      }
+    }
+  }
+`;
+
 export const BULK_UPDATE_PRODUCT_RECORDS_MUTATION = `
   mutation BulkUpdateProductRecords(
     $modelId: ID!

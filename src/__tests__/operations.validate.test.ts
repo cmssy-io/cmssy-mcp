@@ -101,6 +101,23 @@ const PAYLOADS: Array<[string, string, Record<string, unknown>]> = [
       layoutRegionSettings: [{ region: "sidebar", values: { width: "wide" } }],
     },
   ],
+  [
+    "SetProductVariantsInput",
+    "SetProductVariantsInput",
+    {
+      recordId: "r1",
+      variants: [
+        {
+          selections: { size: "M" },
+          sku: "TEE-M",
+          price: 4900,
+          inventory: 3,
+          tiers: [{ minQty: 10, price: 4500 }],
+        },
+        { selections: { size: "L" }, sku: null, price: 5200, inventory: null },
+      ],
+    },
+  ],
 ];
 
 describe("MCP variable payloads satisfy the backend SDL", () => {
