@@ -14,6 +14,20 @@ describe("products ops (CMS-2089)", () => {
     const variants = [
       { selections: { size: "M" }, sku: "TEE-M", price: 4900, inventory: 3 },
       { selections: { size: "L" }, sku: null, price: 5200, inventory: null },
+      {
+        selections: { size: "XL" },
+        sku: null,
+        price: 5600,
+        inventory: 1,
+        tiers: [{ minQty: 10, price: 5400 }],
+      },
+      {
+        selections: { size: "S" },
+        sku: null,
+        price: 4500,
+        inventory: 2,
+        tiers: [],
+      },
     ];
 
     const result = await ops.products.setVariants("r1", variants);
