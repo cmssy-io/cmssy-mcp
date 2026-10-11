@@ -189,6 +189,7 @@ describe("the MCP confirm gate (CMS-2067)", () => {
       "refund_order",
       "revert_to_published",
       "rotate_webhook_secret",
+      "set_product_variants",
       "suspend_customer",
       "unpublish_page",
     ]);

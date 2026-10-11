@@ -117,6 +117,7 @@ import {
   BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
   BULK_DELETE_PRODUCT_RECORDS_MUTATION,
   SET_PRODUCT_TIERS_MUTATION,
+  SET_PRODUCT_VARIANTS_MUTATION,
   UPDATE_CART_CONFIG_MUTATION,
   CLEAR_CART_CONFIG_MUTATION,
 } from "./queries.js";
@@ -2385,6 +2386,13 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
           { input: { recordId, tiers } },
         );
         return res.product.setTiers;
+      },
+      setVariants: async (recordId, variants) => {
+        const res = await client.query<{ product: { setVariants: unknown } }>(
+          SET_PRODUCT_VARIANTS_MUTATION,
+          { input: { recordId, variants } },
+        );
+        return res.product.setVariants;
       },
     },
     team: {
