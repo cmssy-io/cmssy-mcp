@@ -234,6 +234,8 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `list_products`                | Product catalog with stock + variant info (over a Data Model)       |
 | `bulk_update_products`         | Bulk set/adjust status, stock, or price on selected products        |
 | `bulk_delete_products`         | Bulk-delete selected product records                                |
+| `set_product_tiers`            | Set a product's record-level volume price breaks                    |
+| `set_product_variants`         | Replace a product's whole variant set (confirm-gated)               |
 
 Products are records of a Custom Data Model; these tools add product-aware
 stock/variant reads and bulk writes on top of the generic record tools. The
