@@ -3323,6 +3323,11 @@ type PublicModelQueries {
     modelSlug: String!
     offset: Int = 0
     populate: [String!]
+
+    """
+    Filter a product model to the records whose own SKU, or one of whose variants' SKUs, equals this. The record's own SKU is matched only when the delivery API serves its SKU field.
+    """
+    sku: String
     sort: String
 
     """
@@ -3347,6 +3352,10 @@ type PublicModelQueries {
 }
 
 type PublicModelRecord {
+  """
+  Units a buyer can order now: on hand minus reserved, summed across variants when the product has them. records(stockState:) files the record by this number against PublicSiteConfig.lowStockThreshold. Null when the product does not track stock - a product with any variant whose stock is not tracked counts as not tracking it - or keeps its stock field private.
+  """
+  available: Int
   createdAt: DateTime!
   data: JSON!
   id: String!
@@ -3358,7 +3367,27 @@ type PublicModelRecord {
   priceTiers: [PriceTier!]!
   status: String
   updatedAt: DateTime!
-  variants: [ProductVariant!]!
+
+  """How many variants the product has, across every page."""
+  variantCount: Int!
+
+  """
+  The lowest and highest price across every variant, in minor units, for a "from" price on a listing. Null when the product has no variants.
+  """
+  variantPriceRange: PublicPriceRange
+
+  """
+  One page of the product's variants, in stored order. A page holds at most 50; read variantCount to know whether to ask for the next.
+  """
+  variants(
+    limit: Int = 50
+    offset: Int = 0
+
+    """
+    Only the variant with this SKU: one variant, or none when no variant of this product carries it. variantCount still counts every variant.
+    """
+    sku: String
+  ): [ProductVariant!]!
   workspaceId: String!
 }
 
@@ -3531,6 +3560,11 @@ type PublicPagesListResult {
   total: Int!
 }
 
+type PublicPriceRange {
+  max: Int!
+  min: Int!
+}
+
 type PublicQueries {
   draftSecretValid(secret: String!, workspaceSlug: String!): Boolean!
   form: PublicFormQueries!
@@ -3579,6 +3613,11 @@ type PublicSiteConfig {
   enabledFeatures: [String!]!
   enabledLanguages: [String!]!
   id: String!
+
+  """
+  The most units a product can have and still count as "low" stock: the threshold records(stockState: "low") filters by. The workspace's configured value, or the default when it set none.
+  """
+  lowStockThreshold: Int!
   memberAuth: MemberAuthConfig
   notFoundPageId: String
   previewUrl: String
