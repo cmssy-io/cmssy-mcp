@@ -17,6 +17,10 @@
   "documentation": "https://www.cmssy.com/docs/api/mcp",
   "support": "https://github.com/cmssy-io/cmssy-mcp/issues",
   "icon": "icon.png",
+  "icons": [
+    { "src": "icon.png", "size": "512x512", "theme": "light" },
+    { "src": "icon-dark.png", "size": "512x512", "theme": "dark" }
+  ],
   "license": "MIT",
   "keywords": ["cms", "headless-cms", "ecommerce", "commerce", "orders", "nextjs", "astro", "mcp"],
   "privacy_policies": ["https://www.cmssy.com/privacy"],

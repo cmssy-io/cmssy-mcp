@@ -64,6 +64,18 @@ when a tool fails on a field the API should serve, then compare.
 Clearing the cache is `npx clear-npx-cache`, or pin the version in your config
 so nothing has to be diagnosed.
 
+## Privacy Policy
+
+Full policy: <https://www.cmssy.com/privacy>. Contact: contact@cmssy.com.
+
+- **What this server collects**: nothing of its own. It keeps no local database, writes no files and sends nothing to any analytics service.
+- **What it sends, and where**: each tool call becomes a GraphQL request to the Cmssy API (`https://api.cmssy.io` unless you set `CMSSY_API_URL`), carrying your API token, your workspace ID, the tool's arguments, the client name and version, and the name of the tool being run. The Cmssy API records one usage event per tool call from those last two.
+- **Files and URLs**: `upload_media` reads only the local file path or downloads only the URL you pass it, then uploads the bytes to the Cmssy storage URL the API returns. It touches no other file.
+- **Usage and storage**: the Cmssy API stores workspace content (pages, records, media, orders, customers) as described in the policy above, in the European Union. Content is not sold and not used to train AI models.
+- **Third-party sharing**: the server talks to the Cmssy API and the Cmssy storage URL only, plus any URL you hand to `upload_media`. Third parties the Cmssy service itself uses are listed in the policy.
+- **Data retention**: the server keeps nothing after a call returns. Workspace data stays until you delete it or close your account; retention periods are in the policy.
+- **Your token**: it acts with the permissions of the member who created it. Revoke it under Dashboard > API Tokens at any time.
+
 ## Response shape (write tools)
 
 As of 0.6.0, most write tools accept an optional `response` arg:
