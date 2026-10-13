@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { CmssyClient } from "./graphql-client.js";
+import type { CmssyApi } from "./graphql-client.js";
 import { PACKAGE_VERSION } from "./package-version.js";
 import {
   listPagesTool,
@@ -97,6 +97,7 @@ import {
   sendCustomerPasswordResetTool,
   resendCustomerVerificationTool,
   unlockCustomerTool,
+  type AiTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
@@ -108,142 +109,149 @@ import {
 } from "./queries.js";
 import type { PageListEntry, SiteConfig, Workspace } from "./types.js";
 
-export function createServer(client: CmssyClient) {
+export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
+  return [
+    // ─── Read Tools ──────────────────────────────────────────────
+
+    listPagesTool,
+    getPageTool,
+    getSiteConfigTool,
+    listBlockTypesTool,
+    listBlockUsageTool,
+    getWorkspaceInfoTool,
+    listMediaTool,
+    uploadTool,
+    listMediaFoldersTool,
+    createMediaFolderTool,
+    updateMediaFolderTool,
+    deleteMediaFolderTool,
+    moveMediaTool,
+    listTeamTool,
+    listRolesTool,
+    listCustomersTool,
+    getCustomerTool,
+    suspendCustomerTool,
+    unsuspendCustomerTool,
+    sendCustomerPasswordResetTool,
+    resendCustomerVerificationTool,
+    unlockCustomerTool,
+
+    // ─── Write Tools ─────────────────────────────────────────────
+
+    createPageTool,
+    updatePageBlocksTool,
+    promoteDevDraftTool,
+    updatePageSettingsTool,
+    listPageTypesTool,
+    createPageTypeTool,
+    getPageTypeTool,
+    updatePageTypeTool,
+    deletePageTypeTool,
+    publishPageTool,
+    unpublishPageTool,
+    takeOverPageLockTool,
+    revertToPublishedTool,
+    deletePageTool,
+
+    // ─── Layout Tools ──────────────────────────────────────────
+
+    updatePageLayoutTool,
+    createUpdateRegionSettingsTool(client),
+
+    // ─── Block Helper Tools (read-modify-write) ─────────────────
+
+    addBlockToPageTool,
+    updateBlockContentTool,
+    patchBlockContentTool,
+    removeBlockFromPageTool,
+
+    // ─── Form Tools ──────────────────────────────────────────────
+
+    listFormsTool,
+    getFormTool,
+    createFormTool,
+    updateFormTool,
+    deleteFormTool,
+    listFormSubmissionsTool,
+    getFormSubmissionTool,
+    updateFormSubmissionStatusTool,
+    deleteFormSubmissionTool,
+
+    // ─── Model Tools (Custom Data Models) ────────────────────────
+
+    listModelsTool,
+    getModelTool,
+    createModelTool,
+    updateModelTool,
+    deleteModelTool,
+    listRecordsTool,
+    getRecordTool,
+    createRecordTool,
+    updateRecordTool,
+    deleteRecordTool,
+    importRecordsTool,
+
+    // ─── Commerce: Orders ────────────────────────────────────────
+
+    listOrdersTool,
+    getOrderTool,
+    getOrderPipelineTool,
+    createManualOrderTool,
+    editOrderTool,
+    updateOrderDetailsTool,
+    markOrderPaidTool,
+    recordOrderPaymentTool,
+    refundOrderTool,
+    cancelOrderTool,
+    transitionOrderFulfillmentTool,
+    setOrderPipelineStageTool,
+    recordOrderInvoiceTool,
+
+    // ─── Commerce: Carts ─────────────────────────────────────────
+
+    listCartsTool,
+
+    // ─── Commerce: Discounts ─────────────────────────────────────
+
+    listDiscountsTool,
+    getDiscountTool,
+    createDiscountTool,
+    updateDiscountTool,
+    setDiscountEnabledTool,
+
+    // ─── Commerce: Products (catalog over model records) ─────────
+
+    listProductsTool,
+    bulkUpdateProductsTool,
+    bulkDeleteProductsTool,
+    setProductTiersTool,
+    setProductVariantsTool,
+    updateCartConfigTool,
+    clearCartConfigTool,
+
+    // ─── Webhooks ────────────────────────────────────────────────
+
+    listWebhooksTool,
+    listWebhookDeliveriesTool,
+    listWebhookEventTypesTool,
+    createWebhookTool,
+    updateWebhookTool,
+    rotateWebhookSecretTool,
+    redeliverWebhookDeliveryTool,
+    deleteWebhookTool,
+  ];
+}
+
+export function createServer(client: CmssyApi) {
   const server = new McpServer({
     name: "cmssy",
     version: PACKAGE_VERSION,
   });
 
   const sharedOps = createMcpWorkspaceOps(client);
-
-  // ─── Read Tools ──────────────────────────────────────────────
-
-  bindSharedTool(server, listPagesTool, sharedOps);
-  bindSharedTool(server, getPageTool, sharedOps);
-  bindSharedTool(server, getSiteConfigTool, sharedOps);
-  bindSharedTool(server, listBlockTypesTool, sharedOps);
-  bindSharedTool(server, listBlockUsageTool, sharedOps);
-  bindSharedTool(server, getWorkspaceInfoTool, sharedOps);
-  bindSharedTool(server, listMediaTool, sharedOps);
-  bindSharedTool(server, uploadMediaTool, sharedOps);
-  bindSharedTool(server, listMediaFoldersTool, sharedOps);
-  bindSharedTool(server, createMediaFolderTool, sharedOps);
-  bindSharedTool(server, updateMediaFolderTool, sharedOps);
-  bindSharedTool(server, deleteMediaFolderTool, sharedOps);
-  bindSharedTool(server, moveMediaTool, sharedOps);
-  bindSharedTool(server, listTeamTool, sharedOps);
-  bindSharedTool(server, listRolesTool, sharedOps);
-  bindSharedTool(server, listCustomersTool, sharedOps);
-  bindSharedTool(server, getCustomerTool, sharedOps);
-  bindSharedTool(server, suspendCustomerTool, sharedOps);
-  bindSharedTool(server, unsuspendCustomerTool, sharedOps);
-  bindSharedTool(server, sendCustomerPasswordResetTool, sharedOps);
-  bindSharedTool(server, resendCustomerVerificationTool, sharedOps);
-  bindSharedTool(server, unlockCustomerTool, sharedOps);
-
-  // ─── Write Tools ─────────────────────────────────────────────
-
-  bindSharedTool(server, createPageTool, sharedOps);
-  bindSharedTool(server, updatePageBlocksTool, sharedOps);
-  bindSharedTool(server, promoteDevDraftTool, sharedOps);
-  bindSharedTool(server, updatePageSettingsTool, sharedOps);
-  bindSharedTool(server, listPageTypesTool, sharedOps);
-  bindSharedTool(server, createPageTypeTool, sharedOps);
-  bindSharedTool(server, getPageTypeTool, sharedOps);
-  bindSharedTool(server, updatePageTypeTool, sharedOps);
-  bindSharedTool(server, deletePageTypeTool, sharedOps);
-  bindSharedTool(server, publishPageTool, sharedOps);
-  bindSharedTool(server, unpublishPageTool, sharedOps);
-  bindSharedTool(server, takeOverPageLockTool, sharedOps);
-  bindSharedTool(server, revertToPublishedTool, sharedOps);
-  bindSharedTool(server, deletePageTool, sharedOps);
-
-  // ─── Layout Tools ──────────────────────────────────────────
-
-  bindSharedTool(server, updatePageLayoutTool, sharedOps);
-  bindSharedTool(server, createUpdateRegionSettingsTool(client), sharedOps);
-
-  // ─── Block Helper Tools (read-modify-write) ─────────────────
-
-  bindSharedTool(server, addBlockToPageTool, sharedOps);
-  bindSharedTool(server, updateBlockContentTool, sharedOps);
-  bindSharedTool(server, patchBlockContentTool, sharedOps);
-  bindSharedTool(server, removeBlockFromPageTool, sharedOps);
-
-  // ─── Form Tools ──────────────────────────────────────────────
-
-  bindSharedTool(server, listFormsTool, sharedOps);
-  bindSharedTool(server, getFormTool, sharedOps);
-  bindSharedTool(server, createFormTool, sharedOps);
-  bindSharedTool(server, updateFormTool, sharedOps);
-  bindSharedTool(server, deleteFormTool, sharedOps);
-  bindSharedTool(server, listFormSubmissionsTool, sharedOps);
-  bindSharedTool(server, getFormSubmissionTool, sharedOps);
-  bindSharedTool(server, updateFormSubmissionStatusTool, sharedOps);
-  bindSharedTool(server, deleteFormSubmissionTool, sharedOps);
-
-  // ─── Model Tools (Custom Data Models) ────────────────────────
-
-  bindSharedTool(server, listModelsTool, sharedOps);
-  bindSharedTool(server, getModelTool, sharedOps);
-  bindSharedTool(server, createModelTool, sharedOps);
-  bindSharedTool(server, updateModelTool, sharedOps);
-  bindSharedTool(server, deleteModelTool, sharedOps);
-  bindSharedTool(server, listRecordsTool, sharedOps);
-  bindSharedTool(server, getRecordTool, sharedOps);
-  bindSharedTool(server, createRecordTool, sharedOps);
-  bindSharedTool(server, updateRecordTool, sharedOps);
-  bindSharedTool(server, deleteRecordTool, sharedOps);
-  bindSharedTool(server, importRecordsTool, sharedOps);
-
-  // ─── Commerce: Orders ────────────────────────────────────────
-
-  bindSharedTool(server, listOrdersTool, sharedOps);
-  bindSharedTool(server, getOrderTool, sharedOps);
-  bindSharedTool(server, getOrderPipelineTool, sharedOps);
-  bindSharedTool(server, createManualOrderTool, sharedOps);
-  bindSharedTool(server, editOrderTool, sharedOps);
-  bindSharedTool(server, updateOrderDetailsTool, sharedOps);
-  bindSharedTool(server, markOrderPaidTool, sharedOps);
-  bindSharedTool(server, recordOrderPaymentTool, sharedOps);
-  bindSharedTool(server, refundOrderTool, sharedOps);
-  bindSharedTool(server, cancelOrderTool, sharedOps);
-  bindSharedTool(server, transitionOrderFulfillmentTool, sharedOps);
-  bindSharedTool(server, setOrderPipelineStageTool, sharedOps);
-  bindSharedTool(server, recordOrderInvoiceTool, sharedOps);
-
-  // ─── Commerce: Carts ─────────────────────────────────────────
-
-  bindSharedTool(server, listCartsTool, sharedOps);
-
-  // ─── Commerce: Discounts ─────────────────────────────────────
-
-  bindSharedTool(server, listDiscountsTool, sharedOps);
-  bindSharedTool(server, getDiscountTool, sharedOps);
-  bindSharedTool(server, createDiscountTool, sharedOps);
-  bindSharedTool(server, updateDiscountTool, sharedOps);
-  bindSharedTool(server, setDiscountEnabledTool, sharedOps);
-
-  // ─── Commerce: Products (catalog over model records) ─────────
-
-  bindSharedTool(server, listProductsTool, sharedOps);
-  bindSharedTool(server, bulkUpdateProductsTool, sharedOps);
-  bindSharedTool(server, bulkDeleteProductsTool, sharedOps);
-  bindSharedTool(server, setProductTiersTool, sharedOps);
-  bindSharedTool(server, setProductVariantsTool, sharedOps);
-  bindSharedTool(server, updateCartConfigTool, sharedOps);
-  bindSharedTool(server, clearCartConfigTool, sharedOps);
-
-  // ─── Webhooks ────────────────────────────────────────────────
-
-  bindSharedTool(server, listWebhooksTool, sharedOps);
-  bindSharedTool(server, listWebhookDeliveriesTool, sharedOps);
-  bindSharedTool(server, listWebhookEventTypesTool, sharedOps);
-  bindSharedTool(server, createWebhookTool, sharedOps);
-  bindSharedTool(server, updateWebhookTool, sharedOps);
-  bindSharedTool(server, rotateWebhookSecretTool, sharedOps);
-  bindSharedTool(server, redeliverWebhookDeliveryTool, sharedOps);
-  bindSharedTool(server, deleteWebhookTool, sharedOps);
+  for (const tool of toolCatalogue(client, uploadMediaTool)) {
+    bindSharedTool(server, tool, sharedOps);
+  }
 
   // ─── Resources ───────────────────────────────────────────────
 

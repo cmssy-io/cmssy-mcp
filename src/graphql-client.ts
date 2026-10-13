@@ -37,7 +37,54 @@ function unwrapType(type: TypeRef): { name: string | null; kind: string } {
     : { name: null, kind: "SCALAR" };
 }
 
-export class CmssyClient {
+export type GraphqlExecute = <T>(
+  query: string,
+  variables?: Record<string, unknown>,
+) => Promise<T>;
+
+export interface CmssyApi {
+  readonly workspaceId: string;
+  query<T>(query: string, variables?: Record<string, unknown>): Promise<T>;
+  buildSelectionSet(typeName: string, depth?: number): Promise<string>;
+}
+
+async function selectionSetFor(
+  api: CmssyApi,
+  cache: Map<string, string>,
+  typeName: string,
+  depth: number,
+): Promise<string> {
+  if (depth <= 0) return "";
+
+  const cached = cache.get(typeName);
+  if (cached !== undefined) return cached;
+
+  const data = await api.query<{
+    __type: { fields: IntrospectedField[] } | null;
+  }>(INTROSPECT_TYPE_QUERY, { name: typeName });
+
+  if (!data.__type?.fields) {
+    cache.set(typeName, "");
+    return "";
+  }
+
+  const parts: string[] = [];
+  for (const field of data.__type.fields) {
+    const resolved = unwrapType(field.type);
+    if (resolved.kind === "SCALAR" || resolved.kind === "ENUM") {
+      parts.push(field.name);
+    } else if (resolved.kind === "OBJECT" && resolved.name) {
+      const sub = await selectionSetFor(api, cache, resolved.name, depth - 1);
+      if (sub) parts.push(`${field.name} { ${sub} }`);
+    }
+  }
+
+  const result = parts.join(" ");
+  cache.set(typeName, result);
+  return result;
+}
+
+export class CmssyClient implements CmssyApi {
   private selectionCache = new Map<string, string>();
 
   constructor(
@@ -81,38 +128,23 @@ export class CmssyClient {
     return json.data;
   }
 
-  /**
-   * Introspect a GraphQL type and build a selection set string dynamically.
-   * Recurses into OBJECT fields up to `depth` levels. Results are cached.
-   */
-  async buildSelectionSet(typeName: string, depth = 3): Promise<string> {
-    if (depth <= 0) return "";
-
-    const cached = this.selectionCache.get(typeName);
-    if (cached !== undefined) return cached;
-
-    const data = await this.query<{
-      __type: { fields: IntrospectedField[] } | null;
-    }>(INTROSPECT_TYPE_QUERY, { name: typeName });
-
-    if (!data.__type?.fields) {
-      this.selectionCache.set(typeName, "");
-      return "";
-    }
-
-    const parts: string[] = [];
-    for (const field of data.__type.fields) {
-      const resolved = unwrapType(field.type);
-      if (resolved.kind === "SCALAR" || resolved.kind === "ENUM") {
-        parts.push(field.name);
-      } else if (resolved.kind === "OBJECT" && resolved.name) {
-        const sub = await this.buildSelectionSet(resolved.name, depth - 1);
-        if (sub) parts.push(`${field.name} { ${sub} }`);
-      }
-    }
-
-    const result = parts.join(" ");
-    this.selectionCache.set(typeName, result);
-    return result;
+  buildSelectionSet(typeName: string, depth = 3): Promise<string> {
+    return selectionSetFor(this, this.selectionCache, typeName, depth);
   }
+}
+
+const hostedSelectionCache = new Map<string, string>();
+
+export function createCmssyApi(
+  execute: GraphqlExecute,
+  workspaceId: string,
+  selectionCache: Map<string, string> = hostedSelectionCache,
+): CmssyApi {
+  const api: CmssyApi = {
+    workspaceId,
+    query: execute,
+    buildSelectionSet: (typeName, depth = 3) =>
+      selectionSetFor(api, selectionCache, typeName, depth),
+  };
+  return api;
 }

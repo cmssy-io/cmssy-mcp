@@ -10,6 +10,7 @@ import {
   ConfirmGate,
   confirmArgsHash,
   confirmSummary,
+  type ConfirmStore,
 } from "./confirm-gate.js";
 
 const jsonPreprocess = (val: unknown) => {
@@ -42,13 +43,18 @@ const confirmArgSchema = z
     "Confirmation ref this server issued for this exact call after the user approved it. Never invent or reuse one.",
   );
 
-function confirmationPrompt(
-  gate: ConfirmGate,
+type ToolResult = {
+  content: { type: "text"; text: string }[];
+  isError?: boolean;
+};
+
+async function confirmationPrompt(
+  gate: ConfirmStore,
   toolName: string,
   args: Record<string, unknown>,
   reason: "unknown-ref" | "expired" | "args-changed" | null,
-): { content: { type: "text"; text: string }[] } {
-  const ref = gate.request(toolName, confirmArgsHash(args));
+): Promise<ToolResult> {
+  const ref = await gate.request(toolName, confirmArgsHash(args));
   return {
     content: [
       {
@@ -85,6 +91,7 @@ function coerceJson(schema: z.ZodTypeAny): z.ZodTypeAny {
 
 export function toolInputSchema(
   tool: Pick<AiTool, "inputSchema" | "confirmGated">,
+  extra: z.ZodRawShape = {},
 ): z.ZodObject<z.ZodRawShape> {
   const declared = tool.inputSchema as unknown as z.ZodObject<z.ZodRawShape>;
   const coerced = Object.fromEntries(
@@ -96,7 +103,7 @@ export function toolInputSchema(
   if (tool.confirmGated === true) {
     coerced[CONFIRM_ARG] = confirmArgSchema;
   }
-  return declared.safeExtend(coerced).strict();
+  return declared.safeExtend({ ...coerced, ...extra }).strict();
 }
 
 const READ_NAME = /^(get|list|search)_/;
@@ -131,15 +138,62 @@ export function toolAnnotations(
   };
 }
 
+function errorResult(err: unknown): ToolResult {
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: err instanceof Error ? err.message : String(err),
+      },
+    ],
+    isError: true,
+  };
+}
+
+async function runTool(
+  tool: AiTool,
+  input: unknown,
+  ops: WorkspaceOps,
+  gate: ConfirmStore,
+): Promise<ToolResult> {
+  let executeInput = input;
+  if (tool.confirmGated === true) {
+    const { [CONFIRM_ARG]: ref, ...rest } = input as Record<string, unknown>;
+    if (typeof ref !== "string") {
+      return confirmationPrompt(gate, tool.name, rest, null);
+    }
+    const outcome = await gate.consume(ref, tool.name, confirmArgsHash(rest));
+    if (outcome !== "approved") {
+      return confirmationPrompt(gate, tool.name, rest, outcome);
+    }
+    executeInput = rest;
+  }
+  try {
+    const result = await runAsTool(tool.name, () =>
+      tool.execute(executeInput, ops),
+    );
+    return {
+      content: [
+        { type: "text" as const, text: JSON.stringify(result, null, 2) },
+      ],
+    };
+  } catch (err) {
+    return errorResult(err);
+  }
+}
+
+function declare(server: McpServer, tool: AiTool): void {
+  const declared = declarations.get(server) ?? new Map<string, AiTool>();
+  declared.set(tool.name, tool);
+  declarations.set(server, declared);
+}
+
 export function bindSharedTool(
   server: McpServer,
   tool: AiTool,
   ops: WorkspaceOps,
 ): void {
-  const declared = declarations.get(server) ?? new Map<string, AiTool>();
-  declared.set(tool.name, tool);
-  declarations.set(server, declared);
-
+  declare(server, tool);
   server.registerTool(
     tool.name,
     {
@@ -148,43 +202,62 @@ export function bindSharedTool(
       inputSchema: toolInputSchema(tool),
       annotations: toolAnnotations(tool),
     },
+    (input: unknown) => runTool(tool, input, ops, gateFor(server)),
+  );
+}
+
+export const WORKSPACE_ARG = "workspace";
+
+const workspaceArgSchema = z
+  .string()
+  .regex(/^[^/\s]+\/[^/\s]+$/)
+  .describe(
+    "Workspace to act in, as <orgSlug>/<workspaceSlug> - one of the workspaces list_workspaces returns",
+  );
+
+export interface HostedTarget {
+  tool: AiTool;
+  ops: WorkspaceOps;
+  confirm: ConfirmStore;
+}
+
+export type ResolveHostedTarget = (
+  workspace: string,
+  tool: AiTool,
+) => Promise<HostedTarget>;
+
+export function hostedInputSchema(
+  tool: Pick<AiTool, "inputSchema" | "confirmGated">,
+): z.ZodObject<z.ZodRawShape> {
+  return toolInputSchema(tool, { [WORKSPACE_ARG]: workspaceArgSchema });
+}
+
+export function bindHostedTool(
+  server: McpServer,
+  tool: AiTool,
+  resolve: ResolveHostedTarget,
+): void {
+  declare(server, tool);
+  server.registerTool(
+    tool.name,
+    {
+      title: toolTitle(tool.name),
+      description: tool.description,
+      inputSchema: hostedInputSchema(tool),
+      annotations: toolAnnotations(tool),
+    },
     async (input: unknown) => {
-      let executeInput = input;
-      if (tool.confirmGated === true) {
-        const gate = gateFor(server);
-        const { [CONFIRM_ARG]: ref, ...rest } = input as Record<
-          string,
-          unknown
-        >;
-        if (typeof ref !== "string") {
-          return confirmationPrompt(gate, tool.name, rest, null);
-        }
-        const outcome = gate.consume(ref, tool.name, confirmArgsHash(rest));
-        if (outcome !== "approved") {
-          return confirmationPrompt(gate, tool.name, rest, outcome);
-        }
-        executeInput = rest;
-      }
+      const { [WORKSPACE_ARG]: workspace, ...rest } = input as Record<
+        string,
+        unknown
+      >;
+      let target: HostedTarget;
       try {
-        const result = await runAsTool(tool.name, () =>
-          tool.execute(executeInput, ops),
-        );
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify(result, null, 2) },
-          ],
-        };
+        target = await resolve(workspace as string, tool);
       } catch (err) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: err instanceof Error ? err.message : String(err),
-            },
-          ],
-          isError: true,
-        };
+        return errorResult(err);
       }
+      return runTool(target.tool, rest, target.ops, target.confirm);
     },
   );
 }

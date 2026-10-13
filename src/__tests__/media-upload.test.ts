@@ -134,3 +134,39 @@ describe("resolveUploadSource - url", () => {
     ).rejects.toThrow("HTTP 404");
   });
 });
+
+describe("resolveUploadSource - hosted policy (CMS-2095)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses a filePath when the policy forbids local files, even for a file that exists", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cmssy-upload-"));
+    const filePath = join(dir, "logo.png");
+    await writeFile(filePath, "png-bytes");
+    const fetchUrl = vi.fn();
+
+    await expect(
+      resolveUploadSource({ filePath }, { allowFilePath: false, fetchUrl }),
+    ).rejects.toThrow("cannot read local files");
+    await expect(
+      resolveUploadSource({ filePath }, { allowFilePath: true, fetchUrl }),
+    ).resolves.toMatchObject({ filename: "logo.png" });
+    expect(fetchUrl).not.toHaveBeenCalled();
+  });
+
+  it("fetches a url through the policy's fetch, not the global one", async () => {
+    const globalFetch = vi.fn();
+    vi.stubGlobal("fetch", globalFetch);
+    const fetchUrl = vi.fn(() => Promise.reject(new Error("blocked by host")));
+
+    await expect(
+      resolveUploadSource(
+        { url: "http://10.0.0.1/a.png" },
+        { allowFilePath: false, fetchUrl },
+      ),
+    ).rejects.toThrow("blocked by host");
+    expect(fetchUrl).toHaveBeenCalledWith("http://10.0.0.1/a.png");
+    expect(globalFetch).not.toHaveBeenCalled();
+  });
+});

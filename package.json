@@ -1,6 +1,6 @@
 {
   "name": "@cmssy/mcp-server",
-  "version": "0.95.0",
+  "version": "0.96.0",
   "description": "MCP server for Cmssy - hosted headless CMS with native commerce, run by your AI agent",
   "mcpName": "io.github.cmssy-io/cmssy-mcp",
   "homepage": "https://cmssy.com",
@@ -8,7 +8,15 @@
   "bin": {
     "cmssy-mcp": "./dist/index.js"
   },
-  "main": "./dist/index.js",
+  "main": "./dist/lib.js",
+  "types": "./dist/lib.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "default": "./dist/lib.js"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "build": "tsc",
     "sync-schema": "node scripts/sync-schema.mjs",
@@ -30,7 +38,7 @@
   "packageManager": "pnpm@11.1.2",
   "license": "MIT",
   "dependencies": {
-    "@cmssy/ai-tools": "0.66.0",
+    "@cmssy/ai-tools": "0.67.0",
     "@cmssy/types": "0.54.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.3.6"

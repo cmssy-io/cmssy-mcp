@@ -1,5 +1,20 @@
 # @cmssy/mcp-server
 
+## 0.96.0
+
+- **The package is also a library (CMS-2095).** `import { createServer,
+  createHostedServer } from "@cmssy/mcp-server"` - `main` now points at
+  `dist/lib.js`; the `cmssy-mcp` binary is unchanged.
+- **`createHostedServer`** builds the same tool catalogue for a server that
+  holds no token and no disk: every tool takes a `workspace`
+  (`<orgSlug>/<workspaceSlug>`) that the host resolves to a GraphQL executor
+  and a confirmation store, plus a `list_workspaces` tool. `upload_media`
+  takes a URL only and fetches it through the host's `fetchUrl`.
+- **`createCmssyApi(execute, workspaceId)`** wraps an in-process executor; the
+  introspected selection sets are cached at module scope, not per request.
+- **Tool descriptions no longer tell the model when to call a tool**
+  (`@cmssy/ai-tools@0.67.0`). The server's confirmation gate is unchanged.
+
 ## 0.92.2
 
 - **`create_model` / `update_model` / page-type tools describe two more rules the

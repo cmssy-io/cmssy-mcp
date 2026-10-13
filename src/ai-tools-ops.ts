@@ -1,6 +1,11 @@
 import { putObject } from "./put-object.js";
-import type { CmssyClient } from "./graphql-client.js";
-import { mediaTypeFromMime, resolveUploadSource } from "./media-upload.js";
+import type { CmssyApi } from "./graphql-client.js";
+import {
+  LOCAL_UPLOAD_POLICY,
+  mediaTypeFromMime,
+  resolveUploadSource,
+  type UploadSourcePolicy,
+} from "./media-upload.js";
 import type {
   RegionSettingsEntry,
   ResolvedRegion,
@@ -256,7 +261,7 @@ interface PageDoc {
 }
 
 async function loadPage(
-  client: CmssyClient,
+  client: CmssyApi,
   pageId: string,
 ): Promise<PageDoc | null> {
   const data = await client.query<{ page: { get: PageDoc | null } }>(
@@ -267,7 +272,7 @@ async function loadPage(
 }
 
 async function loadResolvedRegions(
-  client: CmssyClient,
+  client: CmssyApi,
   pageId: string,
 ): Promise<ResolvedRegion[]> {
   const data = await client.query<{
@@ -279,7 +284,7 @@ async function loadResolvedRegions(
 // Lightweight read for version-only guards - skips the full blocks/layout
 // payload PAGE_BY_ID_QUERY pulls in.
 async function loadPageVersion(
-  client: CmssyClient,
+  client: CmssyApi,
   pageId: string,
 ): Promise<{ id: string; version?: number | null } | null> {
   const data = await client.query<{
@@ -295,7 +300,7 @@ interface ResolvedModel {
 }
 
 async function fetchModelById(
-  client: CmssyClient,
+  client: CmssyApi,
   id: string,
 ): Promise<ResolvedModel | null> {
   const data = await client.query<{
@@ -320,7 +325,7 @@ async function fetchModelById(
 // takes an id, so resolve the code here rather than returning "not found" for
 // a discount that plainly exists.
 async function resolveDiscountId(
-  client: CmssyClient,
+  client: CmssyApi,
   idOrSlug: string,
 ): Promise<string | null> {
   if (OBJECT_ID_RE.test(idOrSlug)) return idOrSlug;
@@ -334,7 +339,7 @@ async function resolveDiscountId(
 }
 
 async function resolveModel(
-  client: CmssyClient,
+  client: CmssyApi,
   idOrSlug: string,
 ): Promise<ResolvedModel | null> {
   if (OBJECT_ID_RE.test(idOrSlug)) {
@@ -531,7 +536,10 @@ function toModelDetail(m: RawModelDefinition): ModelDetail {
   };
 }
 
-export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
+export function createMcpWorkspaceOps(
+  client: CmssyApi,
+  uploadPolicy: UploadSourcePolicy = LOCAL_UPLOAD_POLICY,
+): WorkspaceOps {
   const ws = client.workspaceId;
   return {
     models: {
@@ -1539,7 +1547,10 @@ export function createMcpWorkspaceOps(client: CmssyClient): WorkspaceOps {
         };
       },
       upload: async (input) => {
-        const { bytes, filename, mimeType } = await resolveUploadSource(input);
+        const { bytes, filename, mimeType } = await resolveUploadSource(
+          input,
+          uploadPolicy,
+        );
         const auth = await client.query<{
           media: {
             authorizeUpload: { pathname: string; uploadUrl: string };

@@ -85,9 +85,10 @@ async function resolveFromFile(
 
 async function resolveFromUrl(
   url: string,
-  filenameOverride?: string,
+  filenameOverride: string | undefined,
+  fetchUrl: FetchUrl,
 ): Promise<ResolvedUpload> {
-  const response = await fetch(url);
+  const response = await fetchUrl(url);
   if (!response.ok) {
     throw new Error(`Fetching "${url}" failed with HTTP ${response.status}`);
   }
@@ -111,14 +112,32 @@ async function resolveFromUrl(
   return { bytes, filename, mimeType };
 }
 
+export type FetchUrl = (url: string) => Promise<Response>;
+
+export interface UploadSourcePolicy {
+  allowFilePath: boolean;
+  fetchUrl: FetchUrl;
+}
+
+export const LOCAL_UPLOAD_POLICY: UploadSourcePolicy = {
+  allowFilePath: true,
+  fetchUrl: (url) => fetch(url),
+};
+
 export async function resolveUploadSource(
   input: MediaUploadInput,
+  policy: UploadSourcePolicy = LOCAL_UPLOAD_POLICY,
 ): Promise<ResolvedUpload> {
   if (input.filePath) {
+    if (!policy.allowFilePath) {
+      throw new Error(
+        "This server cannot read local files - pass a public url instead",
+      );
+    }
     return resolveFromFile(input.filePath, input.filename);
   }
   if (input.url) {
-    return resolveFromUrl(input.url, input.filename);
+    return resolveFromUrl(input.url, input.filename, policy.fetchUrl);
   }
   throw new Error("Provide exactly one of filePath or url");
 }

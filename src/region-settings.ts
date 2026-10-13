@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AiTool } from "@cmssy/ai-tools";
-import type { CmssyClient } from "./graphql-client.js";
+import type { CmssyApi } from "./graphql-client.js";
 import {
   LAYOUT_REGIONS_QUERY,
   PAGE_REGION_SETTINGS_QUERY,
@@ -98,7 +98,7 @@ export function mergeRegionSettings(
   return [...others, { region, values }];
 }
 
-async function loadLayoutRegions(client: CmssyClient): Promise<LayoutRegion[]> {
+async function loadLayoutRegions(client: CmssyApi): Promise<LayoutRegion[]> {
   const res = await client.query<{
     blockManifest: { get: { regions?: unknown } | null };
   }>(LAYOUT_REGIONS_QUERY);
@@ -106,7 +106,7 @@ async function loadLayoutRegions(client: CmssyClient): Promise<LayoutRegion[]> {
 }
 
 export async function updateRegionSettings(
-  client: CmssyClient,
+  client: CmssyApi,
   input: UpdateRegionSettingsInput,
 ): Promise<UpdateRegionSettingsResult> {
   const current = await client.query<{
@@ -162,7 +162,7 @@ export async function updateRegionSettings(
 }
 
 export function createUpdateRegionSettingsTool(
-  client: CmssyClient,
+  client: CmssyApi,
 ): AiTool<UpdateRegionSettingsInput, UpdateRegionSettingsResult> {
   return {
     name: "update_region_settings",

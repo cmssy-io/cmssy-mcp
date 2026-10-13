@@ -170,7 +170,7 @@ describe("a rule the tool declares across its parameters is enforced through the
 
   for (const [name, probe] of Object.entries(OBJECT_LEVEL_RULES)) {
     it(`refuses the input ${name} was written to refuse`, async () => {
-      const tool = declaredTools().find((candidate) => candidate.name === name);
+      const tool = withObjectLevelRules().find((candidate) => candidate.name === name);
       expect(tool, `${name} is no longer exported`).toBeDefined();
       const client = await connect([tool!], refusingOps);
 
@@ -183,7 +183,7 @@ describe("a rule the tool declares across its parameters is enforced through the
     });
 
     it(`lets ${name} through once the rule is satisfied`, async () => {
-      const tool = declaredTools().find((candidate) => candidate.name === name);
+      const tool = withObjectLevelRules().find((candidate) => candidate.name === name);
       const client = await connect(
         [{ ...tool!, execute: async () => ({ ok: true }) } as AiTool],
         refusingOps,
