@@ -7,7 +7,7 @@ MCP server for [Cmssy CMS](https://cmssy.com) — enables AI-driven page creatio
 ### Prerequisites
 
 1. A Cmssy workspace - the free plan works; cart and checkout need Pro
-2. An API token (Workspace Settings > API Tokens, starts with `cs_`)
+2. An API token (Dashboard > API Tokens, starts with `cs_`)
 3. Your workspace ID (Workspace Settings > General)
 
 The server talks to `https://api.cmssy.io` by default. Pass `--api-url` only for another backend.

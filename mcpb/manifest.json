@@ -36,7 +36,7 @@
     "api_token": {
       "type": "string",
       "title": "API token",
-      "description": "Workspace API token from Workspace Settings > API Tokens. Starts with cs_.",
+      "description": "Workspace API token from Dashboard > API Tokens. Starts with cs_.",
       "sensitive": true,
       "required": true
     },

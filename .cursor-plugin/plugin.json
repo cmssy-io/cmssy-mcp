@@ -23,7 +23,7 @@
       "CMSSY_API_TOKEN": {
         "type": "string",
         "title": "Cmssy API token",
-        "description": "Workspace API token from Workspace Settings > API Tokens. Starts with cs_. The agent acts with the permissions of the member who created it."
+        "description": "Workspace API token from Dashboard > API Tokens. Starts with cs_. The agent acts with the permissions of the member who created it."
       },
       "CMSSY_WORKSPACE_ID": {
         "type": "string",
