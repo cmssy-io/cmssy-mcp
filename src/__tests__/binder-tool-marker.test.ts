@@ -10,6 +10,7 @@ describe("a bound tool runs inside its own tool call (CMS-1865)", () => {
     const tool = {
       name: "list_pages",
       description: "",
+      requiredPermissions: ["pages:view"],
       inputSchema: z.object({}),
       execute: async () => {
         seen = clientHeaders("0.0.0");

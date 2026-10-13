@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { AiTool, WorkspaceOps } from "@cmssy/ai-tools";
 import { runAsTool } from "./client-marker.js";
@@ -98,6 +99,38 @@ export function toolInputSchema(
   return declared.safeExtend(coerced).strict();
 }
 
+const READ_NAME = /^(get|list|search)_/;
+const ADDITIVE_NAME = /^(create|upload)_/;
+
+export function toolTitle(name: string): string {
+  const words = name.split("_");
+  return [
+    words[0].charAt(0).toUpperCase() + words[0].slice(1),
+    ...words.slice(1),
+  ].join(" ");
+}
+
+export function toolAnnotations(
+  tool: Pick<AiTool, "name" | "requiredPermissions" | "confirmGated">,
+): ToolAnnotations {
+  const title = toolTitle(tool.name);
+  const readOnly =
+    tool.confirmGated !== true &&
+    READ_NAME.test(tool.name) &&
+    tool.requiredPermissions.every((permission) =>
+      permission.endsWith(":view"),
+    );
+  if (readOnly) {
+    return { title, readOnlyHint: true, destructiveHint: false };
+  }
+  return {
+    title,
+    readOnlyHint: false,
+    destructiveHint:
+      tool.confirmGated === true || !ADDITIVE_NAME.test(tool.name),
+  };
+}
+
 export function bindSharedTool(
   server: McpServer,
   tool: AiTool,
@@ -110,8 +143,10 @@ export function bindSharedTool(
   server.registerTool(
     tool.name,
     {
+      title: toolTitle(tool.name),
       description: tool.description,
       inputSchema: toolInputSchema(tool),
+      annotations: toolAnnotations(tool),
     },
     async (input: unknown) => {
       let executeInput = input;
