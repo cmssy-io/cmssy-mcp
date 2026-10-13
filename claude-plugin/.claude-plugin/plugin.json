@@ -1,7 +1,7 @@
 {
   "name": "cmssy",
   "displayName": "Cmssy",
-  "version": "0.94.1",
+  "version": "0.95.0",
   "description": "Run a Cmssy workspace from Claude: pages, records, media, forms, products, orders, refunds and discounts.",
   "author": {
     "name": "Cmssy",
@@ -35,7 +35,7 @@
   "mcpServers": {
     "cmssy": {
       "command": "npx",
-      "args": ["-y", "@cmssy/mcp-server@0.94.1"],
+      "args": ["-y", "@cmssy/mcp-server@0.95.0"],
       "env": {
         "CMSSY_API_TOKEN": "${user_config.api_token}",
         "CMSSY_WORKSPACE_ID": "${user_config.workspace_id}"
