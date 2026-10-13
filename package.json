@@ -1,7 +1,7 @@
 {
   "name": "@cmssy/mcp-server",
   "version": "0.94.0",
-  "description": "MCP server for Cmssy CMS \u2014 enables AI-driven page creation and management",
+  "description": "MCP server for Cmssy - hosted headless CMS with native commerce, run by your AI agent",
   "mcpName": "io.github.cmssy-io/cmssy-mcp",
   "homepage": "https://cmssy.com",
   "type": "module",

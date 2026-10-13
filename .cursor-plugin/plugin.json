@@ -1,0 +1,37 @@
+{
+  "name": "cmssy",
+  "displayName": "Cmssy",
+  "version": "1.0.0",
+  "minClientVersions": {
+    "cursor": "3.13.0"
+  },
+  "description": "Run a Cmssy workspace from Cursor: pages, records, media, forms, products, orders, refunds and discounts.",
+  "author": {
+    "name": "Cmssy"
+  },
+  "publisher": "Cmssy",
+  "homepage": "https://www.cmssy.com/docs/api/mcp",
+  "repository": "https://github.com/cmssy-io/cmssy-mcp",
+  "license": "MIT",
+  "logo": "assets/logo.svg",
+  "keywords": ["cmssy", "cms", "headless-cms", "ecommerce", "orders", "nextjs", "astro", "mcp"],
+  "category": "integrations",
+  "tags": ["cms", "ecommerce", "mcp"],
+  "variables": {
+    "type": "object",
+    "properties": {
+      "CMSSY_API_TOKEN": {
+        "type": "string",
+        "title": "Cmssy API token",
+        "description": "Workspace API token from Workspace Settings > API Tokens. Starts with cs_. The agent acts with the permissions of the member who created it."
+      },
+      "CMSSY_WORKSPACE_ID": {
+        "type": "string",
+        "title": "Cmssy workspace ID",
+        "description": "From Workspace Settings > General."
+      }
+    },
+    "required": ["CMSSY_API_TOKEN", "CMSSY_WORKSPACE_ID"]
+  },
+  "mcpServers": "./.mcp.json"
+}
