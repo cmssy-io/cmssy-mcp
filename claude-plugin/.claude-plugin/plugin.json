@@ -1,0 +1,33 @@
+{
+  "name": "cmssy",
+  "displayName": "Cmssy",
+  "version": "0.97.0",
+  "description": "Run a Cmssy workspace from Claude: pages, records, media, forms, products, orders, refunds and discounts.",
+  "author": {
+    "name": "Cmssy",
+    "email": "contact@cmssy.com",
+    "url": "https://www.cmssy.com"
+  },
+  "homepage": "https://www.cmssy.com/docs/api/mcp",
+  "repository": "https://github.com/cmssy-io/cmssy-mcp",
+  "license": "MIT",
+  "keywords": [
+    "cms",
+    "headless-cms",
+    "ecommerce",
+    "orders",
+    "nextjs",
+    "astro"
+  ],
+  "icon": "./icon.png",
+  "documentationUrl": "https://www.cmssy.com/docs/api/mcp",
+  "supportUrl": "https://github.com/cmssy-io/cmssy-mcp/issues",
+  "privacyPolicyUrl": "https://www.cmssy.com/privacy",
+  "termsOfServiceUrl": "https://www.cmssy.com/terms",
+  "mcpServers": {
+    "cmssy": {
+      "type": "http",
+      "url": "https://api.cmssy.io/mcp"
+    }
+  }
+}
