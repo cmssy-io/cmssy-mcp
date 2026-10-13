@@ -1,10 +1,10 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.cmssy-io/cmssy-mcp",
-  "title": "cmssy",
-  "description": "Headless CMS whose page sections are defined by your own code: pages, records, media, commerce.",
+  "title": "Cmssy",
+  "description": "Hosted headless CMS with native commerce: pages, media, forms, products, orders, refunds, discounts.",
   "version": "0.73.1",
-  "websiteUrl": "https://cmssy.com",
+  "websiteUrl": "https://www.cmssy.com",
   "repository": {
     "url": "https://github.com/cmssy-io/cmssy-mcp",
     "source": "github"
