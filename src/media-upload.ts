@@ -83,15 +83,42 @@ async function resolveFromFile(
   return { bytes, filename, mimeType };
 }
 
+function tooLarge(source: string): Error {
+  return new Error(
+    `${source} exceeds the upload limit of ${MAX_UPLOAD_SIZE_MB}MB`,
+  );
+}
+
+async function readCapped(response: Response, source: string): Promise<Buffer> {
+  const declared = Number(response.headers.get("content-length"));
+  if (declared > MAX_UPLOAD_SIZE) throw tooLarge(source);
+  if (!response.body) return Buffer.alloc(0);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_UPLOAD_SIZE) {
+      await reader.cancel();
+      throw tooLarge(source);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function resolveFromUrl(
   url: string,
-  filenameOverride?: string,
+  filenameOverride: string | undefined,
+  fetchUrl: FetchUrl,
 ): Promise<ResolvedUpload> {
-  const response = await fetch(url);
+  const response = await fetchUrl(url);
   if (!response.ok) {
     throw new Error(`Fetching "${url}" failed with HTTP ${response.status}`);
   }
-  const bytes = Buffer.from(await response.arrayBuffer());
+  const bytes = await readCapped(response, `Content of "${url}"`);
   assertSize(bytes, `Content of "${url}"`);
   const filename =
     filenameOverride || basename(new URL(url).pathname) || "download";
@@ -111,14 +138,32 @@ async function resolveFromUrl(
   return { bytes, filename, mimeType };
 }
 
+export type FetchUrl = (url: string) => Promise<Response>;
+
+export interface UploadSourcePolicy {
+  allowFilePath: boolean;
+  fetchUrl: FetchUrl;
+}
+
+export const LOCAL_UPLOAD_POLICY: UploadSourcePolicy = {
+  allowFilePath: true,
+  fetchUrl: (url) => fetch(url),
+};
+
 export async function resolveUploadSource(
   input: MediaUploadInput,
+  policy: UploadSourcePolicy = LOCAL_UPLOAD_POLICY,
 ): Promise<ResolvedUpload> {
   if (input.filePath) {
+    if (!policy.allowFilePath) {
+      throw new Error(
+        "This server cannot read local files - pass a public url instead",
+      );
+    }
     return resolveFromFile(input.filePath, input.filename);
   }
   if (input.url) {
-    return resolveFromUrl(input.url, input.filename);
+    return resolveFromUrl(input.url, input.filename, policy.fetchUrl);
   }
   throw new Error("Provide exactly one of filePath or url");
 }

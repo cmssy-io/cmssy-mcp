@@ -10,7 +10,7 @@ import {
 import * as operations from "../queries.js";
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const CLIENT_TYPE = "CmssyClient";
+const CLIENT_TYPE = "CmssyApi";
 const NULLISH = ts.TypeFlags.Null | ts.TypeFlags.Undefined | ts.TypeFlags.Void;
 
 function createProgram(): ts.Program {

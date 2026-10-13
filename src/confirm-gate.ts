@@ -34,7 +34,16 @@ interface PendingConfirmation {
   expiresAt: number;
 }
 
-export class ConfirmGate {
+export interface ConfirmStore {
+  request(toolName: string, argsHash: string): string | Promise<string>;
+  consume(
+    ref: string,
+    toolName: string,
+    argsHash: string,
+  ): ConsumeOutcome | Promise<ConsumeOutcome>;
+}
+
+export class ConfirmGate implements ConfirmStore {
   private pending = new Map<string, PendingConfirmation>();
 
   request(toolName: string, argsHash: string): string {

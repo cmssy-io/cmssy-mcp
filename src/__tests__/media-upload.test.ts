@@ -15,14 +15,14 @@ function fetchResponding(init: {
   body?: Uint8Array;
 }) {
   const body = init.body ?? new TextEncoder().encode("<svg/>");
-  return vi.fn().mockResolvedValue({
-    ok: init.ok ?? true,
-    status: init.status ?? 200,
-    headers: new Headers(
-      init.contentType === null ? {} : { "content-type": init.contentType! },
-    ),
-    arrayBuffer: () => Promise.resolve(body.buffer.slice(0)),
-  });
+  const status = init.status ?? (init.ok === false ? 404 : 200);
+  return vi.fn().mockResolvedValue(
+    new Response(body, {
+      status,
+      headers:
+        init.contentType === null ? {} : { "content-type": init.contentType! },
+    }),
+  );
 }
 
 describe("mimeFromFilename", () => {
@@ -132,5 +132,81 @@ describe("resolveUploadSource - url", () => {
     await expect(
       resolveUploadSource({ url: "https://example.com/missing.png" }),
     ).rejects.toThrow("HTTP 404");
+  });
+});
+
+describe("resolveUploadSource - hosted policy (CMS-2095)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refuses a filePath when the policy forbids local files, even for a file that exists", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "cmssy-upload-"));
+    const filePath = join(dir, "logo.png");
+    await writeFile(filePath, "png-bytes");
+    const fetchUrl = vi.fn();
+
+    await expect(
+      resolveUploadSource({ filePath }, { allowFilePath: false, fetchUrl }),
+    ).rejects.toThrow("cannot read local files");
+    await expect(
+      resolveUploadSource({ filePath }, { allowFilePath: true, fetchUrl }),
+    ).resolves.toMatchObject({ filename: "logo.png" });
+    expect(fetchUrl).not.toHaveBeenCalled();
+  });
+
+  it("fetches a url through the policy's fetch, not the global one", async () => {
+    const globalFetch = vi.fn();
+    vi.stubGlobal("fetch", globalFetch);
+    const fetchUrl = vi.fn(() => Promise.reject(new Error("blocked by host")));
+
+    await expect(
+      resolveUploadSource(
+        { url: "http://10.0.0.1/a.png" },
+        { allowFilePath: false, fetchUrl },
+      ),
+    ).rejects.toThrow("blocked by host");
+    expect(fetchUrl).toHaveBeenCalledWith("http://10.0.0.1/a.png");
+    expect(globalFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveUploadSource - size cap while reading (CMS-2095)", () => {
+  const limit = 50 * 1024 * 1024;
+
+  it("refuses a declared content-length over the limit without reading the body", async () => {
+    const pull = vi.fn();
+    const response = new Response(new ReadableStream({ pull }, { highWaterMark: 0 }), {
+      headers: { "content-length": String(limit + 1) },
+    });
+
+    await expect(
+      resolveUploadSource(
+        { url: "https://example.com/huge.bin" },
+        { allowFilePath: false, fetchUrl: () => Promise.resolve(response) },
+      ),
+    ).rejects.toThrow("exceeds the upload limit");
+    expect(pull).not.toHaveBeenCalled();
+  });
+
+  it("stops reading an undeclared stream as soon as it passes the limit", async () => {
+    const chunk = new Uint8Array(8 * 1024 * 1024);
+    let served = 0;
+    const response = new Response(
+      new ReadableStream({
+        pull(controller) {
+          served += chunk.byteLength;
+          controller.enqueue(chunk);
+        },
+      }),
+    );
+
+    await expect(
+      resolveUploadSource(
+        { url: "https://example.com/endless.bin" },
+        { allowFilePath: false, fetchUrl: () => Promise.resolve(response) },
+      ),
+    ).rejects.toThrow("exceeds the upload limit");
+    expect(served).toBeLessThanOrEqual(limit + 2 * chunk.byteLength);
   });
 });
