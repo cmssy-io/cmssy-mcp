@@ -108,6 +108,7 @@ export function toolInputSchema(
 
 const READ_NAME = /^(get|list|search)_/;
 const ADDITIVE_NAME = /^(create|upload)_/;
+const SENDS_DATA_OUT = new Set(["create_webhook"]);
 
 export function toolTitle(name: string): string {
   const words = name.split("_");
@@ -129,6 +130,14 @@ export function toolAnnotations(
     );
   if (readOnly) {
     return { title, readOnlyHint: true, destructiveHint: false };
+  }
+  if (SENDS_DATA_OUT.has(tool.name)) {
+    return {
+      title,
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    };
   }
   return {
     title,
@@ -155,16 +164,22 @@ async function runTool(
   input: unknown,
   ops: WorkspaceOps,
   gate: ConfirmStore,
+  scope: Record<string, unknown> = {},
 ): Promise<ToolResult> {
   let executeInput = input;
   if (tool.confirmGated === true) {
     const { [CONFIRM_ARG]: ref, ...rest } = input as Record<string, unknown>;
+    const approved = { ...rest, ...scope };
     if (typeof ref !== "string") {
-      return confirmationPrompt(gate, tool.name, rest, null);
+      return confirmationPrompt(gate, tool.name, approved, null);
     }
-    const outcome = await gate.consume(ref, tool.name, confirmArgsHash(rest));
+    const outcome = await gate.consume(
+      ref,
+      tool.name,
+      confirmArgsHash(approved),
+    );
     if (outcome !== "approved") {
-      return confirmationPrompt(gate, tool.name, rest, outcome);
+      return confirmationPrompt(gate, tool.name, approved, outcome);
     }
     executeInput = rest;
   }
@@ -257,7 +272,9 @@ export function bindHostedTool(
       } catch (err) {
         return errorResult(err);
       }
-      return runTool(target.tool, rest, target.ops, target.confirm);
+      return runTool(target.tool, rest, target.ops, target.confirm, {
+        [WORKSPACE_ARG]: workspace,
+      });
     },
   );
 }

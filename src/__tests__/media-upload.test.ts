@@ -15,14 +15,14 @@ function fetchResponding(init: {
   body?: Uint8Array;
 }) {
   const body = init.body ?? new TextEncoder().encode("<svg/>");
-  return vi.fn().mockResolvedValue({
-    ok: init.ok ?? true,
-    status: init.status ?? 200,
-    headers: new Headers(
-      init.contentType === null ? {} : { "content-type": init.contentType! },
-    ),
-    arrayBuffer: () => Promise.resolve(body.buffer.slice(0)),
-  });
+  const status = init.status ?? (init.ok === false ? 404 : 200);
+  return vi.fn().mockResolvedValue(
+    new Response(body, {
+      status,
+      headers:
+        init.contentType === null ? {} : { "content-type": init.contentType! },
+    }),
+  );
 }
 
 describe("mimeFromFilename", () => {
@@ -168,5 +168,45 @@ describe("resolveUploadSource - hosted policy (CMS-2095)", () => {
     ).rejects.toThrow("blocked by host");
     expect(fetchUrl).toHaveBeenCalledWith("http://10.0.0.1/a.png");
     expect(globalFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveUploadSource - size cap while reading (CMS-2095)", () => {
+  const limit = 50 * 1024 * 1024;
+
+  it("refuses a declared content-length over the limit without reading the body", async () => {
+    const pull = vi.fn();
+    const response = new Response(new ReadableStream({ pull }, { highWaterMark: 0 }), {
+      headers: { "content-length": String(limit + 1) },
+    });
+
+    await expect(
+      resolveUploadSource(
+        { url: "https://example.com/huge.bin" },
+        { allowFilePath: false, fetchUrl: () => Promise.resolve(response) },
+      ),
+    ).rejects.toThrow("exceeds the upload limit");
+    expect(pull).not.toHaveBeenCalled();
+  });
+
+  it("stops reading an undeclared stream as soon as it passes the limit", async () => {
+    const chunk = new Uint8Array(8 * 1024 * 1024);
+    let served = 0;
+    const response = new Response(
+      new ReadableStream({
+        pull(controller) {
+          served += chunk.byteLength;
+          controller.enqueue(chunk);
+        },
+      }),
+    );
+
+    await expect(
+      resolveUploadSource(
+        { url: "https://example.com/endless.bin" },
+        { allowFilePath: false, fetchUrl: () => Promise.resolve(response) },
+      ),
+    ).rejects.toThrow("exceeds the upload limit");
+    expect(served).toBeLessThanOrEqual(limit + 2 * chunk.byteLength);
   });
 });

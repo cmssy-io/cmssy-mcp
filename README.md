@@ -313,6 +313,15 @@ Requires workspace permissions `WEBHOOKS_VIEW` (read) / `WEBHOOKS_MANAGE`
 > Publish the Features page
 ```
 
+## Hosting the server (library)
+
+`createHostedServer` serves the same tools from a host that holds no token and no disk. Every tool takes a `workspace` (`<orgSlug>/<workspaceSlug>`); `list_workspaces` names the ones a connection may use. The package checks only the shape of `workspace` - everything below is the host's job:
+
+- **`resolveWorkspace(workspace)` is the authorization.** Check, on every call, that the caller is still a member of that workspace and that the connection was granted it. Throw the same message for "does not exist" and "not yours", so a refusal does not reveal which workspaces exist.
+- **The executor is the scope.** The `CmssyApi` it returns (`createCmssyApi(execute, workspaceId)`) runs every document as that user in that workspace; the package sends nothing that would scope it.
+- **`ConfirmStore.consume` is single-use and atomic.** Check and delete a ref in one step, or two concurrent calls with the same ref both run. Refs expire after 600 seconds. Hashes already cover the workspace, so one store per connection is safe.
+- **`fetchUrl` is the SSRF boundary.** Refuse private, loopback and link-local addresses and re-check every redirect. The package caps the body at 50MB while reading.
+
 ## Development
 
 ```bash

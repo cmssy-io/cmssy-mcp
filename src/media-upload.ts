@@ -83,6 +83,32 @@ async function resolveFromFile(
   return { bytes, filename, mimeType };
 }
 
+function tooLarge(source: string): Error {
+  return new Error(
+    `${source} exceeds the upload limit of ${MAX_UPLOAD_SIZE_MB}MB`,
+  );
+}
+
+async function readCapped(response: Response, source: string): Promise<Buffer> {
+  const declared = Number(response.headers.get("content-length"));
+  if (declared > MAX_UPLOAD_SIZE) throw tooLarge(source);
+  if (!response.body) return Buffer.alloc(0);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_UPLOAD_SIZE) {
+      await reader.cancel();
+      throw tooLarge(source);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function resolveFromUrl(
   url: string,
   filenameOverride: string | undefined,
@@ -92,7 +118,7 @@ async function resolveFromUrl(
   if (!response.ok) {
     throw new Error(`Fetching "${url}" failed with HTTP ${response.status}`);
   }
-  const bytes = Buffer.from(await response.arrayBuffer());
+  const bytes = await readCapped(response, `Content of "${url}"`);
   assertSize(bytes, `Content of "${url}"`);
   const filename =
     filenameOverride || basename(new URL(url).pathname) || "download";

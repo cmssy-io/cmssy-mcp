@@ -84,6 +84,14 @@ describe("tool annotations for the Claude directory", () => {
       destructiveHint: true,
     });
     expect(byName.update_region_settings?.readOnlyHint).toBe(false);
+    expect(
+      byName.create_webhook,
+      "a new webhook streams workspace events to a URL the caller picks, so it prompts like a delete",
+    ).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    });
   });
 
   it("lets the confirm gate outrank a read-like or additive name", () => {

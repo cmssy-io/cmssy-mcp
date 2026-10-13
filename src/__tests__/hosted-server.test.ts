@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { createHostedServer, LIST_WORKSPACES_TOOL } from "../hosted-server.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import type { AiTool, WorkspaceOps } from "@cmssy/ai-tools";
+import {
+  createHostedServer,
+  hostedUploadPolicy,
+  LIST_WORKSPACES_TOOL,
+} from "../hosted-server.js";
+import { bindHostedTool } from "../ai-tools-binder.js";
+import { createCmssyApi } from "../graphql-client.js";
 import { createServer } from "../server.js";
 import { ConfirmGate } from "../confirm-gate.js";
 import type { CmssyApi, CmssyClient } from "../graphql-client.js";
@@ -15,14 +24,14 @@ function workspaceClient(label: string): CmssyApi {
   };
 }
 
-function hosted() {
+function hosted(shared?: ConfirmGate) {
   const clients = {
     "acme/shop": workspaceClient("acme/shop"),
     "acme/blog": workspaceClient("acme/blog"),
   } as Record<string, CmssyApi>;
   const gates = {
-    "acme/shop": new ConfirmGate(),
-    "acme/blog": new ConfirmGate(),
+    "acme/shop": shared ?? new ConfirmGate(),
+    "acme/blog": shared ?? new ConfirmGate(),
   } as Record<string, ConfirmGate>;
   const resolveWorkspace = vi.fn(async (workspace: string) => {
     const client = clients[workspace];
@@ -103,6 +112,9 @@ describe("hosted server (CMS-2095)", () => {
     ["missing", {}],
     ["a bare workspace slug", { workspace: "shop" }],
     ["an id", { workspace: "6abd61e1a51c17ea3525336a" }],
+    ["three segments", { workspace: "acme/shop/x" }],
+    ["an empty workspace slug", { workspace: "acme/" }],
+    ["whitespace", { workspace: "acme/my shop" }],
   ])(
     "refuses a call whose workspace is %s before resolving it",
     async (_label, args) => {
@@ -209,5 +221,140 @@ describe("hosted server (CMS-2095)", () => {
     expect(JSON.parse(text(result))).toStrictEqual(
       await listWorkspaces.mock.results[0]!.value,
     );
+  });
+
+  it("binds a confirmation to its workspace even when the host shares one store", async () => {
+    const { server, clients } = hosted(new ConfirmGate());
+    const client = await connectServer(server);
+    const args = { pageId: "6abd61e1a51c17ea3525336a" };
+
+    const prompt = JSON.parse(
+      text(
+        await client.callTool({
+          name: "delete_page",
+          arguments: { workspace: "acme/shop", ...args },
+        }),
+      ),
+    ) as { ref: string; summary: string };
+    expect(prompt.summary).toContain("acme/shop");
+
+    const replayed = JSON.parse(
+      text(
+        await client.callTool({
+          name: "delete_page",
+          arguments: { workspace: "acme/blog", ...args, _confirm: prompt.ref },
+        }),
+      ),
+    ) as { refusedBecause: string };
+    expect(replayed.refusedBecause).toBe("args-changed");
+    expect(clients["acme/blog"]!.query).not.toHaveBeenCalled();
+  });
+
+  it("enforces a tool's cross-field rule on the hosted path too", async () => {
+    const { server, resolveWorkspace } = hosted();
+    const client = await connectServer(server);
+
+    const result = await client.callTool({
+      name: "update_media_folder",
+      arguments: { workspace: "acme/shop", id: "6abd61e1a51c17ea3525336a" },
+    });
+
+    expect(validationRefusal(result)).toBeTruthy();
+    expect(resolveWorkspace).not.toHaveBeenCalled();
+  });
+});
+
+describe("bindHostedTool (CMS-2095)", () => {
+  function echoTool(confirmGated?: true): AiTool {
+    return {
+      name: "echo_input",
+      description: "Echo",
+      inputSchema: z.object({ value: z.string() }) as AiTool["inputSchema"],
+      requiredPermissions: ["pages:edit"],
+      ...(confirmGated ? { confirmGated } : {}),
+      execute: async (input: unknown) => input,
+    } as AiTool;
+  }
+
+  async function connectEcho(tool: AiTool, confirm = new ConfirmGate()) {
+    const server = new McpServer({ name: "test", version: "0.0.0" });
+    bindHostedTool(server, tool, async () => ({
+      tool,
+      ops: {} as WorkspaceOps,
+      confirm,
+    }));
+    return connectServer(server);
+  }
+
+  it("hands the tool its own arguments, without the workspace", async () => {
+    const client = await connectEcho(echoTool());
+
+    const result = await client.callTool({
+      name: "echo_input",
+      arguments: { workspace: "acme/shop", value: "x" },
+    });
+
+    expect(JSON.parse(text(result))).toStrictEqual({ value: "x" });
+  });
+
+  it("awaits an asynchronous confirmation store", async () => {
+    const gate = new ConfirmGate();
+    const asyncStore = {
+      request: async (tool: string, hash: string) => gate.request(tool, hash),
+      consume: async (ref: string, tool: string, hash: string) =>
+        gate.consume(ref, tool, hash),
+    };
+    const client = await connectEcho(echoTool(true), asyncStore as never);
+
+    const prompt = JSON.parse(
+      text(
+        await client.callTool({
+          name: "echo_input",
+          arguments: { workspace: "acme/shop", value: "x" },
+        }),
+      ),
+    ) as { ref: string };
+    expect(prompt.ref).toMatch(/^[0-9a-f]{8}$/);
+
+    const approved = await client.callTool({
+      name: "echo_input",
+      arguments: { workspace: "acme/shop", value: "x", _confirm: prompt.ref },
+    });
+    expect(JSON.parse(text(approved))).toStrictEqual({ value: "x" });
+  });
+});
+
+describe("hosted helpers (CMS-2095)", () => {
+  it("never lets the hosted upload policy read local files", () => {
+    const fetchUrl = vi.fn();
+    expect(hostedUploadPolicy(fetchUrl)).toStrictEqual({
+      allowFilePath: false,
+      fetchUrl,
+    });
+  });
+
+  it("createCmssyApi forwards the document and its variables to the executor", async () => {
+    const execute = vi.fn(async () => ({ ok: true }));
+    const api = createCmssyApi(execute as never, "ws1", new Map());
+
+    await api.query("query Q($id: ID!) { x }", { id: "p1" });
+
+    expect(api.workspaceId).toBe("ws1");
+    expect(execute).toHaveBeenCalledWith("query Q($id: ID!) { x }", {
+      id: "p1",
+    });
+  });
+
+  it("createCmssyApi introspects a type once per cache", async () => {
+    const execute = vi.fn(async () => ({
+      __type: {
+        fields: [{ name: "title", type: { name: "String", kind: "SCALAR" } }],
+      },
+    }));
+    const api = createCmssyApi(execute as never, "ws1", new Map());
+
+    expect(await api.buildSelectionSet("SiteHeader")).toBe("title");
+    expect(await api.buildSelectionSet("SiteHeader")).toBe("title");
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 });

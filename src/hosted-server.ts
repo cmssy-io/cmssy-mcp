@@ -10,7 +10,7 @@ import {
 } from "./ai-tools-binder.js";
 import type { ConfirmStore } from "./confirm-gate.js";
 import type { CmssyApi } from "./graphql-client.js";
-import type { FetchUrl } from "./media-upload.js";
+import type { FetchUrl, UploadSourcePolicy } from "./media-upload.js";
 import { PACKAGE_VERSION } from "./package-version.js";
 import { createUpdateRegionSettingsTool } from "./region-settings.js";
 import { toolCatalogue } from "./server.js";
@@ -41,6 +41,10 @@ const unresolvedClient: CmssyApi = {
   buildSelectionSet: () => Promise.reject(new Error("No workspace resolved")),
 };
 
+export function hostedUploadPolicy(fetchUrl: FetchUrl): UploadSourcePolicy {
+  return { allowFilePath: false, fetchUrl };
+}
+
 function toolForClient(template: AiTool, client: CmssyApi): AiTool {
   return template.name === "update_region_settings"
     ? (createUpdateRegionSettingsTool(client) as AiTool)
@@ -49,7 +53,7 @@ function toolForClient(template: AiTool, client: CmssyApi): AiTool {
 
 export function createHostedServer(options: HostedServerOptions): McpServer {
   const server = new McpServer({ name: "cmssy", version: PACKAGE_VERSION });
-  const uploadPolicy = { allowFilePath: false, fetchUrl: options.fetchUrl };
+  const uploadPolicy = hostedUploadPolicy(options.fetchUrl);
 
   server.registerTool(
     LIST_WORKSPACES_TOOL,
