@@ -277,6 +277,7 @@ enum AuditLogAction {
   TOKEN_REVOKED
   USER_ADDED
   USER_INVITED
+  USER_OAUTH_APP_DISCONNECTED
   USER_REMOVED
   USER_ROLE_CHANGED
   USER_SCOPED_GRANT_ADDED
@@ -2113,6 +2114,8 @@ type Mutation {
   member: MemberMutations!
   model: ModelMutations!
   notification: NotificationMutations!
+  oauthApps: OAuthAppMutations!
+  oauthConsent: OAuthConsentMutations!
   order: OrderMutations!
   organization: OrganizationMutations!
   page: PageMutations!
@@ -2130,6 +2133,7 @@ type Mutation {
   viewer: ViewerMutations!
   webhook: WebhookMutations!
   workspace: WorkspaceMutations!
+  workspaceOAuthApps: WorkspaceOAuthAppMutations!
 }
 
 type MyScopedGrant {
@@ -2168,12 +2172,87 @@ type NotificationQueries {
   unreadCount: Int!
 }
 
+type OAuthAppMutations {
+  """Disconnects one of the caller's own connected apps."""
+  revoke(grantId: ID!): ID!
+}
+
+type OAuthAppQueries {
+  """
+  The MCP URL a client such as Claude connects to, or null when connecting apps is not configured.
+  """
+  connectorUrl: String
+  mine: [OAuthUserGrant!]!
+}
+
+type OAuthConnectableWorkspace {
+  id: ID!
+  name: String!
+  organizationName: String!
+  organizationRole: OAuthOrganizationRole
+  role: String
+  workspace: String!
+}
+
+type OAuthConsentMutations {
+  """Approves the request and returns the URL to send the browser to."""
+  approve(requestId: ID!, scopes: [String!]!, workspaceIds: [ID!]!): String!
+
+  """Refuses the request and returns the URL to send the browser to."""
+  deny(requestId: ID!): String!
+}
+
+type OAuthConsentQueries {
+  request(id: ID!): OAuthConsentRequest
+}
+
+type OAuthConsentRequest {
+  clientId: String!
+  clientName: String!
+  id: ID!
+  loopback: Boolean!
+  redirectHost: String!
+  scopes: [String!]!
+  workspaces: [OAuthConnectableWorkspace!]!
+}
+
+type OAuthGrantedWorkspace {
+  id: ID!
+  name: String!
+  organizationName: String!
+  workspace: String!
+}
+
 input OAuthLoginInput {
   attribution: SignupAttributionInput
   idToken: String!
   locale: String
   name: String
   provider: String!
+}
+
+enum OAuthOrganizationRole {
+  ADMIN
+  OWNER
+}
+
+type OAuthUserGrant {
+  clientId: String!
+  clientName: String!
+  createdAt: DateTime!
+  id: ID!
+  lastUsedAt: DateTime
+  scopes: [String!]!
+  workspaces: [OAuthGrantedWorkspace!]!
+}
+
+type OAuthWorkspaceGrant {
+  clientId: String!
+  clientName: String!
+  createdAt: DateTime!
+  id: ID!
+  scopes: [String!]!
+  userEmail: String
 }
 
 type OnboardingStep {
@@ -3647,6 +3726,8 @@ type Query {
   media: MediaQueries!
   model: ModelQueries!
   notification: NotificationQueries!
+  oauthApps: OAuthAppQueries!
+  oauthConsent: OAuthConsentQueries!
   order: OrderQueries!
   organization: OrganizationQueries!
   organizationAuditLog: OrganizationAuditLogQueries!
@@ -3665,6 +3746,7 @@ type Query {
   viewer: ViewerQueries!
   webhook: WebhookQueries!
   workspace: WorkspaceQueries!
+  workspaceOAuthApps: WorkspaceOAuthAppQueries!
 }
 
 type RecordMutations {
@@ -4768,6 +4850,17 @@ type WorkspaceMutations {
   update(id: ID!, input: UpdateWorkspaceInput!): Workspace!
   updateBranding(input: UpdateWorkspaceBrandingInput!): WorkspaceBranding!
   updateEditorialWorkflow(input: UpdateEditorialWorkflowInput!): EditorialWorkflow!
+}
+
+type WorkspaceOAuthAppMutations {
+  """
+  Cuts this workspace out of a member's connected app. The app keeps the member's other workspaces.
+  """
+  removeWorkspace(grantId: ID!): ID!
+}
+
+type WorkspaceOAuthAppQueries {
+  list: [OAuthWorkspaceGrant!]!
 }
 
 type WorkspaceOnboarding {
