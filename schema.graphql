@@ -2029,6 +2029,11 @@ enum ModelDeliveryAccess {
 
 type ModelMutations {
   create(input: CreateModelDefinitionInput!): ModelDefinition!
+
+  """
+  Create a ready product model (name, sku, price, inventory, image, description) and make it the cart's product source. Refused when the workspace already sells from a model.
+  """
+  createProductStarter(labels: ProductStarterLabelsInput!): ModelDefinition!
   delete(id: ID!): DeletionResult!
   update(input: UpdateModelDefinitionInput!): ModelDefinition
 }
@@ -3115,6 +3120,19 @@ type ProductQueries {
     offset: Int
     sort: String
   ): ProductCatalogList!
+}
+
+"""
+Display names for the starter product model and its fields, in the admin's language.
+"""
+input ProductStarterLabelsInput {
+  description: String!
+  image: String!
+  inventory: String!
+  model: String!
+  name: String!
+  price: String!
+  sku: String!
 }
 
 type ProductVariant {
