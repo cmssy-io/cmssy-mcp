@@ -917,16 +917,6 @@ input CreatePageTypeInput {
   urlPrefix: String
 }
 
-"""Input for creating a property definition"""
-input CreatePropertyDefinitionInput {
-  appliesTo: [String!]
-  description: String
-  fields: [PropertyFieldInput!]
-  isList: Boolean = false
-  name: String!
-  slug: String!
-}
-
 input CreateWebhookEndpointInput {
   description: String
   events: [String!]!
@@ -2128,7 +2118,6 @@ type Mutation {
   pageTask: PageTaskMutations!
   pageType: PageTypeMutations!
   product: ProductMutations!
-  property: PropertyMutations!
   public: PublicMutations!
   record: RecordMutations!
   role: RoleMutations!
@@ -2386,6 +2375,18 @@ type OrderEdit {
   totalBefore: Int!
 }
 
+"""
+What the order would total if updateItems were called with the same input: the frozen shipping charge and discount code stay, tax is recomputed. Nothing is written.
+"""
+type OrderEditPreview {
+  balanceDue: Int!
+  discount: Int!
+  shippingTotal: Int!
+  subtotal: Int!
+  tax: Int!
+  total: Int!
+}
+
 type OrderItem {
   currency: String!
 
@@ -2424,6 +2425,11 @@ type OrderMutations {
   Privileged server-only mutation. Records a payment against an order; it does NOT process or verify a payment. Your backend MUST verify the payment-provider (Stripe, etc.) webhook signature before calling this, and must never expose it to a browser/site-member context. Requires ORDERS_MANAGE.
   """
   markPaid(input: MarkOrderPaidInput!): Order!
+
+  """
+  Make the workspace's next order number at least `next`, e.g. 5000001. It can only be raised: numbers already issued keep theirs, and a value at or below the next number is refused. Returns the next number.
+  """
+  raiseNextNumber(next: Int!): Int!
   recordInvoice(input: RecordOrderInvoiceInput!): Order!
 
   """
@@ -2484,8 +2490,14 @@ input OrderPipelineStageInput {
 }
 
 type OrderQueries {
+  editPreview(input: EditOrderInput!): OrderEditPreview!
   get(id: ID!): Order
   list(companyId: ID, customerId: ID, dateFrom: DateTime, dateTo: DateTime, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, search: String, skip: Int): OrderListResult!
+
+  """
+  The number the workspace's next order will get. Order numbers only ever go up.
+  """
+  nextNumber: Int!
   pipeline: OrderPipeline!
 }
 
@@ -3168,21 +3180,6 @@ input PromoteDevDraftInput {
   pageId: String!
 }
 
-"""A property definition for extensible fields"""
-type PropertyDefinition {
-  appliesTo: [String!]!
-  createdAt: DateTime!
-  createdBy: String
-  description: String
-  fields: [PropertyField!]!
-  id: String!
-  isList: Boolean!
-  name: String!
-  slug: String!
-  updatedAt: DateTime!
-  workspaceId: String!
-}
-
 type PropertyField {
   acceptedTypes: [MediaAcceptedType!]
   defaultValue: String
@@ -3275,26 +3272,9 @@ type PropertyFieldTypeDefinition {
   type: String!
 }
 
-type PropertyMutations {
-  """Create a new property definition"""
-  create(input: CreatePropertyDefinitionInput!): PropertyDefinition!
-
-  """Delete a property definition"""
-  delete(id: ID!): DeletionResult!
-
-  """Update a property definition"""
-  update(id: ID!, input: UpdatePropertyDefinitionInput!): PropertyDefinition!
-}
-
 type PropertyQueries {
   """Get all available property field types with metadata"""
   fieldTypes: [PropertyFieldTypeDefinition!]!
-
-  """Get a property definition by ID"""
-  get(propertyDefinitionId: ID!): PropertyDefinition
-
-  """List property definitions in a workspace"""
-  list(appliesTo: String): [PropertyDefinition!]!
 
   """
   Pickable rows for a relation field pointed at one of the relation target collections. Each target is gated by its own view permission; pages narrow to the caller's scoped grants the way page reads do.
@@ -4502,15 +4482,6 @@ input UpdatePageTypeInput {
   urlPrefix: String
 }
 
-"""Input for updating a property definition"""
-input UpdatePropertyDefinitionInput {
-  appliesTo: [String!]
-  description: String
-  fields: [PropertyFieldInput!]
-  isList: Boolean
-  name: String
-}
-
 input UpdateSiteConfigInput {
   apiToken: String
   defaultLanguage: String
@@ -4524,7 +4495,6 @@ input UpdateSiteConfigInput {
 }
 
 input UpdateUserInput {
-  customFields: [UserCustomFieldInput!]
   email: String
   password: String
   profile: UserProfileInput
@@ -4617,7 +4587,6 @@ type UsageHistoryTotals {
 
 type User {
   createdAt: DateTime!
-  customFields: [UserCustomField!]!
   email: String!
   id: String!
   isOrganizationOwner: Boolean
@@ -4639,16 +4608,6 @@ type User {
 type UserAuthResponse {
   message: String!
   success: Boolean!
-}
-
-type UserCustomField {
-  propertySlug: String!
-  value: JSON
-}
-
-input UserCustomFieldInput {
-  propertySlug: String!
-  value: JSON
 }
 
 type UserMutations {
