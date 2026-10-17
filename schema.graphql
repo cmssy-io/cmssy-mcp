@@ -1164,8 +1164,14 @@ type DiscountQueries {
 }
 
 input EditOrderInput {
-  items: [EditOrderItemInput!]!
+  """
+  The order's lines after the edit, repriced from the catalog. Omitted keeps the lines exactly as they are; then shipping is required.
+  """
+  items: [EditOrderItemInput!]
   orderId: ID!
+
+  """Omitted keeps the shipping method, charge and address as they are."""
+  shipping: EditOrderShippingInput
 }
 
 input EditOrderItemInput {
@@ -1174,6 +1180,17 @@ input EditOrderItemInput {
   quantity: Int!
   recordId: ID
   variantSelections: JSON
+}
+
+"""
+Replaces the order's shipping: the method is repriced from the cart settings for this address and the edited items, as at checkout.
+"""
+input EditOrderShippingInput {
+  """Required when methodId is set."""
+  address: ShippingAddressInput
+
+  """Shipping method id from the cart settings. Null ships nothing."""
+  methodId: String
 }
 
 type EditorialWorkflow {
@@ -2376,7 +2393,7 @@ type OrderEdit {
 }
 
 """
-What the order would total if updateItems were called with the same input: the frozen shipping charge and discount code stay, tax is recomputed. Nothing is written.
+What the order would total if updateItems were called with the same input: the discount code stays, tax is recomputed, and shipping is repriced only when the input carries it. Nothing is written.
 """
 type OrderEditPreview {
   balanceDue: Int!
