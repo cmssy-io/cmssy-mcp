@@ -1154,6 +1154,20 @@ export const IMPORT_MODEL_RECORDS_MUTATION = `
   }
 `;
 
+export const BULK_UPDATE_MODEL_RECORDS_MUTATION = `
+  mutation BulkUpdateModelRecords($input: BulkUpdateModelRecordsInput!) {
+    record {
+      bulkUpdate(input: $input) {
+        updated
+        unchanged
+        failedCount
+        failed { id message }
+        nextCursor
+      }
+    }
+  }
+`;
+
 // ─── Commerce: Orders ────────────────────────────────────────
 
 // Selection set reused by every order read + mutation (they all return Order).

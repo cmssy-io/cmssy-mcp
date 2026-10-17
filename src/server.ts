@@ -54,6 +54,7 @@ import {
   updateRecordTool,
   deleteRecordTool,
   importRecordsTool,
+  bulkUpdateRecordsTool,
   listOrdersTool,
   getOrderTool,
   getOrderPipelineTool,
@@ -190,6 +191,7 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     updateRecordTool,
     deleteRecordTool,
     importRecordsTool,
+    bulkUpdateRecordsTool,
 
     // ─── Commerce: Orders ────────────────────────────────────────
 

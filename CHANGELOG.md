@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.97.0
+
+- **`bulk_update_records`** (`@cmssy/ai-tools` 0.69.0): set field values or a
+  status on many records of a model at once - explicit ids (up to 200) or every
+  record matching a filter, continued with `cursor`. It needs the user's
+  confirmation, like the other bulk writes.
+- **`delete_media_folder` and `delete_page_type` need confirmation**, and the
+  media folder tools ask for the permissions their mutations check (ai-tools
+  0.69.0).
+
 ## 0.96.0
 
 - **The package is also a library (CMS-2095).** `import { createServer,
