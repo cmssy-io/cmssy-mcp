@@ -16,6 +16,7 @@ import type {
   BlockUsageReport,
   ModelDetail,
   ImportResult,
+  RecordBulkUpdateResult,
   ModelSummary,
   ProductBulkDeleteResult,
   ProposedField,
@@ -61,6 +62,7 @@ import {
   DELETE_MODEL_DEFINITION_MUTATION,
   DELETE_MODEL_RECORD_MUTATION,
   IMPORT_MODEL_RECORDS_MUTATION,
+  BULK_UPDATE_MODEL_RECORDS_MUTATION,
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
   PAGE_RESOLVED_LAYOUTS_QUERY,
@@ -814,6 +816,22 @@ export function createMcpWorkspaceOps(
           },
         });
         return res.record.import;
+      },
+      bulkUpdateRecords: async (modelIdOrSlug, selection, patch, cursor) => {
+        const model = await resolveModel(client, modelIdOrSlug);
+        if (!model) return null;
+        const res = await client.query<{
+          record: { bulkUpdate: RecordBulkUpdateResult };
+        }>(BULK_UPDATE_MODEL_RECORDS_MUTATION, {
+          input: {
+            modelId: model.id,
+            ...selection,
+            ...(patch.data !== undefined ? { data: patch.data } : {}),
+            ...(patch.status !== undefined ? { status: patch.status } : {}),
+            ...(cursor !== undefined ? { cursor } : {}),
+          },
+        });
+        return res.record.bulkUpdate;
       },
     },
     pages: {
