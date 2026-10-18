@@ -961,6 +961,22 @@ input CreatePageTypeInput {
   urlPrefix: String
 }
 
+input CreateShipmentInput {
+  carrier: String
+  note: String
+  orderId: ID!
+
+  """
+  The parcel carries only part of the order: fulfillment becomes partially_fulfilled instead of fulfilled.
+  """
+  partial: Boolean
+
+  """Defaults to pending."""
+  status: ShipmentStatus
+  trackingNumber: String
+  trackingUrl: String
+}
+
 input CreateWebhookEndpointInput {
   description: String
   events: [String!]!
@@ -2385,6 +2401,7 @@ type Order {
   poNumber: String
   pricesIncludeTax: Boolean!
   refundedAmount: Int!
+  shipments: [OrderShipment!]!
 
   """Delivery address frozen at checkout (CMS-913)"""
   shippingAddress: OrderAddress
@@ -2483,6 +2500,11 @@ type OrderMutations {
   create(input: CreateManualOrderInput!): Order!
 
   """
+  Add a parcel to the order. An unfulfilled or partially fulfilled order moves to fulfilled, or to partially_fulfilled when partial is set.
+  """
+  createShipment(input: CreateShipmentInput!): Order!
+
+  """
   Privileged server-only mutation. Records a payment against an order; it does NOT process or verify a payment. Your backend MUST verify the payment-provider (Stripe, etc.) webhook signature before calling this, and must never expose it to a browser/site-member context. Requires ORDERS_MANAGE.
   """
   markPaid(input: MarkOrderPaidInput!): Order!
@@ -2512,6 +2534,11 @@ type OrderMutations {
   transitionFulfillment(input: FulfillOrderInput!): Order!
   updateDetails(input: UpdateOrderDetailsInput!): Order!
   updateItems(input: EditOrderInput!): Order!
+
+  """
+  Change a parcel's status or tracking. Sending what is already stored changes nothing and sends no webhook.
+  """
+  updateShipment(input: UpdateShipmentInput!): Order!
   upsertPipeline(input: UpsertOrderPipelineInput!): OrderPipeline!
 }
 
@@ -2560,6 +2587,22 @@ type OrderQueries {
   """
   nextNumber: Int!
   pipeline: OrderPipeline!
+}
+
+"""
+One parcel sent for the order: carrier, tracking and its delivery status.
+"""
+type OrderShipment {
+  carrier: String
+  createdAt: DateTime!
+
+  """Status history, oldest first."""
+  events: [ShipmentEvent!]!
+  id: ID!
+  status: ShipmentStatus!
+  trackingNumber: String
+  trackingUrl: String
+  updatedAt: DateTime!
 }
 
 """
@@ -3574,6 +3617,7 @@ type PublicOrder {
   poNumber: String
   pricesIncludeTax: Boolean!
   refundedAmount: Int!
+  shipments: [ShipmentTracking!]!
   shippingAddress: OrderAddress
   shippingMethod: OrderShippingMethod
   shippingTotal: Int!
@@ -4048,6 +4092,30 @@ input SetProductTiersInput {
 input SetProductVariantsInput {
   recordId: ID!
   variants: [ProductVariantInput!]!
+}
+
+type ShipmentEvent {
+  at: DateTime!
+  note: String
+  status: ShipmentStatus!
+}
+
+enum ShipmentStatus {
+  delivered
+  exception
+  in_transit
+  out_for_delivery
+  pending
+  returned
+}
+
+"""A parcel sent for the order, as the buyer may see it."""
+type ShipmentTracking {
+  carrier: String
+  status: ShipmentStatus!
+  trackingNumber: String
+  trackingUrl: String
+  updatedAt: DateTime!
 }
 
 """
@@ -4546,6 +4614,23 @@ input UpdatePageTypeInput {
   schemaType: String
   slug: String
   urlPrefix: String
+}
+
+input UpdateShipmentInput {
+  """Omitted leaves it unchanged; null clears it."""
+  carrier: String
+
+  """Recorded in the status history with the new status."""
+  note: String
+  orderId: ID!
+  shipmentId: ID!
+  status: ShipmentStatus
+
+  """Omitted leaves it unchanged; null clears it."""
+  trackingNumber: String
+
+  """Omitted leaves it unchanged; null clears it."""
+  trackingUrl: String
 }
 
 input UpdateSiteConfigInput {

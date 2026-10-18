@@ -66,6 +66,8 @@ import {
   refundOrderTool,
   cancelOrderTool,
   transitionOrderFulfillmentTool,
+  createShipmentTool,
+  updateShipmentTool,
   setOrderPipelineStageTool,
   recordOrderInvoiceTool,
   listCartsTool,
@@ -206,6 +208,8 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     refundOrderTool,
     cancelOrderTool,
     transitionOrderFulfillmentTool,
+    createShipmentTool,
+    updateShipmentTool,
     setOrderPipelineStageTool,
     recordOrderInvoiceTool,
 
