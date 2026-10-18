@@ -168,6 +168,20 @@ const CART_CONFIG_FRAGMENT = `
     freeAbove
   }
   productSources { modelSlug }
+  orderFields {
+    key
+    label
+    type
+    required
+    customerCanSet
+    description
+    options { value label }
+    minLength
+    maxLength
+    minValue
+    maxValue
+    pattern
+  }
 `;
 
 export const SITE_CONFIG_QUERY = `
@@ -1264,6 +1278,7 @@ const ORDER_FRAGMENT = `
   }
   payments { amount reference provider at }
   taxSummary { name rate base amount }
+  customFields
   createdAt
   updatedAt
 `;

@@ -1934,6 +1934,7 @@ export function createMcpWorkspaceOps(
               items?: unknown;
               payments?: unknown;
               shipments?: OrderShipment[] | null;
+              customFields?: Record<string, unknown> | null;
               createdAt?: string | null;
             } | null;
           };
@@ -1965,6 +1966,7 @@ export function createMcpWorkspaceOps(
           items: o.items ?? null,
           payments: o.payments ?? null,
           shipments: o.shipments ?? [],
+          customFields: o.customFields ?? {},
           createdAt: o.createdAt ?? null,
         };
       },

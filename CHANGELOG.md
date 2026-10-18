@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.100.0
+
+- **Custom order fields** (`@cmssy/ai-tools` 0.72.0): `get_order` returns the
+  order's `customFields` by key, and `update_order_details` takes a
+  `customFields` patch (a value sets a field, `null` removes it).
+  `get_site_config` and `update_cart_config` carry the field definitions as
+  `orderFields` (8 types, `customerCanSet`, `required` only with it), replaced
+  as a whole list.
+
 ## 0.99.0
 
 - **Field labels per language** (`@cmssy/ai-tools` 0.71.0): a model or page-type

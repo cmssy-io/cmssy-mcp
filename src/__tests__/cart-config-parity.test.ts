@@ -76,6 +76,12 @@ describe("update_cart_config mirrors CartConfigInput (CMS-1908)", () => {
     expect(shapeKeys(tax.shape)).toEqual(inputFields("TaxRateInput"));
   });
 
+  it("describes an order field with the backend's own fields", () => {
+    const field = unwrapArrayItem(toolShape.orderFields!);
+
+    expect(shapeKeys(field.shape)).toEqual(inputFields("OrderFieldInput"));
+  });
+
   it("describes a product source with the backend's own fields", () => {
     const source = unwrapArrayItem(toolShape.productSources!);
 
@@ -113,6 +119,13 @@ describe("get_site_config reads back everything update_cart_config can set", () 
     const missing = outputFields("ShippingMethodConfig").filter(
       (f) => !selected.has(f),
     );
+
+    expect(missing).toEqual([]);
+  });
+
+  it("selects every field of a stored order field", () => {
+    const selected = selectedUnder("orderFields");
+    const missing = outputFields("OrderField").filter((f) => !selected.has(f));
 
     expect(missing).toEqual([]);
   });
