@@ -1197,8 +1197,16 @@ const ORDER_FRAGMENT = `
   paymentReference
   paidAt
   fulfilledAt
-  trackingNumber
-  trackingCarrier
+  shipments {
+    id
+    carrier
+    trackingNumber
+    trackingUrl
+    status
+    events { status at note }
+    createdAt
+    updatedAt
+  }
   notes
   invoiceNumber
   invoiceUrl
@@ -1369,6 +1377,18 @@ export const CANCEL_ORDER_MUTATION = `
 export const TRANSITION_ORDER_FULFILLMENT_MUTATION = `
   mutation TransitionOrderFulfillment($input: FulfillOrderInput!) {
     order { transitionFulfillment(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const CREATE_SHIPMENT_MUTATION = `
+  mutation CreateShipment($input: CreateShipmentInput!) {
+    order { createShipment(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const UPDATE_SHIPMENT_MUTATION = `
+  mutation UpdateShipment($input: UpdateShipmentInput!) {
+    order { updateShipment(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 

@@ -1,5 +1,16 @@
 # @cmssy/mcp-server
 
+## 0.98.0
+
+- **Parcels on an order** (`@cmssy/ai-tools` 0.70.0): `create_shipment` adds a
+  parcel - carrier, tracking number, tracking link, status, an optional note,
+  and `partial` for a split delivery. `update_shipment` changes one parcel's
+  status or tracking (null clears a field) and can add a note to its history.
+  `get_order` returns the parcels with their ids.
+- **Tracking moved off the order**: `transition_order_fulfillment` and
+  `update_order_details` no longer take `trackingNumber` / `trackingCarrier`,
+  and `get_order` no longer reads them.
+
 ## 0.97.0
 
 - **`bulk_update_records`** (`@cmssy/ai-tools` 0.69.0): set field values or a

@@ -23,6 +23,7 @@ import type {
   WorkspaceOps,
   CustomerSummary,
   CustomerAccountEmailResult,
+  OrderShipment,
 } from "@cmssy/ai-tools";
 import {
   BLOCK_USAGE_QUERY,
@@ -106,6 +107,8 @@ import {
   REFUND_ORDER_MUTATION,
   CANCEL_ORDER_MUTATION,
   TRANSITION_ORDER_FULFILLMENT_MUTATION,
+  CREATE_SHIPMENT_MUTATION,
+  UPDATE_SHIPMENT_MUTATION,
   SET_ORDER_PIPELINE_STAGE_MUTATION,
   RECORD_ORDER_INVOICE_MUTATION,
   DISCOUNT_BY_ID_QUERY,
@@ -1928,6 +1931,7 @@ export function createMcpWorkspaceOps(
               balanceDue?: number | null;
               items?: unknown;
               payments?: unknown;
+              shipments?: OrderShipment[] | null;
               createdAt?: string | null;
             } | null;
           };
@@ -1958,6 +1962,7 @@ export function createMcpWorkspaceOps(
           balanceDue: o.balanceDue ?? null,
           items: o.items ?? null,
           payments: o.payments ?? null,
+          shipments: o.shipments ?? [],
           createdAt: o.createdAt ?? null,
         };
       },
@@ -2043,12 +2048,7 @@ export function createMcpWorkspaceOps(
         const o = res.order.cancel;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
-      transitionFulfillment: async (
-        orderId,
-        status,
-        trackingNumber,
-        trackingCarrier,
-      ) => {
+      transitionFulfillment: async (orderId, status) => {
         const res = await client.query<{
           order: {
             transitionFulfillment: {
@@ -2057,14 +2057,31 @@ export function createMcpWorkspaceOps(
             };
           };
         }>(TRANSITION_ORDER_FULFILLMENT_MUTATION, {
-          input: {
-            orderId,
-            status,
-            trackingNumber,
-            trackingCarrier,
-          },
+          input: { orderId, status },
         });
         const o = res.order.transitionFulfillment;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      createShipment: async (orderId, shipment) => {
+        const res = await client.query<{
+          order: {
+            createShipment: { id: string; orderNumber?: number | null };
+          };
+        }>(CREATE_SHIPMENT_MUTATION, {
+          input: { orderId, ...shipment },
+        });
+        const o = res.order.createShipment;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      updateShipment: async (orderId, shipmentId, changes) => {
+        const res = await client.query<{
+          order: {
+            updateShipment: { id: string; orderNumber?: number | null };
+          };
+        }>(UPDATE_SHIPMENT_MUTATION, {
+          input: { orderId, shipmentId, ...changes },
+        });
+        const o = res.order.updateShipment;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       setPipelineStage: async (orderId, stageId) => {

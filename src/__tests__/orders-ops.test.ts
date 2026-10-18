@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import type { CmssyClient } from "../graphql-client.js";
-import { ORDER_BY_ID_QUERY, ORDERS_QUERY } from "../queries.js";
+import {
+  CREATE_SHIPMENT_MUTATION,
+  ORDER_BY_ID_QUERY,
+  ORDERS_QUERY,
+  TRANSITION_ORDER_FULFILLMENT_MUTATION,
+  UPDATE_SHIPMENT_MUTATION,
+} from "../queries.js";
 
 interface Sent {
   document: string;
@@ -117,6 +123,115 @@ describe("orders ops (CMS-1915)", () => {
       customerId: "c-1",
       companyId: "co-1",
       companyName: "Acme",
+    });
+  });
+});
+
+describe("order shipments ops", () => {
+  const ack = { id: "o-1", orderNumber: 11 };
+  const parcel = {
+    id: "s-1",
+    carrier: "InPost",
+    trackingNumber: "620",
+    trackingUrl: null,
+    status: "in_transit",
+    events: [{ status: "in_transit", at: "2026-10-01T10:00:00.000Z", note: null }],
+    createdAt: "2026-10-01T10:00:00.000Z",
+    updatedAt: "2026-10-01T10:00:00.000Z",
+  };
+
+  it("get selects every parcel field and no longer reads tracking off the order", () => {
+    const parcelFields = selectedUnder(ORDER_BY_ID_QUERY, "shipments");
+    const orderFields = selectedUnder(ORDER_BY_ID_QUERY, "get");
+
+    expect([...parcelFields].sort()).toEqual(
+      [
+        "carrier",
+        "createdAt",
+        "events",
+        "id",
+        "status",
+        "trackingNumber",
+        "trackingUrl",
+        "updatedAt",
+      ].sort(),
+    );
+    expect(orderFields.has("trackingNumber")).toBe(false);
+    expect(orderFields.has("trackingCarrier")).toBe(false);
+  });
+
+  it("get hands back the parcels, and an empty list for an order the API sends none for", async () => {
+    const { client } = clientAnswering([
+      { order: { get: { ...rawSummary, shipments: [parcel] } } },
+      { order: { get: { ...rawSummary, shipments: null } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect((await ops.orders.get("o-1"))!.shipments).toEqual([parcel]);
+    expect((await ops.orders.get("o-1"))!.shipments).toEqual([]);
+  });
+
+  it("createShipment sends the parcel with its order", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { createShipment: ack } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    const result = await ops.orders.createShipment("o-1", {
+      carrier: "InPost",
+      status: "in_transit",
+      partial: true,
+    });
+
+    expect(sent[0]).toEqual({
+      document: CREATE_SHIPMENT_MUTATION,
+      variables: {
+        input: {
+          orderId: "o-1",
+          carrier: "InPost",
+          status: "in_transit",
+          partial: true,
+        },
+      },
+    });
+    expect(result).toEqual(ack);
+  });
+
+  it("updateShipment sends a cleared field as null and leaves out what it keeps", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { updateShipment: ack } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.orders.updateShipment("o-1", "s-1", {
+      trackingUrl: null,
+      status: "delivered",
+    });
+
+    expect(sent[0]).toEqual({
+      document: UPDATE_SHIPMENT_MUTATION,
+      variables: {
+        input: {
+          orderId: "o-1",
+          shipmentId: "s-1",
+          trackingUrl: null,
+          status: "delivered",
+        },
+      },
+    });
+  });
+
+  it("transitionFulfillment sends only the status", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { transitionFulfillment: ack } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.orders.transitionFulfillment("o-1", "fulfilled");
+
+    expect(sent[0]).toEqual({
+      document: TRANSITION_ORDER_FULFILLMENT_MUTATION,
+      variables: { input: { orderId: "o-1", status: "fulfilled" } },
     });
   });
 });
