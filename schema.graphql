@@ -1626,8 +1626,6 @@ type FormSubmitResponse {
 input FulfillOrderInput {
   orderId: ID!
   status: String!
-  trackingCarrier: String
-  trackingNumber: String
 }
 
 input GenerateAltTextInput {
@@ -2416,8 +2414,6 @@ type Order {
   tax: Int!
   taxSummary: [OrderTaxSummaryLine!]!
   total: Int!
-  trackingCarrier: String
-  trackingNumber: String
   updatedAt: DateTime!
   workspaceId: String!
 }
@@ -3287,20 +3283,22 @@ input PromoteDevDraftInput {
 type PropertyField {
   acceptedTypes: [MediaAcceptedType!]
   defaultValue: String
-  description: String
+  description: JSON
   fields: JSON
   hidden: Boolean
   itemFields: JSON
   itemType: PropertyFieldType
   key: String!
-  label: String!
+
+  """The field's label per language, e.g. { en: "Size" }."""
+  label: JSON!
   localized: Boolean
   maxLength: Int
   maxValue: Float
   minLength: Int
   minValue: Float
   multiple: Boolean
-  options: [String!]!
+  options: [PropertyFieldOption!]!
   pattern: String
   relationTo: String
   relationType: RelationType
@@ -3312,26 +3310,41 @@ type PropertyField {
 input PropertyFieldInput {
   acceptedTypes: [MediaAcceptedType!]
   defaultValue: String
-  description: String
+  description: JSON
   fields: JSON
   hidden: Boolean
   itemFields: JSON
   itemType: PropertyFieldType
   key: String!
-  label: String!
+
+  """The label per language, e.g. { en: "Size" }."""
+  label: JSON!
   localized: Boolean
   maxLength: Int
   maxValue: Float
   minLength: Int
   minValue: Float
   multiple: Boolean
-  options: [String!]
+  options: [PropertyFieldOptionInput!]
   pattern: String
   relationTo: String
   relationType: RelationType
   required: Boolean
   schemaProperty: String
   type: PropertyFieldType!
+}
+
+"""
+One choice of a select or multiselect field: the stored value and its label per language.
+"""
+type PropertyFieldOption {
+  label: JSON!
+  value: String!
+}
+
+input PropertyFieldOptionInput {
+  label: JSON!
+  value: String!
 }
 
 enum PropertyFieldType {
@@ -3626,8 +3639,6 @@ type PublicOrder {
   tax: Int!
   taxSummary: [OrderTaxSummaryLine!]!
   total: Int!
-  trackingCarrier: String
-  trackingNumber: String
 }
 
 type PublicOrderItem {
@@ -4562,8 +4573,6 @@ input UpdateOrderDetailsInput {
   Correct the delivery address. Omitted leaves it unchanged; null clears it.
   """
   shippingAddress: ShippingAddressInput
-  trackingCarrier: String
-  trackingNumber: String
 }
 
 input UpdateOrganizationInput {

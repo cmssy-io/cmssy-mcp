@@ -37,7 +37,7 @@ function clientAnswering(answers: unknown[]) {
 }
 
 const fields = [
-  { key: "email", label: "Email", type: "email" as const, required: true },
+  { key: "email", label: { en: "Email" }, type: "email" as const, required: true },
 ];
 const MODEL_ID = "64b1f0c2a3d4e5f60718293a";
 

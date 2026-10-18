@@ -21,7 +21,7 @@ function clientRecording(respond: (document: string) => unknown) {
 const storedFields = [
   {
     key: "seo",
-    label: "SEO",
+    label: { en: "SEO" },
     type: "object",
     required: false,
     hidden: true,
@@ -32,14 +32,14 @@ const storedFields = [
     fields: [
       {
         key: "title",
-        label: "Title",
+        label: { en: "Title" },
         type: "text",
         required: true,
         localized: true,
         minLength: 3,
         maxLength: 60,
       },
-      { key: "noindex", label: "No index", type: "boolean", required: false },
+      { key: "noindex", label: { en: "No index" }, type: "boolean", required: false },
     ],
     itemType: null,
     itemFields: null,
@@ -56,7 +56,7 @@ const storedFields = [
   },
   {
     key: "slugPart",
-    label: "Slug part",
+    label: { en: "Slug part" },
     type: "text",
     required: false,
     pattern: "^[a-z0-9-]+$",
@@ -64,7 +64,7 @@ const storedFields = [
   },
   {
     key: "gallery",
-    label: "Gallery",
+    label: { en: "Gallery" },
     type: "media",
     required: false,
     acceptedTypes: ["image", "video"],
@@ -72,15 +72,15 @@ const storedFields = [
   },
   {
     key: "faq",
-    label: "FAQ",
+    label: { en: "FAQ" },
     type: "list",
     required: false,
     itemType: "object",
     itemFields: [
-      { key: "q", label: "Question", type: "text", required: true },
+      { key: "q", label: { en: "Question" }, type: "text", required: true },
       {
         key: "author",
-        label: "Author",
+        label: { en: "Author" },
         type: "relation",
         required: false,
         relationTo: "model:author",
@@ -90,7 +90,7 @@ const storedFields = [
   },
   {
     key: "related",
-    label: "Related",
+    label: { en: "Related" },
     type: "relation",
     required: false,
     relationTo: "pages",
@@ -103,26 +103,26 @@ const storedFields = [
 const roundTripped = [
   {
     key: "seo",
-    label: "SEO",
+    label: { en: "SEO" },
     type: "object",
     required: false,
     hidden: true,
     fields: [
       {
         key: "title",
-        label: "Title",
+        label: { en: "Title" },
         type: "text",
         required: true,
         localized: true,
         minLength: 3,
         maxLength: 60,
       },
-      { key: "noindex", label: "No index", type: "boolean", required: false },
+      { key: "noindex", label: { en: "No index" }, type: "boolean", required: false },
     ],
   },
   {
     key: "slugPart",
-    label: "Slug part",
+    label: { en: "Slug part" },
     type: "text",
     required: false,
     schemaProperty: "identifier",
@@ -130,7 +130,7 @@ const roundTripped = [
   },
   {
     key: "gallery",
-    label: "Gallery",
+    label: { en: "Gallery" },
     type: "media",
     required: false,
     acceptedTypes: ["image", "video"],
@@ -138,15 +138,15 @@ const roundTripped = [
   },
   {
     key: "faq",
-    label: "FAQ",
+    label: { en: "FAQ" },
     type: "list",
     required: false,
     itemType: "object",
     itemFields: [
-      { key: "q", label: "Question", type: "text", required: true },
+      { key: "q", label: { en: "Question" }, type: "text", required: true },
       {
         key: "author",
-        label: "Author",
+        label: { en: "Author" },
         type: "relation",
         required: false,
         relationTo: "model:author",
@@ -156,7 +156,7 @@ const roundTripped = [
   },
   {
     key: "related",
-    label: "Related",
+    label: { en: "Related" },
     type: "relation",
     required: false,
     relationTo: "pages",

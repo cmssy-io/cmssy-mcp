@@ -23,7 +23,7 @@ function clientAnswering(answers: unknown[]) {
 const MODEL_ID = "64b1f0c2a3d4e5f60718293a";
 const resolved = { model: { get: { id: MODEL_ID, name: "Part", fields: [] } } };
 const fields = [
-  { key: "code", label: "Code", type: "text" as const, required: false },
+  { key: "code", label: { en: "Code" }, type: "text" as const, required: false },
 ];
 const imported = {
   importedCount: 1,

@@ -31,7 +31,7 @@ function sentFields(sent: Sent[]) {
 
 const relation = {
   key: "related",
-  label: "Related",
+  label: { en: "Related" },
   type: "relation" as const,
   required: false,
   relationTo: "pages",
@@ -84,7 +84,7 @@ describe("page-type relation fields through the MCP ops (CMS-1686)", () => {
           fields: [
             {
               key: "author",
-              label: "Author",
+              label: { en: "Author" },
               type: "relation",
               relationTo: "model:author",
               relationType: "hasMany",
@@ -109,7 +109,7 @@ describe("page-type relation fields through the MCP ops (CMS-1686)", () => {
       pageType: {
         get: {
           ...written,
-          fields: [{ key: "title", label: "Title", type: "text" }],
+          fields: [{ key: "title", label: { en: "Title" }, type: "text" }],
         },
       },
     }));
@@ -118,7 +118,7 @@ describe("page-type relation fields through the MCP ops (CMS-1686)", () => {
 
     expect(detail?.fields[0]).toStrictEqual({
       key: "title",
-      label: "Title",
+      label: { en: "Title" },
       type: "text",
       required: false,
     });
