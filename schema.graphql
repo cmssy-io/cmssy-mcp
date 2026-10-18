@@ -139,6 +139,11 @@ type AiProvider {
   groqModel: String!
   mistralModel: String!
   openaiModel: String!
+
+  """
+  Whether Spotlight may use OpenAI's own web search. OpenAI can open any page while searching, outside the confirmation Spotlight asks for before a change, so it is off until an admin turns it on.
+  """
+  openaiWebSearch: Boolean!
 }
 
 """A model the provider serves to the key it was asked with"""
@@ -4361,6 +4366,7 @@ input UpdateAiProviderInput {
   mistralModel: String
   openaiApiKey: String
   openaiModel: String
+  openaiWebSearch: Boolean
 }
 
 input UpdateApiTokenInput {
