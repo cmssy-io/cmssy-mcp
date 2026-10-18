@@ -127,6 +127,44 @@ describe("orders ops (CMS-1915)", () => {
   });
 });
 
+describe("order custom fields ops", () => {
+  it("get selects and hands back the custom fields, and {} when the API sends none", async () => {
+    const { client } = clientAnswering([
+      {
+        order: { get: { ...rawSummary, customFields: { giftMessage: "Hi" } } },
+      },
+      { order: { get: { ...rawSummary, customFields: null } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(selectedUnder(ORDER_BY_ID_QUERY, "get").has("customFields")).toBe(
+      true,
+    );
+    expect((await ops.orders.get("o-1"))!.customFields).toEqual({
+      giftMessage: "Hi",
+    });
+    expect((await ops.orders.get("o-1"))!.customFields).toEqual({});
+  });
+
+  it("updateDetails sends the custom field patch with nulls intact", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { updateDetails: { id: "o-1", orderNumber: 11 } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.orders.updateDetails("o-1", {
+      customFields: { internalRef: "X-9", giftMessage: null },
+    });
+
+    expect(sent[0]!.variables).toEqual({
+      input: {
+        orderId: "o-1",
+        customFields: { internalRef: "X-9", giftMessage: null },
+      },
+    });
+  });
+});
+
 describe("order shipments ops", () => {
   const ack = { id: "o-1", orderNumber: 11 };
   const parcel = {

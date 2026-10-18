@@ -653,6 +653,7 @@ type CartConfig {
   lowStockThreshold: Int
   maxItemsPerCart: Int!
   maxQuantityPerItem: Int!
+  orderFields: [OrderField!]!
   pricesIncludeTax: Boolean!
   productSources: [CartProductSource!]!
   reservationTtlMinutes: Int
@@ -670,6 +671,11 @@ input CartConfigInput {
   lowStockThreshold: Int
   maxItemsPerCart: Int
   maxQuantityPerItem: Int
+
+  """
+  The full list of order field definitions - replaced wholesale. Removing a field keeps the values orders already hold.
+  """
+  orderFields: [OrderFieldInput!]
   pricesIncludeTax: Boolean
   productSources: [CartProductSourceInput!]
   reservationTtlMinutes: Int
@@ -841,6 +847,10 @@ type CatalogVariantStock {
 }
 
 input CheckoutInput {
+  """
+  Values for the order fields the customer can set (publicCart.orderFields), by key
+  """
+  customFields: JSON
   customerEmail: String!
 
   """Buyer's message for this order (distinct from admin notes)"""
@@ -2361,6 +2371,11 @@ type Order {
   companyName: String
   createdAt: DateTime!
   currency: String!
+
+  """
+  Order custom field values by key (cart.orderFields). A value whose field definition was removed stays under its key. Without order access only the fields the customer can set are returned.
+  """
+  customFields: JSON!
   customerEmail: String!
   customerId: String
 
@@ -2459,6 +2474,54 @@ type OrderEditPreview {
   subtotal: Int!
   tax: Int!
   total: Int!
+}
+
+"""
+A custom field the workspace keeps on its orders. customerCanSet fields are offered at checkout.
+"""
+type OrderField {
+  customerCanSet: Boolean!
+  description: JSON
+  key: String!
+
+  """The field's label per language, e.g. { en: "Gift message" }."""
+  label: JSON!
+  maxLength: Int
+  maxValue: Float
+  minLength: Int
+  minValue: Float
+  options: [PropertyFieldOption!]!
+  pattern: String
+  required: Boolean!
+  type: OrderFieldType!
+}
+
+input OrderFieldInput {
+  customerCanSet: Boolean
+  description: JSON
+  key: String!
+
+  """The label per language, e.g. { en: "Gift message" }."""
+  label: JSON!
+  maxLength: Int
+  maxValue: Float
+  minLength: Int
+  minValue: Float
+  options: [PropertyFieldOptionInput!]
+  pattern: String
+  required: Boolean
+  type: OrderFieldType!
+}
+
+enum OrderFieldType {
+  boolean
+  date
+  email
+  number
+  phone
+  select
+  text
+  url
 }
 
 type OrderItem {
@@ -3422,6 +3485,9 @@ type PublicCartConfig {
   enableSavedCarts: Boolean!
   maxItemsPerCart: Int!
   maxQuantityPerItem: Int!
+
+  """The order fields a customer can fill in at checkout."""
+  orderFields: [OrderField!]!
   pricesIncludeTax: Boolean!
   productSources: [CartProductSource!]!
   shippingMethods: [ShippingMethodConfig!]!
@@ -3505,7 +3571,10 @@ type PublicModelDefinition {
 }
 
 type PublicModelQueries {
-  definitions(workspaceId: String!): [PublicModelDefinition!]!
+  """
+  One page of the workspace's readable model definitions, by name. Selecting every field with its options costs more than one request may spend across all models; ask for a few per page and the next page while one comes back full.
+  """
+  definitions(limit: Int = 25, offset: Int = 0, workspaceId: String!): [PublicModelDefinition!]!
   records(
     filter: JSON
     limit: Int = 20
@@ -3611,6 +3680,11 @@ type PublicOrder {
   canceledAt: DateTime
   createdAt: DateTime!
   currency: String!
+
+  """
+  Values of the order fields the customer can set, by key. Fields kept for staff are left out.
+  """
+  customFields: JSON!
   customerEmail: String!
   customerNote: String
 
@@ -4564,6 +4638,10 @@ input UpdateModelRecordStatusInput {
 }
 
 input UpdateOrderDetailsInput {
+  """
+  Patch of order custom fields by key: a value sets the field, null removes it. Keys not named are left unchanged.
+  """
+  customFields: JSON
   customerEmail: String
   notes: String
   orderId: ID!
