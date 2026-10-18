@@ -39,7 +39,12 @@ const storedFields = [
         minLength: 3,
         maxLength: 60,
       },
-      { key: "noindex", label: { en: "No index" }, type: "boolean", required: false },
+      {
+        key: "noindex",
+        label: { en: "No index" },
+        type: "boolean",
+        required: false,
+      },
     ],
     itemType: null,
     itemFields: null,
@@ -89,6 +94,16 @@ const storedFields = [
     ],
   },
   {
+    key: "size",
+    label: { en: "Size", pl: "Rozmiar" },
+    type: "select",
+    required: false,
+    options: [
+      { value: "s", label: { en: "Small", pl: "Mały" } },
+      { value: "l", label: { en: "Large", pl: "Duży" } },
+    ],
+  },
+  {
     key: "related",
     label: { en: "Related" },
     type: "relation",
@@ -117,7 +132,12 @@ const roundTripped = [
         minLength: 3,
         maxLength: 60,
       },
-      { key: "noindex", label: { en: "No index" }, type: "boolean", required: false },
+      {
+        key: "noindex",
+        label: { en: "No index" },
+        type: "boolean",
+        required: false,
+      },
     ],
   },
   {
@@ -155,6 +175,16 @@ const roundTripped = [
     ],
   },
   {
+    key: "size",
+    label: { en: "Size", pl: "Rozmiar" },
+    type: "select",
+    required: false,
+    options: [
+      { value: "s", label: { en: "Small", pl: "Mały" } },
+      { value: "l", label: { en: "Large", pl: "Duży" } },
+    ],
+  },
+  {
     key: "related",
     label: { en: "Related" },
     type: "relation",
@@ -188,6 +218,10 @@ describe("page-type field schema survives a get_page_type -> update_page_type cy
         `PAGE_TYPE_QUERY no longer selects "${key}", so get_page_type cannot hand it back and the next update_page_type drops it.`,
       ).toMatch(new RegExp(`\\b${key}\\b`));
     }
+  });
+
+  it("selects each option's value and its label per language", () => {
+    expect(PAGE_TYPE_QUERY).toMatch(/\boptions\s*\{\s*value\s+label\s*\}/);
   });
 
   it("returns the full vocabulary from get_page_type and sends it back unchanged through update_page_type", async () => {

@@ -5,9 +5,9 @@
 - **Field labels per language** (`@cmssy/ai-tools` 0.71.0): a model or page-type
   field's `label` and `description` are text per language code
   (`{ en: "Size", pl: "Rozmiar" }`), and `options` are `{ value, label }` -
-  the value is what records store. `get_model`, `get_page_type` and
-  `list_page_types` return that shape; `create_model`, `update_model`,
-  `create_page_type` and `update_page_type` take it.
+  the value is what records store. `get_model` and `get_page_type` return that
+  shape; `create_model`, `update_model`, `create_page_type` and
+  `update_page_type` take it.
 
 ## 0.98.0
 
