@@ -6,12 +6,12 @@ describe("toProposedFields", () => {
     const [title, sku] = toProposedFields([
       {
         key: "title",
-        label: "Title",
+        label: { en: "Title" },
         type: "text",
         required: false,
         localized: true,
       },
-      { key: "sku", label: "SKU", type: "text", required: true },
+      { key: "sku", label: { en: "SKU" }, type: "text", required: true },
     ]);
     expect(title?.localized).toBe(true);
     expect(sku?.localized).toBeUndefined();

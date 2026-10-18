@@ -19,7 +19,7 @@ describe("toPropertyFields", () => {
     const mapped = toPropertyFields([
       {
         key: "category",
-        label: "Category",
+        label: { en: "Category" },
         type: "relation",
         relationTo: "category",
       },
@@ -32,7 +32,7 @@ describe("toPropertyFields", () => {
     const mapped = toPropertyFields([
       {
         key: "category",
-        label: "Category",
+        label: { en: "Category" },
         type: "relation",
         relationTo: "model:category",
       },
@@ -45,7 +45,7 @@ describe("toPropertyFields", () => {
     const proposed = toProposedFields([
       {
         key: "password",
-        label: "Password",
+        label: { en: "Password" },
         type: "password",
         required: false,
         hidden: true,
@@ -56,7 +56,7 @@ describe("toPropertyFields", () => {
       },
       {
         key: "category",
-        label: "Category",
+        label: { en: "Category" },
         type: "relation",
         required: true,
         relationTo: "model:category",
@@ -69,14 +69,14 @@ describe("toPropertyFields", () => {
     expect(proposed).toEqual([
       {
         key: "password",
-        label: "Password",
+        label: { en: "Password" },
         type: "password",
         required: false,
         hidden: true,
       },
       {
         key: "category",
-        label: "Category",
+        label: { en: "Category" },
         type: "relation",
         required: true,
         relationTo: "category",
@@ -90,12 +90,12 @@ describe("toPropertyFields", () => {
     const [field] = toPropertyFields([
       {
         key: "specs",
-        label: "Specs",
+        label: { en: "Specs" },
         type: "object",
         fields: [
           {
             key: "brand",
-            label: "Brand",
+            label: { en: "Brand" },
             type: "relation",
             relationTo: "brand",
           },
@@ -103,7 +103,7 @@ describe("toPropertyFields", () => {
         itemFields: [
           {
             key: "supplier",
-            label: "Supplier",
+            label: { en: "Supplier" },
             type: "relation",
             relationTo: "supplier",
           },

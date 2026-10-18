@@ -545,7 +545,10 @@ export const PAGE_TYPES_QUERY = `
           type
           required
           description
-          options
+          options {
+            value
+            label
+          }
           defaultValue
         }
       }
@@ -565,7 +568,10 @@ const PROPERTY_FIELD_FRAGMENT = `
   localized
   description
   defaultValue
-  options
+  options {
+    value
+    label
+  }
   fields
   itemType
   itemFields
@@ -637,7 +643,18 @@ export const CREATE_PAGE_TYPE_MUTATION = `
         schemaType
         urlPrefix
         allowChildren
-        fields { key label type required description options defaultValue }
+        fields {
+          key
+          label
+          type
+          required
+          description
+          options {
+            value
+            label
+          }
+          defaultValue
+        }
       }
     }
   }

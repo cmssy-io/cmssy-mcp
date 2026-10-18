@@ -20,6 +20,8 @@ import type {
   ModelSummary,
   ProductBulkDeleteResult,
   ProposedField,
+  ProposedFieldOption,
+  FieldText,
   WorkspaceOps,
   CustomerSummary,
   CustomerAccountEmailResult,
@@ -436,14 +438,14 @@ function toCustomerSummary(c: RawCustomer): CustomerSummary {
 
 interface RawPropertyField {
   key: string;
-  label: string;
+  label: FieldText;
   type: string;
   required: boolean | null;
   hidden?: boolean | null;
   localized?: boolean | null;
-  description?: string | null;
+  description?: FieldText | null;
   defaultValue?: string | null;
-  options?: string[] | null;
+  options?: ProposedFieldOption[] | null;
   fields?: RawPropertyField[] | null;
   itemType?: string | null;
   itemFields?: RawPropertyField[] | null;

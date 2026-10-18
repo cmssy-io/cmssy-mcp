@@ -21,7 +21,7 @@ function clientAnswering(answers: unknown[]) {
 }
 
 const fields = [
-  { key: "title", label: "Title", type: "text" as const, required: false },
+  { key: "title", label: { en: "Title" }, type: "text" as const, required: false },
 ];
 const MODEL_ID = "64b1f0c2a3d4e5f60718293a";
 

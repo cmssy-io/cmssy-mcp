@@ -21,7 +21,7 @@ function clientRecording(respond: (document: string) => unknown) {
 const storedFields = [
   {
     key: "seo",
-    label: "SEO",
+    label: { en: "SEO" },
     type: "object",
     required: false,
     hidden: true,
@@ -32,14 +32,19 @@ const storedFields = [
     fields: [
       {
         key: "title",
-        label: "Title",
+        label: { en: "Title" },
         type: "text",
         required: true,
         localized: true,
         minLength: 3,
         maxLength: 60,
       },
-      { key: "noindex", label: "No index", type: "boolean", required: false },
+      {
+        key: "noindex",
+        label: { en: "No index" },
+        type: "boolean",
+        required: false,
+      },
     ],
     itemType: null,
     itemFields: null,
@@ -56,7 +61,7 @@ const storedFields = [
   },
   {
     key: "slugPart",
-    label: "Slug part",
+    label: { en: "Slug part" },
     type: "text",
     required: false,
     pattern: "^[a-z0-9-]+$",
@@ -64,7 +69,7 @@ const storedFields = [
   },
   {
     key: "gallery",
-    label: "Gallery",
+    label: { en: "Gallery" },
     type: "media",
     required: false,
     acceptedTypes: ["image", "video"],
@@ -72,15 +77,15 @@ const storedFields = [
   },
   {
     key: "faq",
-    label: "FAQ",
+    label: { en: "FAQ" },
     type: "list",
     required: false,
     itemType: "object",
     itemFields: [
-      { key: "q", label: "Question", type: "text", required: true },
+      { key: "q", label: { en: "Question" }, type: "text", required: true },
       {
         key: "author",
-        label: "Author",
+        label: { en: "Author" },
         type: "relation",
         required: false,
         relationTo: "model:author",
@@ -89,8 +94,18 @@ const storedFields = [
     ],
   },
   {
+    key: "size",
+    label: { en: "Size", pl: "Rozmiar" },
+    type: "select",
+    required: false,
+    options: [
+      { value: "s", label: { en: "Small", pl: "Mały" } },
+      { value: "l", label: { en: "Large", pl: "Duży" } },
+    ],
+  },
+  {
     key: "related",
-    label: "Related",
+    label: { en: "Related" },
     type: "relation",
     required: false,
     relationTo: "pages",
@@ -103,26 +118,31 @@ const storedFields = [
 const roundTripped = [
   {
     key: "seo",
-    label: "SEO",
+    label: { en: "SEO" },
     type: "object",
     required: false,
     hidden: true,
     fields: [
       {
         key: "title",
-        label: "Title",
+        label: { en: "Title" },
         type: "text",
         required: true,
         localized: true,
         minLength: 3,
         maxLength: 60,
       },
-      { key: "noindex", label: "No index", type: "boolean", required: false },
+      {
+        key: "noindex",
+        label: { en: "No index" },
+        type: "boolean",
+        required: false,
+      },
     ],
   },
   {
     key: "slugPart",
-    label: "Slug part",
+    label: { en: "Slug part" },
     type: "text",
     required: false,
     schemaProperty: "identifier",
@@ -130,7 +150,7 @@ const roundTripped = [
   },
   {
     key: "gallery",
-    label: "Gallery",
+    label: { en: "Gallery" },
     type: "media",
     required: false,
     acceptedTypes: ["image", "video"],
@@ -138,15 +158,15 @@ const roundTripped = [
   },
   {
     key: "faq",
-    label: "FAQ",
+    label: { en: "FAQ" },
     type: "list",
     required: false,
     itemType: "object",
     itemFields: [
-      { key: "q", label: "Question", type: "text", required: true },
+      { key: "q", label: { en: "Question" }, type: "text", required: true },
       {
         key: "author",
-        label: "Author",
+        label: { en: "Author" },
         type: "relation",
         required: false,
         relationTo: "model:author",
@@ -155,8 +175,18 @@ const roundTripped = [
     ],
   },
   {
+    key: "size",
+    label: { en: "Size", pl: "Rozmiar" },
+    type: "select",
+    required: false,
+    options: [
+      { value: "s", label: { en: "Small", pl: "Mały" } },
+      { value: "l", label: { en: "Large", pl: "Duży" } },
+    ],
+  },
+  {
     key: "related",
-    label: "Related",
+    label: { en: "Related" },
     type: "relation",
     required: false,
     relationTo: "pages",
@@ -188,6 +218,10 @@ describe("page-type field schema survives a get_page_type -> update_page_type cy
         `PAGE_TYPE_QUERY no longer selects "${key}", so get_page_type cannot hand it back and the next update_page_type drops it.`,
       ).toMatch(new RegExp(`\\b${key}\\b`));
     }
+  });
+
+  it("selects each option's value and its label per language", () => {
+    expect(PAGE_TYPE_QUERY).toMatch(/\boptions\s*\{\s*value\s+label\s*\}/);
   });
 
   it("returns the full vocabulary from get_page_type and sends it back unchanged through update_page_type", async () => {
