@@ -169,7 +169,6 @@ describe("order status axes (CMS-2102)", () => {
       fulfillmentStatus: "partially_fulfilled",
       deliveryStatus: "in_transit",
       state: "open",
-      status: null,
     });
   });
 

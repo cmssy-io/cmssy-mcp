@@ -1894,7 +1894,6 @@ export function createMcpWorkspaceOps(
             companyId: o.companyId ?? null,
             companyName: o.companyName ?? null,
             poNumber: o.poNumber ?? null,
-            status: null,
             paymentStatus: o.paymentStatus ?? null,
             fulfillmentStatus: o.fulfillmentStatus ?? null,
             deliveryStatus: o.deliveryStatus ?? null,
