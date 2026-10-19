@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.101.0
+
+- **Canceled shipment status** (`@cmssy/ai-tools` 0.73.0): `create_shipment`
+  and `update_shipment` accept `canceled`, the status cmssy gives a parcel whose
+  failed label an admin asked to buy again.
+
 ## 0.100.0
 
 - **Custom order fields** (`@cmssy/ai-tools` 0.72.0): `get_order` returns the
