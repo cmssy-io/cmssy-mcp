@@ -2825,6 +2825,11 @@ type OrderReturn {
   refunds: [OrderReturnRefund!]!
   requestedAt: DateTime!
   status: OrderReturnStatus!
+
+  """
+  What refundReturn records when no amount is sent; 0 once the return can no longer be refunded.
+  """
+  suggestedRefund: Int!
   trackingNumber: String
   updatedAt: DateTime!
 }
@@ -4288,7 +4293,7 @@ input RefundOrderInput {
 
 input RefundReturnInput {
   """
-  Defaults to the value of the return's lines not yet refunded, capped at what is left refundable on the order.
+  Defaults to what the returned units cost: their share of the order's discount taken off and any separately charged tax added, less what this return already refunded, capped at what is left refundable on the order.
   """
   amount: Int
   note: String

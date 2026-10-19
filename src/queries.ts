@@ -1256,6 +1256,7 @@ const ORDER_FRAGMENT = `
     carrier
     trackingNumber
     refundedAmount
+    suggestedRefund
     events { status at note }
     requestedAt
     receivedAt
