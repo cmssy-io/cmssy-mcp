@@ -2,7 +2,7 @@
 
 ## 0.103.0
 
-- **Order status model** (`@cmssy/ai-tools` 0.75.0, cmssy CMS-2100):
+- **Order status model** (`@cmssy/ai-tools` 0.76.0, cmssy CMS-2100):
   - `list_orders` and `get_order` return `deliveryStatus` and `state` next to
     `paymentStatus` and `fulfillmentStatus`, and `get_order` adds
     `fulfilledAt`, `deliveredAt` and `closedAt`;
@@ -11,9 +11,9 @@
     `create_shipment` takes the `items` a parcel carries;
   - new `close_order` and `reopen_order`;
   - `transition_order_fulfillment`, the collapsed `status` and the parcel
-    `partial` flag are gone. `status` stays in the list result as `null` until
-    `@cmssy/ai-tools` drops it.
-- `get_site_config` reads `cartConfig.autoCloseOrders`.
+    `partial` flag are gone.
+- `get_site_config` reads and `update_cart_config` sets
+  `cartConfig.autoCloseOrders`.
 
 ## 0.102.0
 
