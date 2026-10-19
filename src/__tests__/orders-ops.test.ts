@@ -5,7 +5,15 @@ import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import type { CmssyClient } from "../graphql-client.js";
 import {
   CLOSE_ORDER_MUTATION,
+  APPROVE_RETURN_MUTATION,
+  CANCEL_RETURN_MUTATION,
+  COMPLETE_RETURN_MUTATION,
+  CREATE_RETURN_MUTATION,
   CREATE_SHIPMENT_MUTATION,
+  RECEIVE_RETURN_MUTATION,
+  REFUND_RETURN_MUTATION,
+  REJECT_RETURN_MUTATION,
+  UPDATE_RETURN_TRACKING_MUTATION,
   ORDER_BY_ID_QUERY,
   ORDERS_QUERY,
   REOPEN_ORDER_MUTATION,
@@ -68,7 +76,10 @@ describe("orders ops (CMS-1915)", () => {
       ["get", ORDER_BY_ID_QUERY, "get"],
     ] as const) {
       const selected = selectedUnder(document, parent);
-      expect(ATTRIBUTION.filter((k) => !selected.has(k)), name).toEqual([]);
+      expect(
+        ATTRIBUTION.filter((k) => !selected.has(k)),
+        name,
+      ).toEqual([]);
     }
   });
 
@@ -95,7 +106,14 @@ describe("orders ops (CMS-1915)", () => {
       {
         order: {
           list: {
-            items: [{ ...rawSummary, customerId: null, companyId: null, companyName: null }],
+            items: [
+              {
+                ...rawSummary,
+                customerId: null,
+                companyId: null,
+                companyName: null,
+              },
+            ],
             total: 1,
             hasMore: false,
           },
@@ -106,8 +124,14 @@ describe("orders ops (CMS-1915)", () => {
 
     const [item] = (await ops.orders.list()).items;
 
-    expect(item).toMatchObject({ customerId: null, companyId: null, companyName: null });
-    expect(Object.keys(item!)).toEqual(expect.arrayContaining([...ATTRIBUTION]));
+    expect(item).toMatchObject({
+      customerId: null,
+      companyId: null,
+      companyName: null,
+    });
+    expect(Object.keys(item!)).toEqual(
+      expect.arrayContaining([...ATTRIBUTION]),
+    );
   });
 
   it("get maps the customer and company attribution", async () => {
@@ -130,7 +154,12 @@ describe("orders ops (CMS-1915)", () => {
 });
 
 describe("order status axes (CMS-2102)", () => {
-  const AXES = ["paymentStatus", "fulfillmentStatus", "deliveryStatus", "state"];
+  const AXES = [
+    "paymentStatus",
+    "fulfillmentStatus",
+    "deliveryStatus",
+    "state",
+  ];
 
   it("list and get select the four axes and never the collapsed status", () => {
     for (const [name, document, parent] of [
@@ -138,14 +167,17 @@ describe("order status axes (CMS-2102)", () => {
       ["get", ORDER_BY_ID_QUERY, "get"],
     ] as const) {
       const selected = selectedUnder(document, parent);
-      expect(AXES.filter((k) => !selected.has(k)), name).toEqual([]);
+      expect(
+        AXES.filter((k) => !selected.has(k)),
+        name,
+      ).toEqual([]);
       expect(selected.has("status"), name).toBe(false);
       expect(selected.has("displayStatus"), name).toBe(false);
     }
     expect(
-      [...selectedUnder(ORDER_BY_ID_QUERY, "get")].filter((k) =>
-        ["fulfilledAt", "deliveredAt", "closedAt"].includes(k),
-      ).sort(),
+      [...selectedUnder(ORDER_BY_ID_QUERY, "get")]
+        .filter((k) => ["fulfilledAt", "deliveredAt", "closedAt"].includes(k))
+        .sort(),
     ).toEqual(["closedAt", "deliveredAt", "fulfilledAt"]);
   });
 
@@ -215,8 +247,14 @@ describe("order status axes (CMS-2102)", () => {
     expect(await ops.orders.close("o-1")).toEqual(ack);
     expect(await ops.orders.reopen("o-1")).toEqual(ack);
     expect(sent).toEqual([
-      { document: CLOSE_ORDER_MUTATION, variables: { input: { orderId: "o-1" } } },
-      { document: REOPEN_ORDER_MUTATION, variables: { input: { orderId: "o-1" } } },
+      {
+        document: CLOSE_ORDER_MUTATION,
+        variables: { input: { orderId: "o-1" } },
+      },
+      {
+        document: REOPEN_ORDER_MUTATION,
+        variables: { input: { orderId: "o-1" } },
+      },
     ]);
   });
 });
@@ -271,7 +309,9 @@ describe("order shipments ops", () => {
     items: [{ itemId: "line-1", quantity: 2 }],
     shippedAt: "2026-10-01T10:00:00.000Z",
     deliveredAt: null,
-    events: [{ status: "in_transit", at: "2026-10-01T10:00:00.000Z", note: null }],
+    events: [
+      { status: "in_transit", at: "2026-10-01T10:00:00.000Z", note: null },
+    ],
     createdAt: "2026-10-01T10:00:00.000Z",
     updatedAt: "2026-10-01T10:00:00.000Z",
   };
@@ -359,5 +399,120 @@ describe("order shipments ops", () => {
         },
       },
     });
+  });
+
+  it("get hands back the returns, and an empty list for an order the API sends none for", async () => {
+    const ret = { id: "r-1", number: 1, status: "approved", lines: [] };
+    const { client } = clientAnswering([
+      { order: { get: { ...rawSummary, returns: [ret] } } },
+      { order: { get: { ...rawSummary, returns: null } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect((await ops.orders.get("o-1"))!.returns).toEqual([ret]);
+    expect((await ops.orders.get("o-1"))!.returns).toEqual([]);
+  });
+
+  it("return writes send the order, the return and their input", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { createReturn: ack } },
+      { order: { approveReturn: ack } },
+      { order: { receiveReturn: ack } },
+      { order: { refundReturn: ack } },
+      { order: { updateReturnTracking: ack } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.orders.createReturn("o-1", {
+      lines: [{ itemId: "line-1", quantity: 1, reason: "damaged" }],
+    });
+    await ops.orders.approveReturn("o-1", "r-1", "ok");
+    await ops.orders.receiveReturn("o-1", "r-1", {
+      lines: [{ itemId: "line-1", receivedQuantity: 1, restockQuantity: 0 }],
+    });
+    const result = await ops.orders.refundReturn("o-1", "r-1", {
+      reference: "re_1",
+      amount: 500,
+    });
+    await ops.orders.updateReturnTracking("o-1", "r-1", { carrier: null });
+
+    expect(sent).toEqual([
+      {
+        document: CREATE_RETURN_MUTATION,
+        variables: {
+          input: {
+            orderId: "o-1",
+            lines: [{ itemId: "line-1", quantity: 1, reason: "damaged" }],
+          },
+        },
+      },
+      {
+        document: APPROVE_RETURN_MUTATION,
+        variables: { input: { orderId: "o-1", returnId: "r-1", note: "ok" } },
+      },
+      {
+        document: RECEIVE_RETURN_MUTATION,
+        variables: {
+          input: {
+            orderId: "o-1",
+            returnId: "r-1",
+            lines: [
+              { itemId: "line-1", receivedQuantity: 1, restockQuantity: 0 },
+            ],
+          },
+        },
+      },
+      {
+        document: REFUND_RETURN_MUTATION,
+        variables: {
+          input: {
+            orderId: "o-1",
+            returnId: "r-1",
+            reference: "re_1",
+            amount: 500,
+          },
+        },
+      },
+      {
+        document: UPDATE_RETURN_TRACKING_MUTATION,
+        variables: {
+          input: { orderId: "o-1", returnId: "r-1", carrier: null },
+        },
+      },
+    ]);
+    expect(result).toEqual(ack);
+  });
+
+  it("reject, cancel and complete send the return and its note to their own mutation", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { rejectReturn: ack } },
+      { order: { cancelReturn: ack } },
+      { order: { completeReturn: ack } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.orders.rejectReturn("o-1", "r-1", "worn");
+    await ops.orders.cancelReturn("o-1", "r-2");
+    const result = await ops.orders.completeReturn("o-1", "r-3", "credit");
+
+    expect(sent).toEqual([
+      {
+        document: REJECT_RETURN_MUTATION,
+        variables: { input: { orderId: "o-1", returnId: "r-1", note: "worn" } },
+      },
+      {
+        document: CANCEL_RETURN_MUTATION,
+        variables: {
+          input: { orderId: "o-1", returnId: "r-2", note: undefined },
+        },
+      },
+      {
+        document: COMPLETE_RETURN_MUTATION,
+        variables: {
+          input: { orderId: "o-1", returnId: "r-3", note: "credit" },
+        },
+      },
+    ]);
+    expect(result).toEqual(ack);
   });
 });

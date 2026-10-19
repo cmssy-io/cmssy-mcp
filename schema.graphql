@@ -266,6 +266,14 @@ enum AuditLogAction {
   ORDER_CLOSED
   ORDER_DELETED
   ORDER_REOPENED
+  ORDER_RETURN_APPROVED
+  ORDER_RETURN_CANCELED
+  ORDER_RETURN_COMPLETED
+  ORDER_RETURN_CREATED
+  ORDER_RETURN_RECEIVED
+  ORDER_RETURN_REFUNDED
+  ORDER_RETURN_REJECTED
+  ORDER_RETURN_TRACKING_UPDATED
   PAGE_CREATED
   PAGE_DELETED
   PAGE_DEV_DRAFT_PROMOTED
@@ -672,6 +680,11 @@ type CartConfig {
   pricesIncludeTax: Boolean!
   productSources: [CartProductSource!]!
   reservationTtlMinutes: Int
+
+  """
+  Days after delivery a buyer can still request a return; null means no limit.
+  """
+  returnWindowDays: Int
   sessionTTLDays: Int!
   shippingMethods: [ShippingMethodConfig!]!
   taxRates: [TaxRate!]!
@@ -695,6 +708,7 @@ input CartConfigInput {
   pricesIncludeTax: Boolean
   productSources: [CartProductSourceInput!]
   reservationTtlMinutes: Int
+  returnWindowDays: Int
   sessionTTLDays: Int
   shippingMethods: [ShippingMethodInput!]
   taxRates: [TaxRateInput!]
@@ -987,6 +1001,14 @@ input CreatePageTypeInput {
   urlPrefix: String
 }
 
+input CreateReturnInput {
+  carrier: String
+  lines: [ReturnLineInput!]!
+  note: String
+  orderId: ID!
+  trackingNumber: String
+}
+
 input CreateShipmentInput {
   carrier: String
 
@@ -1002,9 +1024,6 @@ input CreateShipmentInput {
   labelUrl: String
   note: String
   orderId: ID!
-
-  """Ignored: name the parcel's items instead. Removed in CMS-2102."""
-  partial: Boolean
 
   """
   Defaults to label_purchased with a tracking number, else pending (a claim that does not fulfil anything yet).
@@ -1667,11 +1686,6 @@ type FormSubmitResponse {
   redirectUrl: String
   submissionId: String
   success: Boolean!
-}
-
-input FulfillOrderInput {
-  orderId: ID!
-  status: String!
 }
 
 input GenerateAltTextInput {
@@ -2434,11 +2448,6 @@ type Order {
   """
   discount: Int!
 
-  """
-  Collapsed label derived from the axes. Superseded by paymentStatus, fulfillmentStatus, deliveryStatus and state; removed in CMS-2102.
-  """
-  displayStatus: String!
-
   """Admin edit trail; empty for a shopper reading their order."""
   edits: [OrderEdit!]!
   fulfilledAt: DateTime
@@ -2469,6 +2478,7 @@ type Order {
   poNumber: String
   pricesIncludeTax: Boolean!
   refundedAmount: Int!
+  returns: [OrderReturn!]!
   shipments: [OrderShipment!]!
 
   """Delivery address frozen at checkout (CMS-913)"""
@@ -2484,11 +2494,6 @@ type Order {
   open, closed (done - paid and fulfilled, or closed by hand) or canceled.
   """
   state: OrderState!
-
-  """
-  Collapsed label derived from the axes. Superseded by paymentStatus, fulfillmentStatus, deliveryStatus and state; removed in CMS-2102.
-  """
-  status: String!
   subtotal: Int!
   tax: Int!
   taxSummary: [OrderTaxSummaryLine!]!
@@ -2639,13 +2644,29 @@ type OrderMutations {
   Anonymize every finished order of one customer: the orders linked to the record plus guest orders placed with its email. Irreversible.
   """
   anonymizeCustomer(customerId: ID!): CustomerAnonymization!
+
+  """Accept a requested return."""
+  approveReturn(input: ReturnActionInput!): Order!
   cancel(input: CancelOrderInput!): Order!
+
+  """
+  Withdraw a requested or approved return that has no refund. Its units become returnable again.
+  """
+  cancelReturn(input: ReturnActionInput!): Order!
 
   """
   Mark an order done. It reopens by itself if a later change leaves it unpaid or not fulfilled.
   """
   close(input: OrderStateInput!): Order!
+
+  """Close a received return without a refund."""
+  completeReturn(input: ReturnActionInput!): Order!
   create(input: CreateManualOrderInput!): Order!
+
+  """
+  Open a return on the merchant's side. It starts approved; only handed-over units that are not already returned can be listed.
+  """
+  createReturn(input: CreateReturnInput!): Order!
 
   """
   Add a parcel carrying some or all of the order's items. fulfillmentStatus, deliveryStatus and state are recomputed in the same write.
@@ -2666,6 +2687,11 @@ type OrderMutations {
   Make the workspace's next order number at least `next`, e.g. 5000001. It can only be raised: numbers already issued keep theirs, and a value at or below the next number is refused. Returns the next number.
   """
   raiseNextNumber(next: Int!): Int!
+
+  """
+  Record the goods as arrived. Stock goes up by the restocked units of the returned lines only, in the same write.
+  """
+  receiveReturn(input: ReceiveReturnInput!): Order!
   recordInvoice(input: RecordOrderInvoiceInput!): Order!
 
   """
@@ -2673,6 +2699,14 @@ type OrderMutations {
   """
   recordPayment(input: RecordOrderPaymentInput!): Order!
   refund(input: RefundOrderInput!): Order!
+
+  """
+  Record a refund against the return and the order in one write. A received return becomes completed.
+  """
+  refundReturn(input: RefundReturnInput!): Order!
+
+  """Refuse a requested return. Its units become returnable again."""
+  rejectReturn(input: ReturnActionInput!): Order!
 
   """
   Reopen a closed order. Auto-close leaves it open until it next becomes paid and fulfilled.
@@ -2694,13 +2728,11 @@ type OrderMutations {
   """
   setCustomer(customerId: ID, orderId: ID!): Order!
   setPipelineStage(input: SetOrderPipelineStageInput!): Order!
-
-  """
-  Only `to: fulfilled` is accepted: it adds a delivered parcel with every remaining item. Superseded by createShipment; removed in CMS-2102.
-  """
-  transitionFulfillment(input: FulfillOrderInput!): Order!
   updateDetails(input: UpdateOrderDetailsInput!): Order!
   updateItems(input: EditOrderInput!): Order!
+
+  """Set the carrier and tracking number of the parcel coming back."""
+  updateReturnTracking(input: UpdateReturnTrackingInput!): Order!
 
   """
   Change a parcel's status or tracking. Sending what is already stored changes nothing and sends no webhook.
@@ -2759,14 +2791,85 @@ type OrderQueries {
 
 enum OrderQueue {
   in_transit
+  returns
   shipping_problem
   to_pack
 }
 
 type OrderQueueCounts {
   inTransit: Int!
+  returns: Int!
   shippingProblem: Int!
   toPack: Int!
+}
+
+"""
+Items the buyer sends back. Its status moves on its own; the order's payment, fulfillment and delivery do not change because of it.
+"""
+type OrderReturn {
+  carrier: String
+  completedAt: DateTime
+  createdAt: DateTime!
+
+  """Status history, oldest first."""
+  events: [OrderReturnEvent!]!
+  id: ID!
+  lines: [OrderReturnLine!]!
+  note: String
+
+  """Per order: R1, R2..."""
+  number: Int!
+  origin: ReturnOrigin!
+  receivedAt: DateTime
+  refundedAmount: Int!
+  refunds: [OrderReturnRefund!]!
+  requestedAt: DateTime!
+  status: OrderReturnStatus!
+
+  """
+  What refundReturn records when no amount is sent; 0 once the return can no longer be refunded.
+  """
+  suggestedRefund: Int!
+  trackingNumber: String
+  updatedAt: DateTime!
+}
+
+type OrderReturnEvent {
+  actor: ReturnOrigin!
+  at: DateTime!
+
+  """The admin user who acted; null for the buyer."""
+  by: String
+  note: String
+  status: OrderReturnStatus!
+}
+
+type OrderReturnLine {
+  """The order line's id."""
+  itemId: ID!
+  quantity: Int!
+  reason: ReturnReason!
+
+  """Units that arrived back; null until received."""
+  receivedQuantity: Int
+
+  """Units put back in stock; null until received."""
+  restockQuantity: Int
+}
+
+type OrderReturnRefund {
+  amount: Int!
+  at: DateTime!
+  reference: String!
+}
+
+enum OrderReturnStatus {
+  approved
+  canceled
+  completed
+  received
+  rejected
+  requested
 }
 
 """
@@ -3808,6 +3911,7 @@ type PublicModelRecordList {
 
 type PublicMutations {
   form: PublicFormMutations!
+  order: PublicOrderMutations!
 }
 
 """
@@ -3853,16 +3957,12 @@ type PublicOrder {
   poNumber: String
   pricesIncludeTax: Boolean!
   refundedAmount: Int!
+  returns: [ReturnTracking!]!
   shipments: [ShipmentTracking!]!
   shippingAddress: OrderAddress
   shippingMethod: OrderShippingMethod
   shippingTotal: Int!
   state: OrderState!
-
-  """
-  Collapsed label derived from the axes. Superseded by paymentStatus, fulfillmentStatus, deliveryStatus and state; removed in CMS-2102.
-  """
-  status: String!
   subtotal: Int!
   tax: Int!
   taxSummary: [OrderTaxSummaryLine!]!
@@ -3898,6 +3998,13 @@ type PublicOrderListResult {
   hasMore: Boolean!
   items: [PublicOrder!]!
   total: Int!
+}
+
+type PublicOrderMutations {
+  """
+  Ask to return items of an order (public, rate-limited). A signed-in site member can request on an order they own; a guest sends the order's access token. Only handed-over units not already returned can be listed, within the workspace's return window. Refusals carry extensions.reason: RETURN_WINDOW_CLOSED, NOT_RETURNABLE or ORDER_CANCELED.
+  """
+  requestReturn(accessToken: String, lines: [ReturnLineInput!]!, note: String, orderId: ID!, workspaceId: ID!): PublicOrder!
 }
 
 type PublicOrderQueries {
@@ -4092,6 +4199,16 @@ type Query {
   workspaceOAuthApps: WorkspaceOAuthAppQueries!
 }
 
+input ReceiveReturnInput {
+  """
+  Per line, what arrived and what goes back to stock. A line left out arrived in full and is restocked in full.
+  """
+  lines: [ReturnReceivedLineInput!]
+  note: String
+  orderId: ID!
+  returnId: ID!
+}
+
 type RecordMutations {
   """
   Apply one data and/or status change to up to 200 records of a model per call.
@@ -4174,6 +4291,21 @@ input RefundOrderInput {
   reference: String!
 }
 
+input RefundReturnInput {
+  """
+  Defaults to what the returned units cost: their share of the order's discount taken off and any separately charged tax added, less what this return already refunded, capped at what is left refundable on the order.
+  """
+  amount: Int
+  note: String
+  orderId: ID!
+
+  """
+  The provider's refund id. A reference already recorded on the order changes nothing.
+  """
+  reference: String!
+  returnId: ID!
+}
+
 """One pickable row behind a relation field, already labelled for display"""
 type RelationOption {
   id: ID!
@@ -4229,6 +4361,65 @@ type ResolvedLayoutBlock {
   style: JSON
   translations: JSON!
   type: String!
+}
+
+input ReturnActionInput {
+  """Recorded in the return's history with the new status."""
+  note: String
+  orderId: ID!
+  returnId: ID!
+}
+
+input ReturnLineInput {
+  """The order line's id."""
+  itemId: ID!
+  quantity: Int!
+  reason: ReturnReason!
+}
+
+enum ReturnOrigin {
+  buyer
+  merchant
+}
+
+enum ReturnReason {
+  damaged
+  defective
+  no_longer_needed
+  not_as_described
+  other
+  wrong_item
+}
+
+input ReturnReceivedLineInput {
+  itemId: ID!
+  receivedQuantity: Int!
+
+  """Defaults to the received quantity."""
+  restockQuantity: Int
+}
+
+"""A return on the order, as the buyer may see it."""
+type ReturnTracking {
+  carrier: String
+  completedAt: DateTime
+  id: ID!
+  lines: [ReturnTrackingLine!]!
+  number: Int!
+  receivedAt: DateTime
+  refundedAmount: Int!
+  requestedAt: DateTime!
+  status: OrderReturnStatus!
+  trackingNumber: String
+}
+
+type ReturnTrackingLine {
+  itemId: ID!
+  quantity: Int!
+  reason: ReturnReason!
+
+  """Units the merchant recorded as arrived; null until then."""
+  receivedQuantity: Int
 }
 
 enum RichTextAction {
@@ -4364,11 +4555,6 @@ enum ShipmentStatus {
   label_purchased
   out_for_delivery
   pending
-
-  """
-  Accepted as input and stored as returned_to_sender, never returned. Removed in CMS-2102.
-  """
-  returned
   returned_to_sender
 }
 
@@ -4887,6 +5073,16 @@ input UpdatePageTypeInput {
   schemaType: String
   slug: String
   urlPrefix: String
+}
+
+input UpdateReturnTrackingInput {
+  """Omitted leaves it unchanged; null clears it."""
+  carrier: String
+  orderId: ID!
+  returnId: ID!
+
+  """Omitted leaves it unchanged; null clears it."""
+  trackingNumber: String
 }
 
 input UpdateShipmentInput {
