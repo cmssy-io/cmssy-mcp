@@ -1,5 +1,17 @@
 # @cmssy/mcp-server
 
+## 0.104.0
+
+- **Order returns** (`@cmssy/ai-tools` 0.78.0, cmssy CMS-2103):
+  - new `create_return`, `approve_return`, `reject_return`, `cancel_return`,
+    `receive_return`, `refund_return`, `complete_return` and
+    `update_return_tracking`; refunding, canceling and rejecting a return ask
+    for confirmation;
+  - `get_order` returns each return with its lines, reasons, received and
+    restocked units, return-parcel tracking, refunded amount and history;
+  - `update_cart_config` sets and `get_site_config` reads
+    `cartConfig.returnWindowDays`.
+
 ## 0.103.0
 
 - **Order status model** (`@cmssy/ai-tools` 0.76.0, cmssy CMS-2100):

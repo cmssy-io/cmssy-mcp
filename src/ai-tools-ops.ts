@@ -26,6 +26,7 @@ import type {
   CustomerSummary,
   CustomerAccountEmailResult,
   OrderShipment,
+  OrderReturn,
 } from "@cmssy/ai-tools";
 import {
   BLOCK_USAGE_QUERY,
@@ -111,6 +112,14 @@ import {
   CLOSE_ORDER_MUTATION,
   REOPEN_ORDER_MUTATION,
   CREATE_SHIPMENT_MUTATION,
+  CREATE_RETURN_MUTATION,
+  APPROVE_RETURN_MUTATION,
+  REJECT_RETURN_MUTATION,
+  CANCEL_RETURN_MUTATION,
+  RECEIVE_RETURN_MUTATION,
+  REFUND_RETURN_MUTATION,
+  COMPLETE_RETURN_MUTATION,
+  UPDATE_RETURN_TRACKING_MUTATION,
   UPDATE_SHIPMENT_MUTATION,
   SET_ORDER_PIPELINE_STAGE_MUTATION,
   RECORD_ORDER_INVOICE_MUTATION,
@@ -1944,6 +1953,7 @@ export function createMcpWorkspaceOps(
               items?: unknown;
               payments?: unknown;
               shipments?: OrderShipment[] | null;
+              returns?: OrderReturn[] | null;
               customFields?: Record<string, unknown> | null;
               createdAt?: string | null;
             } | null;
@@ -1981,6 +1991,7 @@ export function createMcpWorkspaceOps(
           items: o.items ?? null,
           payments: o.payments ?? null,
           shipments: o.shipments ?? [],
+          returns: o.returns ?? [],
           customFields: o.customFields ?? {},
           createdAt: o.createdAt ?? null,
         };
@@ -2101,6 +2112,62 @@ export function createMcpWorkspaceOps(
           input: { orderId, shipmentId, ...changes },
         });
         const o = res.order.updateShipment;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      createReturn: async (orderId, input) => {
+        const res = await client.query<{
+          order: { createReturn: { id: string; orderNumber?: number | null } };
+        }>(CREATE_RETURN_MUTATION, { input: { orderId, ...input } });
+        const o = res.order.createReturn;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      approveReturn: async (orderId, returnId, note) => {
+        const res = await client.query<{
+          order: { approveReturn: { id: string; orderNumber?: number | null } };
+        }>(APPROVE_RETURN_MUTATION, { input: { orderId, returnId, note } });
+        const o = res.order.approveReturn;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      rejectReturn: async (orderId, returnId, note) => {
+        const res = await client.query<{
+          order: { rejectReturn: { id: string; orderNumber?: number | null } };
+        }>(REJECT_RETURN_MUTATION, { input: { orderId, returnId, note } });
+        const o = res.order.rejectReturn;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      cancelReturn: async (orderId, returnId, note) => {
+        const res = await client.query<{
+          order: { cancelReturn: { id: string; orderNumber?: number | null } };
+        }>(CANCEL_RETURN_MUTATION, { input: { orderId, returnId, note } });
+        const o = res.order.cancelReturn;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      completeReturn: async (orderId, returnId, note) => {
+        const res = await client.query<{
+          order: { completeReturn: { id: string; orderNumber?: number | null } };
+        }>(COMPLETE_RETURN_MUTATION, { input: { orderId, returnId, note } });
+        const o = res.order.completeReturn;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      receiveReturn: async (orderId, returnId, input) => {
+        const res = await client.query<{
+          order: { receiveReturn: { id: string; orderNumber?: number | null } };
+        }>(RECEIVE_RETURN_MUTATION, { input: { orderId, returnId, ...input } });
+        const o = res.order.receiveReturn;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      refundReturn: async (orderId, returnId, input) => {
+        const res = await client.query<{
+          order: { refundReturn: { id: string; orderNumber?: number | null } };
+        }>(REFUND_RETURN_MUTATION, { input: { orderId, returnId, ...input } });
+        const o = res.order.refundReturn;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      updateReturnTracking: async (orderId, returnId, tracking) => {
+        const res = await client.query<{
+          order: { updateReturnTracking: { id: string; orderNumber?: number | null } };
+        }>(UPDATE_RETURN_TRACKING_MUTATION, { input: { orderId, returnId, ...tracking } });
+        const o = res.order.updateReturnTracking;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       setPipelineStage: async (orderId, stageId) => {

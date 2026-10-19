@@ -155,6 +155,7 @@ const CART_CONFIG_FRAGMENT = `
   enableQuoteRequests
   enableSavedCarts
   autoCloseOrders
+  returnWindowDays
   taxRates { id name rate }
   shippingMethods {
     id
@@ -1245,6 +1246,23 @@ const ORDER_FRAGMENT = `
     createdAt
     updatedAt
   }
+  returns {
+    id
+    number
+    status
+    origin
+    lines { itemId quantity reason receivedQuantity restockQuantity }
+    note
+    carrier
+    trackingNumber
+    refundedAmount
+    events { status at note }
+    requestedAt
+    receivedAt
+    completedAt
+    createdAt
+    updatedAt
+  }
   notes
   invoiceNumber
   invoiceUrl
@@ -1434,6 +1452,54 @@ export const REOPEN_ORDER_MUTATION = `
 export const CREATE_SHIPMENT_MUTATION = `
   mutation CreateShipment($input: CreateShipmentInput!) {
     order { createShipment(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const CREATE_RETURN_MUTATION = `
+  mutation CreateReturn($input: CreateReturnInput!) {
+    order { createReturn(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const APPROVE_RETURN_MUTATION = `
+  mutation ApproveReturn($input: ReturnActionInput!) {
+    order { approveReturn(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const REJECT_RETURN_MUTATION = `
+  mutation RejectReturn($input: ReturnActionInput!) {
+    order { rejectReturn(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const CANCEL_RETURN_MUTATION = `
+  mutation CancelReturn($input: ReturnActionInput!) {
+    order { cancelReturn(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const RECEIVE_RETURN_MUTATION = `
+  mutation ReceiveReturn($input: ReceiveReturnInput!) {
+    order { receiveReturn(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const REFUND_RETURN_MUTATION = `
+  mutation RefundReturn($input: RefundReturnInput!) {
+    order { refundReturn(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const COMPLETE_RETURN_MUTATION = `
+  mutation CompleteReturn($input: ReturnActionInput!) {
+    order { completeReturn(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const UPDATE_RETURN_TRACKING_MUTATION = `
+  mutation UpdateReturnTracking($input: UpdateReturnTrackingInput!) {
+    order { updateReturnTracking(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 

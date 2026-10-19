@@ -101,6 +101,8 @@ Tools that accept `response`: `create_page`, `update_page_blocks`,
 `update_model`, `create_record`, `update_record`, `create_manual_order`,
 `edit_order`, `update_order_details`, `mark_order_paid`, `record_order_payment`,
 `refund_order`, `cancel_order`, `close_order`, `reopen_order`,
+`create_return`, `approve_return`, `reject_return`, `cancel_return`,
+`receive_return`, `refund_return`, `complete_return`, `update_return_tracking`,
 `create_shipment`, `update_shipment`,
 `set_order_pipeline_stage`, `record_order_invoice`, `create_discount`,
 `update_discount`, `set_discount_enabled`.
@@ -238,6 +240,14 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `cancel_order`                 | Cancel an order                                                     |
 | `close_order`                  | Mark an order done; reopens itself if payment or fulfillment slips  |
 | `reopen_order`                 | Reopen a closed order                                               |
+| `create_return`                | Open a return: lines, quantities, reasons, return-parcel tracking   |
+| `approve_return`               | Approve a return the customer requested                             |
+| `reject_return`                | Reject a requested return (asks for confirmation)                   |
+| `cancel_return`                | Cancel a return not yet refunded (asks for confirmation)            |
+| `receive_return`               | Record received units per line and how many go back to stock        |
+| `refund_return`                | Record a refund for a return (asks for confirmation)                |
+| `complete_return`              | Close a received return without a refund                            |
+| `update_return_tracking`       | Set the carrier and tracking number of the return parcel            |
 | `create_shipment`              | Add a parcel (carrier, tracking number, link, status) to an order   |
 | `update_shipment`              | Change a parcel's status or tracking, with a note for its history   |
 | `set_order_pipeline_stage`     | Move an order to a pipeline stage                                   |
