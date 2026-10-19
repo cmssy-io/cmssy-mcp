@@ -263,7 +263,9 @@ enum AuditLogAction {
   MODEL_DELETED
   MODEL_UPDATED
   ORDER_ANONYMIZED
+  ORDER_CLOSED
   ORDER_DELETED
+  ORDER_REOPENED
   PAGE_CREATED
   PAGE_DELETED
   PAGE_DEV_DRAFT_PROMOTED
@@ -656,6 +658,8 @@ type CartAppliedDiscount {
 
 """Per-workspace cart configuration (admin surface)"""
 type CartConfig {
+  """Close an order by itself once it is paid and fulfilled (default on)."""
+  autoCloseOrders: Boolean!
   defaultCurrency: String!
   defaultTaxRateId: String
   enableQuoteRequests: Boolean!
@@ -674,6 +678,7 @@ type CartConfig {
 }
 
 input CartConfigInput {
+  autoCloseOrders: Boolean
   defaultCurrency: String
   defaultTaxRateId: String
   enableQuoteRequests: Boolean
@@ -986,19 +991,24 @@ input CreateShipmentInput {
   carrier: String
 
   """
-  At most one shipment per order carries a given key. A second call with the same key adds nothing and returns the order with the shipment the first call made, so an integration can claim the parcel before buying its label. A keyed shipment created without a tracking number leaves fulfillment unchanged until updateShipment gives it one, so a claim whose label is never bought does not mark the order fulfilled.
+  At most one shipment per order carries a given key. A second call with the same key adds nothing and returns the order with the shipment the first call made, so an integration can claim the parcel before buying its label. A keyed shipment counts toward fulfillment only once it has a tracking number, so a claim whose label is never bought does not mark the order fulfilled.
   """
   idempotencyKey: String
+
+  """
+  Order lines and quantities in this parcel. Omitted takes every unit not yet in a live shipment.
+  """
+  items: [ShipmentItemInput!]
   labelUrl: String
   note: String
   orderId: ID!
 
-  """
-  The parcel carries only part of the order: fulfillment becomes partially_fulfilled instead of fulfilled.
-  """
+  """Ignored: name the parcel's items instead. Removed in CMS-2102."""
   partial: Boolean
 
-  """Defaults to pending."""
+  """
+  Defaults to label_purchased with a tracking number, else pending (a claim that does not fulfil anything yet).
+  """
   status: ShipmentStatus
   trackingNumber: String
   trackingUrl: String
@@ -1069,7 +1079,7 @@ type CustomerAnonymization {
   anonymized: [Order!]!
 
   """
-  Orders still in progress - left untouched; anonymize them once they are canceled, fulfilled, returned or refunded.
+  Orders still in progress - left untouched; anonymize them once they are canceled, closed, fulfilled or refunded.
   """
   skipped: [Order!]!
 }
@@ -2393,6 +2403,7 @@ type Order {
   balanceDue: Int!
   canceledAt: DateTime
   cartId: String
+  closedAt: DateTime
 
   """
   The customer's company record at the time the order was placed or attached.
@@ -2413,16 +2424,28 @@ type Order {
 
   """Message the buyer left at checkout (CMS-913)"""
   customerNote: String
+  deliveredAt: DateTime
+
+  """Where the order's live shipments are."""
+  deliveryStatus: OrderDeliveryStatus!
 
   """
   Money taken off the subtotal by the discount code, 0 when none (CMS-919)
   """
   discount: Int!
+
+  """
+  Collapsed label derived from the axes. Superseded by paymentStatus, fulfillmentStatus, deliveryStatus and state; removed in CMS-2102.
+  """
   displayStatus: String!
 
   """Admin edit trail; empty for a shopper reading their order."""
   edits: [OrderEdit!]!
   fulfilledAt: DateTime
+
+  """
+  unfulfilled, partially_fulfilled, fulfilled or not_required - derived from the items in shipments that have a label or left. Moves back when a shipment is canceled.
+  """
   fulfillmentStatus: String!
   id: String!
   invoiceNumber: String
@@ -2456,6 +2479,15 @@ type Order {
 
   """Shipping charged on this order, included in total"""
   shippingTotal: Int!
+
+  """
+  open, closed (done - paid and fulfilled, or closed by hand) or canceled.
+  """
+  state: OrderState!
+
+  """
+  Collapsed label derived from the axes. Superseded by paymentStatus, fulfillmentStatus, deliveryStatus and state; removed in CMS-2102.
+  """
   status: String!
   subtotal: Int!
   tax: Int!
@@ -2476,6 +2508,14 @@ type OrderAddress {
   postalCode: String!
   region: String
   vatId: String
+}
+
+enum OrderDeliveryStatus {
+  delivered
+  exception
+  in_transit
+  none
+  partially_delivered
 }
 
 """The discount code as it stood at checkout (CMS-919)."""
@@ -2559,6 +2599,9 @@ enum OrderFieldType {
 type OrderItem {
   currency: String!
 
+  """Stable line id; shipments name lines by it."""
+  id: ID!
+
   """Single-unit price this line would have cost without a volume break"""
   listPrice: Int
   modelId: String
@@ -2588,7 +2631,7 @@ type OrderListResult {
 
 type OrderMutations {
   """
-  Erase the buyer's personal data from a canceled, fulfilled, returned or refunded order - and from its cart, stored webhook deliveries and Spotlight history. Items, money and the order number stay. Irreversible.
+  Erase the buyer's personal data from a canceled, closed, fulfilled or refunded order - and from its cart, stored webhook deliveries and Spotlight history. Items, money and the order number stay. Irreversible.
   """
   anonymize(orderId: ID!): Order!
 
@@ -2597,10 +2640,15 @@ type OrderMutations {
   """
   anonymizeCustomer(customerId: ID!): CustomerAnonymization!
   cancel(input: CancelOrderInput!): Order!
+
+  """
+  Mark an order done. It reopens by itself if a later change leaves it unpaid or not fulfilled.
+  """
+  close(input: OrderStateInput!): Order!
   create(input: CreateManualOrderInput!): Order!
 
   """
-  Add a parcel to the order. An unfulfilled or partially fulfilled order moves to fulfilled, or to partially_fulfilled when partial is set - except a parcel with an idempotencyKey and no tracking number, which moves it only once updateShipment gives it one.
+  Add a parcel carrying some or all of the order's items. fulfillmentStatus, deliveryStatus and state are recomputed in the same write.
   """
   createShipment(input: CreateShipmentInput!): Order!
 
@@ -2627,6 +2675,11 @@ type OrderMutations {
   refund(input: RefundOrderInput!): Order!
 
   """
+  Reopen a closed order. Auto-close leaves it open until it next becomes paid and fulfilled.
+  """
+  reopen(input: OrderStateInput!): Order!
+
+  """
   Ask the integration that created this parcel to buy its label again, after its booking failed and the order was corrected. The failed parcel becomes canceled and stays as its record; emits shipment.label_requested. cmssy itself buys nothing.
   """
   requestShipmentLabel(input: RequestShipmentLabelInput!): Order!
@@ -2641,6 +2694,10 @@ type OrderMutations {
   """
   setCustomer(customerId: ID, orderId: ID!): Order!
   setPipelineStage(input: SetOrderPipelineStageInput!): Order!
+
+  """
+  Only `to: fulfilled` is accepted: it adds a delivered parcel with every remaining item. Superseded by createShipment; removed in CMS-2102.
+  """
   transitionFulfillment(input: FulfillOrderInput!): Order!
   updateDetails(input: UpdateOrderDetailsInput!): Order!
   updateItems(input: EditOrderInput!): Order!
@@ -2690,7 +2747,7 @@ input OrderPipelineStageInput {
 type OrderQueries {
   editPreview(input: EditOrderInput!): OrderEditPreview!
   get(id: ID!): Order
-  list(companyId: ID, customerId: ID, dateFrom: DateTime, dateTo: DateTime, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, queue: OrderQueue, search: String, skip: Int): OrderListResult!
+  list(companyId: ID, customerId: ID, dateFrom: DateTime, dateTo: DateTime, deliveryStatus: OrderDeliveryStatus, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, queue: OrderQueue, search: String, skip: Int, state: OrderState): OrderListResult!
 
   """
   The number the workspace's next order will get. Order numbers only ever go up.
@@ -2718,6 +2775,7 @@ One parcel sent for the order: carrier, tracking and its delivery status.
 type OrderShipment {
   carrier: String
   createdAt: DateTime!
+  deliveredAt: DateTime
 
   """Status history, oldest first."""
   events: [ShipmentEvent!]!
@@ -2726,10 +2784,16 @@ type OrderShipment {
   """The key the integration that created this parcel sent, if any."""
   idempotencyKey: String
 
+  """The order lines and quantities this parcel carries."""
+  items: [ShipmentItem!]!
+
   """
   Link to the carrier label to print, as the integration that bought it recorded it.
   """
   labelUrl: String
+
+  """When the parcel first left: in transit or later."""
+  shippedAt: DateTime
   status: ShipmentStatus!
   trackingNumber: String
   trackingUrl: String
@@ -2762,6 +2826,16 @@ type OrderShippingRule {
   freeAbove: Int
   maxSubtotal: Int
   minSubtotal: Int
+}
+
+enum OrderState {
+  canceled
+  closed
+  open
+}
+
+input OrderStateInput {
+  orderId: ID!
 }
 
 type OrderTaxSummaryLine {
@@ -3750,6 +3824,7 @@ type PublicOrder {
   appliedDiscount: OrderDiscount
   balanceDue: Int!
   canceledAt: DateTime
+  closedAt: DateTime
   createdAt: DateTime!
   currency: String!
 
@@ -3759,6 +3834,8 @@ type PublicOrder {
   customFields: JSON!
   customerEmail: String!
   customerNote: String
+  deliveredAt: DateTime
+  deliveryStatus: OrderDeliveryStatus!
 
   """
   Money taken off the subtotal, in minor units (CMS-919). subtotal - discount + shippingTotal + tax === total.
@@ -3780,6 +3857,11 @@ type PublicOrder {
   shippingAddress: OrderAddress
   shippingMethod: OrderShippingMethod
   shippingTotal: Int!
+  state: OrderState!
+
+  """
+  Collapsed label derived from the axes. Superseded by paymentStatus, fulfillmentStatus, deliveryStatus and state; removed in CMS-2102.
+  """
   status: String!
   subtotal: Int!
   tax: Int!
@@ -3789,6 +3871,7 @@ type PublicOrder {
 
 type PublicOrderItem {
   currency: String!
+  id: ID!
 
   """Single-unit price without a volume break"""
   listPrice: Int
@@ -4262,23 +4345,48 @@ type ShipmentEvent {
   status: ShipmentStatus!
 }
 
+type ShipmentItem {
+  """The order line's id."""
+  itemId: ID!
+  quantity: Int!
+}
+
+input ShipmentItemInput {
+  itemId: ID!
+  quantity: Int!
+}
+
 enum ShipmentStatus {
   canceled
   delivered
   exception
   in_transit
+  label_purchased
   out_for_delivery
   pending
+
+  """
+  Accepted as input and stored as returned_to_sender, never returned. Removed in CMS-2102.
+  """
   returned
+  returned_to_sender
 }
 
 """A parcel sent for the order, as the buyer may see it."""
 type ShipmentTracking {
   carrier: String
+  deliveredAt: DateTime
+  items: [ShipmentTrackingItem!]!
+  shippedAt: DateTime
   status: ShipmentStatus!
   trackingNumber: String
   trackingUrl: String
   updatedAt: DateTime!
+}
+
+type ShipmentTrackingItem {
+  itemId: ID!
+  quantity: Int!
 }
 
 """

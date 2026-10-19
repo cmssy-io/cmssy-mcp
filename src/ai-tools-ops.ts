@@ -108,7 +108,8 @@ import {
   RECORD_ORDER_PAYMENT_MUTATION,
   REFUND_ORDER_MUTATION,
   CANCEL_ORDER_MUTATION,
-  TRANSITION_ORDER_FULFILLMENT_MUTATION,
+  CLOSE_ORDER_MUTATION,
+  REOPEN_ORDER_MUTATION,
   CREATE_SHIPMENT_MUTATION,
   UPDATE_SHIPMENT_MUTATION,
   SET_ORDER_PIPELINE_STAGE_MUTATION,
@@ -1858,9 +1859,10 @@ export function createMcpWorkspaceOps(
                 companyId?: string | null;
                 companyName?: string | null;
                 poNumber?: string | null;
-                status?: string | null;
                 paymentStatus?: string | null;
                 fulfillmentStatus?: string | null;
+                deliveryStatus?: string | null;
+                state?: string | null;
                 total?: number | null;
                 currency?: string | null;
                 createdAt?: string | null;
@@ -1872,6 +1874,8 @@ export function createMcpWorkspaceOps(
         }>(ORDERS_QUERY, {
           paymentStatus: options?.paymentStatus,
           fulfillmentStatus: options?.fulfillmentStatus,
+          deliveryStatus: options?.deliveryStatus,
+          state: options?.state,
           customerId: options?.customerId,
           companyId: options?.companyId,
           search: options?.search,
@@ -1890,9 +1894,11 @@ export function createMcpWorkspaceOps(
             companyId: o.companyId ?? null,
             companyName: o.companyName ?? null,
             poNumber: o.poNumber ?? null,
-            status: o.status ?? null,
+            status: null,
             paymentStatus: o.paymentStatus ?? null,
             fulfillmentStatus: o.fulfillmentStatus ?? null,
+            deliveryStatus: o.deliveryStatus ?? null,
+            state: o.state ?? null,
             total: o.total ?? null,
             currency: o.currency ?? null,
             createdAt: o.createdAt ?? null,
@@ -1909,6 +1915,11 @@ export function createMcpWorkspaceOps(
               orderNumber?: number | null;
               paymentStatus?: string | null;
               fulfillmentStatus?: string | null;
+              deliveryStatus?: string | null;
+              state?: string | null;
+              fulfilledAt?: string | null;
+              deliveredAt?: string | null;
+              closedAt?: string | null;
               customerEmail?: string | null;
               customerId?: string | null;
               companyId?: string | null;
@@ -1946,6 +1957,11 @@ export function createMcpWorkspaceOps(
           orderNumber: o.orderNumber ?? null,
           paymentStatus: o.paymentStatus ?? null,
           fulfillmentStatus: o.fulfillmentStatus ?? null,
+          deliveryStatus: o.deliveryStatus ?? null,
+          state: o.state ?? null,
+          fulfilledAt: o.fulfilledAt ?? null,
+          deliveredAt: o.deliveredAt ?? null,
+          closedAt: o.closedAt ?? null,
           customerEmail: o.customerEmail ?? null,
           customerId: o.customerId ?? null,
           companyId: o.companyId ?? null,
@@ -2052,18 +2068,18 @@ export function createMcpWorkspaceOps(
         const o = res.order.cancel;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
-      transitionFulfillment: async (orderId, status) => {
+      close: async (orderId) => {
         const res = await client.query<{
-          order: {
-            transitionFulfillment: {
-              id: string;
-              orderNumber?: number | null;
-            };
-          };
-        }>(TRANSITION_ORDER_FULFILLMENT_MUTATION, {
-          input: { orderId, status },
-        });
-        const o = res.order.transitionFulfillment;
+          order: { close: { id: string; orderNumber?: number | null } };
+        }>(CLOSE_ORDER_MUTATION, { input: { orderId } });
+        const o = res.order.close;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      reopen: async (orderId) => {
+        const res = await client.query<{
+          order: { reopen: { id: string; orderNumber?: number | null } };
+        }>(REOPEN_ORDER_MUTATION, { input: { orderId } });
+        const o = res.order.reopen;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
       createShipment: async (orderId, shipment) => {

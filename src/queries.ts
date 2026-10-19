@@ -154,6 +154,7 @@ const CART_CONFIG_FRAGMENT = `
   loggedInTTLDays
   enableQuoteRequests
   enableSavedCarts
+  autoCloseOrders
   taxRates { id name rate }
   shippingMethods {
     id
@@ -1205,10 +1206,10 @@ export const BULK_UPDATE_MODEL_RECORDS_MUTATION = `
 // Money fields are integer minor units (cents).
 const ORDER_FRAGMENT = `
   id
-  status
-  displayStatus
   paymentStatus
   fulfillmentStatus
+  deliveryStatus
+  state
   orderNumber
   customerId
   companyId
@@ -1228,6 +1229,8 @@ const ORDER_FRAGMENT = `
   paymentReference
   paidAt
   fulfilledAt
+  deliveredAt
+  closedAt
   shipments {
     id
     carrier
@@ -1235,6 +1238,9 @@ const ORDER_FRAGMENT = `
     trackingUrl
     labelUrl
     status
+    items { itemId quantity }
+    shippedAt
+    deliveredAt
     events { status at note }
     createdAt
     updatedAt
@@ -1263,6 +1269,7 @@ const ORDER_FRAGMENT = `
     vatId
   }
   items {
+    id
     name
     price
     listPrice
@@ -1288,9 +1295,10 @@ const ORDER_FRAGMENT = `
 // of orders does not blow up the agent's context. Use get_order for full detail.
 const ORDER_LIST_FRAGMENT = `
   id
-  status
   paymentStatus
   fulfillmentStatus
+  deliveryStatus
+  state
   orderNumber
   customerId
   companyId
@@ -1314,6 +1322,8 @@ export const ORDERS_QUERY = `
   query Orders(
     $paymentStatus: String
     $fulfillmentStatus: String
+    $deliveryStatus: OrderDeliveryStatus
+    $state: OrderState
     $customerId: ID
     $companyId: ID
     $search: String
@@ -1327,6 +1337,8 @@ export const ORDERS_QUERY = `
       list(
         paymentStatus: $paymentStatus
         fulfillmentStatus: $fulfillmentStatus
+        deliveryStatus: $deliveryStatus
+        state: $state
         customerId: $customerId
         companyId: $companyId
         search: $search
@@ -1407,9 +1419,15 @@ export const CANCEL_ORDER_MUTATION = `
   }
 `;
 
-export const TRANSITION_ORDER_FULFILLMENT_MUTATION = `
-  mutation TransitionOrderFulfillment($input: FulfillOrderInput!) {
-    order { transitionFulfillment(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+export const CLOSE_ORDER_MUTATION = `
+  mutation CloseOrder($input: OrderStateInput!) {
+    order { close(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const REOPEN_ORDER_MUTATION = `
+  mutation ReopenOrder($input: OrderStateInput!) {
+    order { reopen(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 

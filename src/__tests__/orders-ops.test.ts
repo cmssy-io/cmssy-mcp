@@ -4,10 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import type { CmssyClient } from "../graphql-client.js";
 import {
+  CLOSE_ORDER_MUTATION,
   CREATE_SHIPMENT_MUTATION,
   ORDER_BY_ID_QUERY,
   ORDERS_QUERY,
-  TRANSITION_ORDER_FULFILLMENT_MUTATION,
+  REOPEN_ORDER_MUTATION,
   UPDATE_SHIPMENT_MUTATION,
 } from "../queries.js";
 
@@ -51,9 +52,10 @@ const rawSummary = {
   companyId: "co-1",
   companyName: "Acme",
   poNumber: "PO-7",
-  status: "pending",
-  paymentStatus: "unpaid",
-  fulfillmentStatus: "unfulfilled",
+  paymentStatus: "paid",
+  fulfillmentStatus: "partially_fulfilled",
+  deliveryStatus: "in_transit",
+  state: "open",
   total: 602700,
   currency: "USD",
   createdAt: "2026-09-21T08:00:00.000Z",
@@ -127,6 +129,99 @@ describe("orders ops (CMS-1915)", () => {
   });
 });
 
+describe("order status axes (CMS-2102)", () => {
+  const AXES = ["paymentStatus", "fulfillmentStatus", "deliveryStatus", "state"];
+
+  it("list and get select the four axes and never the collapsed status", () => {
+    for (const [name, document, parent] of [
+      ["list", ORDERS_QUERY, "items"],
+      ["get", ORDER_BY_ID_QUERY, "get"],
+    ] as const) {
+      const selected = selectedUnder(document, parent);
+      expect(AXES.filter((k) => !selected.has(k)), name).toEqual([]);
+      expect(selected.has("status"), name).toBe(false);
+      expect(selected.has("displayStatus"), name).toBe(false);
+    }
+    expect(
+      [...selectedUnder(ORDER_BY_ID_QUERY, "get")].filter((k) =>
+        ["fulfilledAt", "deliveredAt", "closedAt"].includes(k),
+      ).sort(),
+    ).toEqual(["closedAt", "deliveredAt", "fulfilledAt"]);
+  });
+
+  it("list forwards the delivery and state filters and maps each axis", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { list: { items: [rawSummary], total: 1, hasMore: false } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    const result = await ops.orders.list({
+      deliveryStatus: "exception",
+      state: "closed",
+    });
+
+    expect(sent[0]!.variables).toMatchObject({
+      deliveryStatus: "exception",
+      state: "closed",
+    });
+    expect(result.items[0]).toMatchObject({
+      paymentStatus: "paid",
+      fulfillmentStatus: "partially_fulfilled",
+      deliveryStatus: "in_transit",
+      state: "open",
+      status: null,
+    });
+  });
+
+  it("get maps the axes and their timestamps, null when the API sends none", async () => {
+    const { client } = clientAnswering([
+      {
+        order: {
+          get: {
+            ...rawSummary,
+            fulfilledAt: "2026-10-02T10:00:00.000Z",
+            deliveredAt: "2026-10-03T10:00:00.000Z",
+            closedAt: "2026-10-04T10:00:00.000Z",
+          },
+        },
+      },
+      { order: { get: { id: "o-2" } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.orders.get("o-1")).toMatchObject({
+      deliveryStatus: "in_transit",
+      state: "open",
+      fulfilledAt: "2026-10-02T10:00:00.000Z",
+      deliveredAt: "2026-10-03T10:00:00.000Z",
+      closedAt: "2026-10-04T10:00:00.000Z",
+    });
+    expect(await ops.orders.get("o-2")).toMatchObject({
+      deliveryStatus: null,
+      state: null,
+      fulfilledAt: null,
+      deliveredAt: null,
+      closedAt: null,
+    });
+  });
+
+  it("close and reopen send only the order", async () => {
+    const ack = { id: "o-1", orderNumber: 11 };
+    const { client, sent } = clientAnswering([
+      { order: { close: ack } },
+      { order: { reopen: ack } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.orders.close("o-1")).toEqual(ack);
+    expect(await ops.orders.reopen("o-1")).toEqual(ack);
+    expect(sent).toEqual([
+      { document: CLOSE_ORDER_MUTATION, variables: { input: { orderId: "o-1" } } },
+      { document: REOPEN_ORDER_MUTATION, variables: { input: { orderId: "o-1" } } },
+    ]);
+  });
+});
+
 describe("order custom fields ops", () => {
   it("get selects and hands back the custom fields, and {} when the API sends none", async () => {
     const { client } = clientAnswering([
@@ -174,6 +269,9 @@ describe("order shipments ops", () => {
     trackingUrl: null,
     labelUrl: "https://labels.example/620.pdf",
     status: "in_transit",
+    items: [{ itemId: "line-1", quantity: 2 }],
+    shippedAt: "2026-10-01T10:00:00.000Z",
+    deliveredAt: null,
     events: [{ status: "in_transit", at: "2026-10-01T10:00:00.000Z", note: null }],
     createdAt: "2026-10-01T10:00:00.000Z",
     updatedAt: "2026-10-01T10:00:00.000Z",
@@ -187,9 +285,12 @@ describe("order shipments ops", () => {
       [
         "carrier",
         "createdAt",
+        "deliveredAt",
         "events",
         "id",
+        "items",
         "labelUrl",
+        "shippedAt",
         "status",
         "trackingNumber",
         "trackingUrl",
@@ -211,7 +312,7 @@ describe("order shipments ops", () => {
     expect((await ops.orders.get("o-1"))!.shipments).toEqual([]);
   });
 
-  it("createShipment sends the parcel with its order", async () => {
+  it("createShipment sends the parcel with its order and the lines it carries", async () => {
     const { client, sent } = clientAnswering([
       { order: { createShipment: ack } },
     ]);
@@ -220,7 +321,7 @@ describe("order shipments ops", () => {
     const result = await ops.orders.createShipment("o-1", {
       carrier: "InPost",
       status: "in_transit",
-      partial: true,
+      items: [{ itemId: "line-1", quantity: 2 }],
     });
 
     expect(sent[0]).toEqual({
@@ -230,7 +331,7 @@ describe("order shipments ops", () => {
           orderId: "o-1",
           carrier: "InPost",
           status: "in_transit",
-          partial: true,
+          items: [{ itemId: "line-1", quantity: 2 }],
         },
       },
     });
@@ -258,20 +359,6 @@ describe("order shipments ops", () => {
           status: "delivered",
         },
       },
-    });
-  });
-
-  it("transitionFulfillment sends only the status", async () => {
-    const { client, sent } = clientAnswering([
-      { order: { transitionFulfillment: ack } },
-    ]);
-    const ops = createMcpWorkspaceOps(client);
-
-    await ops.orders.transitionFulfillment("o-1", "fulfilled");
-
-    expect(sent[0]).toEqual({
-      document: TRANSITION_ORDER_FULFILLMENT_MUTATION,
-      variables: { input: { orderId: "o-1", status: "fulfilled" } },
     });
   });
 });
