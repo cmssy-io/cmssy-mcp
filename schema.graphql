@@ -254,6 +254,8 @@ enum AuditLogAction {
   MODEL_CREATED
   MODEL_DELETED
   MODEL_UPDATED
+  ORDER_ANONYMIZED
+  ORDER_DELETED
   PAGE_CREATED
   PAGE_DELETED
   PAGE_DEV_DRAFT_PROMOTED
@@ -307,6 +309,7 @@ enum AuditLogActorKind {
 enum AuditLogEntityType {
   FORM
   MODEL
+  ORDER
   PAGE
   RECORD
   ROLE
@@ -1046,6 +1049,15 @@ type CustomerAccountEmailResult {
   Whether the email was handed to the mailer. False means the link was issued but no email went out (e.g. the workspace email provider refused it).
   """
   emailSent: Boolean!
+}
+
+type CustomerAnonymization {
+  anonymized: [Order!]!
+
+  """
+  Orders still in progress - left untouched; anonymize them once they are canceled, fulfilled, returned or refunded.
+  """
+  skipped: [Order!]!
 }
 
 type CustomerBulkRefusal {
@@ -2356,6 +2368,11 @@ type Order {
   accessToken: String
   amountPaid: Int!
 
+  """
+  When the buyer's personal data was erased (GDPR). The order keeps its items, money and number.
+  """
+  anonymizedAt: DateTime
+
   """The discount code frozen at order time (CMS-919)"""
   appliedDiscount: OrderDiscount
   balanceDue: Int!
@@ -2555,6 +2572,15 @@ type OrderListResult {
 }
 
 type OrderMutations {
+  """
+  Erase the buyer's personal data from a canceled, fulfilled, returned or refunded order - and from its cart, stored webhook deliveries and Spotlight history. Items, money and the order number stay. Irreversible.
+  """
+  anonymize(orderId: ID!): Order!
+
+  """
+  Anonymize every finished order of one customer: the orders linked to the record plus guest orders placed with its email. Irreversible.
+  """
+  anonymizeCustomer(customerId: ID!): CustomerAnonymization!
   cancel(input: CancelOrderInput!): Order!
   create(input: CreateManualOrderInput!): Order!
 
@@ -2562,6 +2588,11 @@ type OrderMutations {
   Add a parcel to the order. An unfulfilled or partially fulfilled order moves to fulfilled, or to partially_fulfilled when partial is set.
   """
   createShipment(input: CreateShipmentInput!): Order!
+
+  """
+  Permanently delete a canceled order that took no payment and has no invoice - a test or spam order. Its cart, stored webhook deliveries and Spotlight history lose the buyer's data too. Returns the deleted order's id.
+  """
+  deleteJunk(orderId: ID!): ID!
 
   """
   Privileged server-only mutation. Records a payment against an order; it does NOT process or verify a payment. Your backend MUST verify the payment-provider (Stripe, etc.) webhook signature before calling this, and must never expose it to a browser/site-member context. Requires ORDERS_MANAGE.
