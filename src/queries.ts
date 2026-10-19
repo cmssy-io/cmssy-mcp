@@ -1233,6 +1233,7 @@ const ORDER_FRAGMENT = `
     carrier
     trackingNumber
     trackingUrl
+    labelUrl
     status
     events { status at note }
     createdAt

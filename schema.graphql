@@ -54,6 +54,13 @@ type AdminCartList {
   total: Int!
 }
 
+type AdminCartMutations {
+  """
+  Permanently delete 1 to 100 carts with their analytics events, the visitor sessions only they used and any discount use they held. Refuses the whole request, deleting nothing, when an id is not a cart of this workspace or is an ordered cart (anonymize its order instead). Returns how many carts were deleted.
+  """
+  delete(ids: [ID!]!): Int!
+}
+
 type AdminCartQueries {
   analytics(range: CartAnalyticsRange!): CartAnalytics!
   list(companyId: ID, customerId: ID, limit: Int, skip: Int, status: String): AdminCartList!
@@ -249,6 +256,7 @@ type AssetTokenWithSecret {
 }
 
 enum AuditLogAction {
+  CART_BULK_DELETED
   FORM_DELETED
   FORM_SUBMISSION_DELETED
   MODEL_CREATED
@@ -976,6 +984,12 @@ input CreatePageTypeInput {
 
 input CreateShipmentInput {
   carrier: String
+
+  """
+  At most one shipment per order carries a given key. A second call with the same key adds nothing and returns the order with the shipment the first call made, so an integration can claim the parcel before buying its label. A keyed shipment created without a tracking number leaves fulfillment unchanged until updateShipment gives it one, so a claim whose label is never bought does not mark the order fulfilled.
+  """
+  idempotencyKey: String
+  labelUrl: String
   note: String
   orderId: ID!
 
@@ -2192,6 +2206,7 @@ input MovePageInput {
 }
 
 type Mutation {
+  adminCart: AdminCartMutations!
   ai: AiMutations!
   apiToken: ApiTokenMutations!
   assetToken: AssetTokenMutations!
@@ -2585,7 +2600,7 @@ type OrderMutations {
   create(input: CreateManualOrderInput!): Order!
 
   """
-  Add a parcel to the order. An unfulfilled or partially fulfilled order moves to fulfilled, or to partially_fulfilled when partial is set.
+  Add a parcel to the order. An unfulfilled or partially fulfilled order moves to fulfilled, or to partially_fulfilled when partial is set - except a parcel with an idempotencyKey and no tracking number, which moves it only once updateShipment gives it one.
   """
   createShipment(input: CreateShipmentInput!): Order!
 
@@ -2610,6 +2625,11 @@ type OrderMutations {
   """
   recordPayment(input: RecordOrderPaymentInput!): Order!
   refund(input: RefundOrderInput!): Order!
+
+  """
+  Ask the integration that created this parcel to buy its label again, after its booking failed and the order was corrected. The failed parcel becomes canceled and stays as its record; emits shipment.label_requested. cmssy itself buys nothing.
+  """
+  requestShipmentLabel(input: RequestShipmentLabelInput!): Order!
 
   """
   Kill the buyer's confirmation-page link (forwarded email, lost device). Irreversible.
@@ -2670,13 +2690,26 @@ input OrderPipelineStageInput {
 type OrderQueries {
   editPreview(input: EditOrderInput!): OrderEditPreview!
   get(id: ID!): Order
-  list(companyId: ID, customerId: ID, dateFrom: DateTime, dateTo: DateTime, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, search: String, skip: Int): OrderListResult!
+  list(companyId: ID, customerId: ID, dateFrom: DateTime, dateTo: DateTime, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, queue: OrderQueue, search: String, skip: Int): OrderListResult!
 
   """
   The number the workspace's next order will get. Order numbers only ever go up.
   """
   nextNumber: Int!
   pipeline: OrderPipeline!
+  queueCounts: OrderQueueCounts!
+}
+
+enum OrderQueue {
+  in_transit
+  shipping_problem
+  to_pack
+}
+
+type OrderQueueCounts {
+  inTransit: Int!
+  shippingProblem: Int!
+  toPack: Int!
 }
 
 """
@@ -2689,6 +2722,14 @@ type OrderShipment {
   """Status history, oldest first."""
   events: [ShipmentEvent!]!
   id: ID!
+
+  """The key the integration that created this parcel sent, if any."""
+  idempotencyKey: String
+
+  """
+  Link to the carrier label to print, as the integration that bought it recorded it.
+  """
+  labelUrl: String
   status: ShipmentStatus!
   trackingNumber: String
   trackingUrl: String
@@ -4067,6 +4108,11 @@ enum RelationType {
   hasOne
 }
 
+input RequestShipmentLabelInput {
+  orderId: ID!
+  shipmentId: ID!
+}
+
 type ResolvedLayout {
   blocks: [ResolvedLayoutBlock!]!
   isInherited: Boolean!
@@ -4217,6 +4263,7 @@ type ShipmentEvent {
 }
 
 enum ShipmentStatus {
+  canceled
   delivered
   exception
   in_transit
@@ -4737,6 +4784,14 @@ input UpdatePageTypeInput {
 input UpdateShipmentInput {
   """Omitted leaves it unchanged; null clears it."""
   carrier: String
+
+  """
+  Optimistic-concurrency precondition: the parcel's updatedAt as the caller last read it. When given and the parcel changed since, the update fails with VERSION_CONFLICT and nothing is written.
+  """
+  expectedUpdatedAt: DateTime
+
+  """Omitted leaves it unchanged; null clears it."""
+  labelUrl: String
 
   """Recorded in the status history with the new status."""
   note: String

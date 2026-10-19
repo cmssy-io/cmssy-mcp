@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.102.0
+
+- **Shipping label link** (`@cmssy/ai-tools` 0.74.0): `get_order` returns each
+  parcel's `labelUrl`, the printable label a carrier integration stored;
+  `create_shipment` sets it and `update_shipment` changes or clears it.
+
 ## 0.101.0
 
 - **Canceled shipment status** (`@cmssy/ai-tools` 0.73.0): `create_shipment`
