@@ -6,10 +6,13 @@ import type { CmssyClient } from "../graphql-client.js";
 import {
   CLOSE_ORDER_MUTATION,
   APPROVE_RETURN_MUTATION,
+  CANCEL_RETURN_MUTATION,
+  COMPLETE_RETURN_MUTATION,
   CREATE_RETURN_MUTATION,
   CREATE_SHIPMENT_MUTATION,
   RECEIVE_RETURN_MUTATION,
   REFUND_RETURN_MUTATION,
+  REJECT_RETURN_MUTATION,
   UPDATE_RETURN_TRACKING_MUTATION,
   ORDER_BY_ID_QUERY,
   ORDERS_QUERY,
@@ -474,6 +477,39 @@ describe("order shipments ops", () => {
         document: UPDATE_RETURN_TRACKING_MUTATION,
         variables: {
           input: { orderId: "o-1", returnId: "r-1", carrier: null },
+        },
+      },
+    ]);
+    expect(result).toEqual(ack);
+  });
+
+  it("reject, cancel and complete send the return and its note to their own mutation", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { rejectReturn: ack } },
+      { order: { cancelReturn: ack } },
+      { order: { completeReturn: ack } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.orders.rejectReturn("o-1", "r-1", "worn");
+    await ops.orders.cancelReturn("o-1", "r-2");
+    const result = await ops.orders.completeReturn("o-1", "r-3", "credit");
+
+    expect(sent).toEqual([
+      {
+        document: REJECT_RETURN_MUTATION,
+        variables: { input: { orderId: "o-1", returnId: "r-1", note: "worn" } },
+      },
+      {
+        document: CANCEL_RETURN_MUTATION,
+        variables: {
+          input: { orderId: "o-1", returnId: "r-2", note: undefined },
+        },
+      },
+      {
+        document: COMPLETE_RETURN_MUTATION,
+        variables: {
+          input: { orderId: "o-1", returnId: "r-3", note: "credit" },
         },
       },
     ]);
