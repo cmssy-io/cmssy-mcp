@@ -1,5 +1,20 @@
 # @cmssy/mcp-server
 
+## 0.103.0
+
+- **Order status model** (`@cmssy/ai-tools` 0.76.0, cmssy CMS-2100):
+  - `list_orders` and `get_order` return `deliveryStatus` and `state` next to
+    `paymentStatus` and `fulfillmentStatus`, and `get_order` adds
+    `fulfilledAt`, `deliveredAt` and `closedAt`;
+  - `list_orders` filters on `deliveryStatus` and `state`;
+  - each parcel carries its `items`, `shippedAt` and `deliveredAt`, and
+    `create_shipment` takes the `items` a parcel carries;
+  - new `close_order` and `reopen_order`;
+  - `transition_order_fulfillment`, the collapsed `status` and the parcel
+    `partial` flag are gone.
+- `get_site_config` reads and `update_cart_config` sets
+  `cartConfig.autoCloseOrders`.
+
 ## 0.102.0
 
 - **Shipping label link** (`@cmssy/ai-tools` 0.74.0): `get_order` returns each

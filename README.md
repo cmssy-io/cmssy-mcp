@@ -100,7 +100,7 @@ Tools that accept `response`: `create_page`, `update_page_blocks`,
 `remove_block_from_page`, `create_form`, `update_form`, `create_model`,
 `update_model`, `create_record`, `update_record`, `create_manual_order`,
 `edit_order`, `update_order_details`, `mark_order_paid`, `record_order_payment`,
-`refund_order`, `cancel_order`, `transition_order_fulfillment`,
+`refund_order`, `cancel_order`, `close_order`, `reopen_order`,
 `create_shipment`, `update_shipment`,
 `set_order_pipeline_stage`, `record_order_invoice`, `create_discount`,
 `update_discount`, `set_discount_enabled`.
@@ -226,7 +226,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 
 | Tool                           | Description                                                         |
 | ------------------------------ | ------------------------------------------------------------------- |
-| `list_orders`                  | List orders (filter by payment/fulfillment status, customer, dates) |
+| `list_orders`                  | List orders by payment/fulfillment/delivery/state, customer, dates  |
 | `get_order`                    | Get an order with items, payments, parcels, and tax summary         |
 | `get_order_pipeline`           | Get the workspace's configurable order pipeline stages              |
 | `create_manual_order`          | Create an admin-entered order                                       |
@@ -236,7 +236,8 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `record_order_payment`         | Record a partial payment against the balance due                    |
 | `refund_order`                 | Refund an order (full, or partial with `amount`)                    |
 | `cancel_order`                 | Cancel an order                                                     |
-| `transition_order_fulfillment` | Move an order to a new fulfillment status                           |
+| `close_order`                  | Mark an order done; reopens itself if payment or fulfillment slips  |
+| `reopen_order`                 | Reopen a closed order                                               |
 | `create_shipment`              | Add a parcel (carrier, tracking number, link, status) to an order   |
 | `update_shipment`              | Change a parcel's status or tracking, with a note for its history   |
 | `set_order_pipeline_stage`     | Move an order to a pipeline stage                                   |
