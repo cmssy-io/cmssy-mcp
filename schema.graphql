@@ -18,6 +18,9 @@ type AcceptOrganizationInvitationResult {
 type AccountQueries {
   order(id: ID!, workspaceId: ID!): PublicOrder
   orders(limit: Int, skip: Int, workspaceId: ID!): PublicOrderListResult!
+
+  """The signed-in member's own account record."""
+  profile(workspaceId: ID!): MemberProfile!
 }
 
 """Input for adding an item to a cart"""
@@ -1085,13 +1088,14 @@ type Customer {
   verified: Boolean!
 }
 
-type CustomerAccountEmailResult {
+type CustomerAccountRequestResult {
   customer: Customer!
+  emailSent: Boolean! @deprecated(reason: "cmssy no longer emails customers. Use endpointSubscribed.")
 
   """
-  Whether the email was handed to the mailer. False means the link was issued but no email went out (e.g. the workspace email provider refused it).
+  Whether an enabled webhook endpoint receives the account event. cmssy never emails a customer: the endpoint's app does. False means the token was issued but nothing will reach the customer.
   """
-  emailSent: Boolean!
+  endpointSubscribed: Boolean!
 }
 
 type CustomerAnonymization {
@@ -1144,14 +1148,14 @@ type CustomerModel {
 
 type CustomerMutations {
   """
-  Issue a fresh verification link and email it. Only for a customer who has not verified yet; the previous link stops working.
+  Issue a fresh verification token and send it to the workspace's app as account.verification_requested - the app emails the customer. Only for a customer who has not verified yet; the previous token stops working.
   """
-  resendVerification(id: ID!): CustomerAccountEmailResult!
+  resendVerification(id: ID!): CustomerAccountRequestResult!
 
   """
-  Email the customer a password reset link, the same one the forgot-password flow sends. Refuses a suspended or unverified customer.
+  Issue a password reset token, the same one the forgot-password flow issues, and send it to the workspace's app as account.password_reset_requested - the app emails the customer. Refuses a suspended or unverified customer.
   """
-  sendPasswordReset(id: ID!): CustomerAccountEmailResult!
+  sendPasswordReset(id: ID!): CustomerAccountRequestResult!
 
   """
   Block sign-in and end every live session of the customer. Orders and carts stay.
@@ -2039,6 +2043,24 @@ type MemberMutations {
   suspend(userId: ID!): Workspace!
   unsuspend(userId: ID!): Workspace!
   updateRole(roleId: ID!, userId: ID!): Workspace!
+}
+
+"""
+The signed-in site member's own account record, redacted like a delivery read.
+"""
+type MemberProfile {
+  createdAt: DateTime!
+  data: JSON!
+
+  """Keys siteMember.updateProfile accepts."""
+  editableFields: [String!]!
+  id: ID!
+  login: String!
+
+  """
+  A login waiting for confirmLoginChange with the token from account.login_change_requested.
+  """
+  pendingLogin: String
 }
 
 type MemberScopedGrant {
@@ -3607,6 +3629,11 @@ type PropertyField {
   localized: Boolean
   maxLength: Int
   maxValue: Float
+
+  """
+  On an account model: a signed-in member may change this field on their own account.
+  """
+  memberCanSet: Boolean
   minLength: Int
   minValue: Float
   multiple: Boolean
@@ -3634,6 +3661,7 @@ input PropertyFieldInput {
   localized: Boolean
   maxLength: Int
   maxValue: Float
+  memberCanSet: Boolean
   minLength: Int
   minValue: Float
   multiple: Boolean
@@ -4741,13 +4769,37 @@ type SiteMemberLoginResponse {
 }
 
 type SiteMemberMutations {
+  """
+  Change the password after re-entering the current one. Every session ends; the response carries a fresh one for this caller.
+  """
+  changePassword(currentPassword: String!, newPassword: String!): SiteMemberLoginResponse!
+
+  """
+  Apply a login change with the token from account.login_change_requested. Needs no session - the token is the proof.
+  """
+  confirmLoginChange(token: String!): SiteMemberAuthResponse!
+
+  """
+  Delete the signed-in member's account after re-entering the password. Orders keep their snapshot.
+  """
+  deleteAccount(currentPassword: String!): SiteMemberAuthResponse!
   forgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
   login(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
   logout(refreshToken: String!): SiteMemberAuthResponse!
   logoutEverywhere: SiteMemberAuthResponse!
   refresh(refreshToken: String!): SiteMemberLoginResponse!
   register(input: SiteMemberRegisterInput!): SiteMemberAuthResponse!
+
+  """
+  Ask to change the login. cmssy sends a single-use token to the workspace's app as account.login_change_requested; the account keeps its login until confirmLoginChange runs with that token. Only when the account model opens its login field to members.
+  """
+  requestLoginChange(currentPassword: String!, newLogin: String!): SiteMemberAuthResponse!
   resetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
+
+  """
+  Change the signed-in member's own fields. Only fields the account model marks memberCanSet are accepted; the login and the password have their own mutations.
+  """
+  updateProfile(fields: JSON!): MemberProfile!
   verifyEmail(token: String!): SiteMemberAuthResponse!
 }
 

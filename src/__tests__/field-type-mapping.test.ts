@@ -49,6 +49,7 @@ describe("toPropertyFields", () => {
         type: "password",
         required: false,
         hidden: true,
+        memberCanSet: true,
         description: null,
         defaultValue: null,
         options: [],
@@ -73,6 +74,7 @@ describe("toPropertyFields", () => {
         type: "password",
         required: false,
         hidden: true,
+        memberCanSet: true,
       },
       {
         key: "category",

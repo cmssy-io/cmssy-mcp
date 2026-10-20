@@ -24,7 +24,7 @@ import type {
   FieldText,
   WorkspaceOps,
   CustomerSummary,
-  CustomerAccountEmailResult,
+  CustomerAccountRequestResult,
   OrderShipment,
   OrderReturn,
 } from "@cmssy/ai-tools";
@@ -412,17 +412,17 @@ interface RawCustomer {
   updatedAt: string | null;
 }
 
-interface RawAccountEmailResult {
-  emailSent: boolean;
+interface RawAccountRequestResult {
+  endpointSubscribed: boolean;
   customer: RawCustomer;
 }
 
-function toAccountEmailResult(
-  raw: RawAccountEmailResult,
-): CustomerAccountEmailResult {
+function toAccountRequestResult(
+  raw: RawAccountRequestResult,
+): CustomerAccountRequestResult {
   return {
     customer: toCustomerSummary(raw.customer),
-    emailSent: raw.emailSent,
+    endpointSubscribed: raw.endpointSubscribed,
   };
 }
 
@@ -452,6 +452,7 @@ interface RawPropertyField {
   type: string;
   required: boolean | null;
   hidden?: boolean | null;
+  memberCanSet?: boolean | null;
   localized?: boolean | null;
   description?: FieldText | null;
   defaultValue?: string | null;
@@ -484,6 +485,7 @@ export function toProposedFields(
     type: f.type as ProposedField["type"],
     required: f.required ?? false,
     ...(f.hidden != null ? { hidden: f.hidden } : {}),
+    ...(f.memberCanSet != null ? { memberCanSet: f.memberCanSet } : {}),
     ...(f.description != null ? { description: f.description } : {}),
     ...(f.defaultValue != null ? { defaultValue: f.defaultValue } : {}),
     ...(f.options && f.options.length > 0 ? { options: f.options } : {}),
@@ -2647,15 +2649,15 @@ export function createMcpWorkspaceOps(
       },
       sendPasswordReset: async (id) => {
         const res = await client.query<{
-          customer: { sendPasswordReset: RawAccountEmailResult };
+          customer: { sendPasswordReset: RawAccountRequestResult };
         }>(SEND_CUSTOMER_PASSWORD_RESET_MUTATION, { id });
-        return toAccountEmailResult(res.customer.sendPasswordReset);
+        return toAccountRequestResult(res.customer.sendPasswordReset);
       },
       resendVerification: async (id) => {
         const res = await client.query<{
-          customer: { resendVerification: RawAccountEmailResult };
+          customer: { resendVerification: RawAccountRequestResult };
         }>(RESEND_CUSTOMER_VERIFICATION_MUTATION, { id });
-        return toAccountEmailResult(res.customer.resendVerification);
+        return toAccountRequestResult(res.customer.resendVerification);
       },
       unlock: async (id) => {
         const res = await client.query<{
