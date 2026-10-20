@@ -1,5 +1,12 @@
 # @cmssy/mcp-server
 
+## 0.105.0
+
+- **Member self-service** (`@cmssy/ai-tools` 0.79.0, cmssy CMS-2105):
+  `create_model` and `update_model` take `auth.profileFields`, the fields a
+  signed-in member may change on their own account, and `get_model` returns
+  them. `null` or `[]` closes them all.
+
 ## 0.104.0
 
 - **Order returns** (`@cmssy/ai-tools` 0.78.0, cmssy CMS-2103):

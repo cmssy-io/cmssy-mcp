@@ -107,6 +107,19 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
     expect(input.auth).toEqual({ companyField: null, companyRoleField: null });
   });
 
+  it("passes profileFields through to the update", async () => {
+    const { client, sent } = clientAnswering([
+      { model: { get: { id: MODEL_ID, name: "Buyer", slug: "buyer", fields: [] } } },
+      { model: { update: { id: MODEL_ID, name: "Buyer", slug: "buyer", fields: [] } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.models.update(MODEL_ID, { auth: { profileFields: ["name"] } });
+
+    const input = sent[1]!.variables.input as Record<string, unknown>;
+    expect(input.auth).toEqual({ profileFields: ["name"] });
+  });
+
   it("the model fragment asks for the accounts config and the resolved product roles", () => {
     expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "auth")].sort()).toEqual(
       [
@@ -115,6 +128,7 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
         "enabled",
         "identityField",
         "lockout",
+        "profileFields",
         "strategy",
         "verification",
       ],

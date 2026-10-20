@@ -1001,6 +1001,7 @@ const MODEL_DEFINITION_FRAGMENT = `
     identityField
     companyField
     companyRoleField
+    profileFields
     verification { required }
     lockout { enabled maxAttempts lockMinutes }
   }

@@ -18,6 +18,9 @@ type AcceptOrganizationInvitationResult {
 type AccountQueries {
   order(id: ID!, workspaceId: ID!): PublicOrder
   orders(limit: Int, skip: Int, workspaceId: ID!): PublicOrderListResult!
+
+  """The signed-in member's own account record."""
+  profile(workspaceId: ID!): MemberProfile!
 }
 
 """Input for adding an item to a cart"""
@@ -2041,6 +2044,22 @@ type MemberMutations {
   updateRole(roleId: ID!, userId: ID!): Workspace!
 }
 
+"""
+The signed-in site member's own account record, redacted like a delivery read.
+"""
+type MemberProfile {
+  createdAt: DateTime!
+  data: JSON!
+
+  """Keys siteMember.updateProfile accepts."""
+  editableFields: [String!]!
+  email: String!
+  id: ID!
+
+  """An address waiting for its confirmation link."""
+  pendingEmail: String
+}
+
 type MemberScopedGrant {
   pageId: String!
   roleId: String!
@@ -2077,6 +2096,11 @@ type ModelAuthConfig {
   enabled: Boolean!
   identityField: String!
   lockout: ModelAuthLockout!
+
+  """
+  Fields a signed-in member may change on their own account through siteMember.updateProfile. Never the identity, a password, a hidden or a company field.
+  """
+  profileFields: [String!]!
   strategy: ModelAuthStrategy!
   verification: ModelAuthVerification!
 }
@@ -2087,6 +2111,7 @@ input ModelAuthConfigInput {
   enabled: Boolean
   identityField: String
   lockout: ModelAuthLockoutInput
+  profileFields: [String!]
   strategy: ModelAuthStrategy
   verification: ModelAuthVerificationInput
 }
@@ -4741,13 +4766,37 @@ type SiteMemberLoginResponse {
 }
 
 type SiteMemberMutations {
+  """
+  Change the password after re-entering the current one. Every session ends; the response carries a fresh one for this caller.
+  """
+  changePassword(currentPassword: String!, newPassword: String!): SiteMemberLoginResponse!
+
+  """
+  Apply an email change from the token mailed to the new address. Needs no session - the token is the proof.
+  """
+  confirmEmailChange(token: String!): SiteMemberAuthResponse!
+
+  """
+  Delete the signed-in member's account after re-entering the password. Orders keep their snapshot.
+  """
+  deleteAccount(currentPassword: String!): SiteMemberAuthResponse!
   forgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
   login(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
   logout(refreshToken: String!): SiteMemberAuthResponse!
   logoutEverywhere: SiteMemberAuthResponse!
   refresh(refreshToken: String!): SiteMemberLoginResponse!
   register(input: SiteMemberRegisterInput!): SiteMemberAuthResponse!
+
+  """
+  Mail a confirmation link to a new address. The account keeps its email until confirmEmailChange runs with that link's token.
+  """
+  requestEmailChange(currentPassword: String!, newEmail: String!): SiteMemberAuthResponse!
   resetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
+
+  """
+  Change the signed-in member's own fields. Only keys the account model lists in auth.profileFields are accepted.
+  """
+  updateProfile(fields: JSON!): MemberProfile!
   verifyEmail(token: String!): SiteMemberAuthResponse!
 }
 
