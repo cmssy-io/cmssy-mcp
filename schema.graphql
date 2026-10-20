@@ -2052,10 +2052,18 @@ type MemberProfile {
   createdAt: DateTime!
   data: JSON!
 
-  """Keys siteMember.updateProfile accepts."""
+  """
+  Keys the member may change. loginField goes through requestLoginChange, passwordField through changePassword, every other key through updateProfile.
+  """
   editableFields: [String!]!
   id: ID!
   login: String!
+
+  """Key of the field that holds the login."""
+  loginField: String!
+
+  """Key of the password field. Its value is never in data."""
+  passwordField: String!
 
   """
   A login waiting for confirmLoginChange with the token from account.login_change_requested.
