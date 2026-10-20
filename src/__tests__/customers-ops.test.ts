@@ -250,21 +250,21 @@ describe("customers ops (CMS-1911)", () => {
     expect(active).toEqual(summary);
   });
 
-  it("the account actions send the id to their own mutation and keep emailSent as the backend reported it (CMS-1921)", async () => {
+  it("the account actions send the id to their own mutation and keep endpointSubscribed as the backend reported it (CMS-1921)", async () => {
     const { client, sent } = clientAnswering([
-      { customer: { sendPasswordReset: { emailSent: false, customer: raw } } },
-      { customer: { resendVerification: { emailSent: true, customer: { ...raw, status: "pending" } } } },
+      { customer: { sendPasswordReset: { endpointSubscribed: false, customer: raw } } },
+      { customer: { resendVerification: { endpointSubscribed: true, customer: { ...raw, status: "pending" } } } },
       { customer: { unlock: { ...raw, lockedUntil: undefined } } },
     ]);
     const ops = createMcpWorkspaceOps(client);
 
     expect(await ops.customers.sendPasswordReset("c-1")).toEqual({
       customer: summary,
-      emailSent: false,
+      endpointSubscribed: false,
     });
     expect(await ops.customers.resendVerification("c-1")).toEqual({
       customer: { ...summary, status: "pending" },
-      emailSent: true,
+      endpointSubscribed: true,
     });
     expect(await ops.customers.unlock("c-1")).toEqual(summary);
 
@@ -279,7 +279,7 @@ describe("customers ops (CMS-1911)", () => {
       RESEND_CUSTOMER_VERIFICATION_MUTATION,
     ]) {
       const parent = document === SEND_CUSTOMER_PASSWORD_RESET_MUTATION ? "sendPasswordReset" : "resendVerification";
-      expect(selectedUnder(document, parent).has("emailSent")).toBe(true);
+      expect(selectedUnder(document, parent).has("endpointSubscribed")).toBe(true);
     }
   });
 

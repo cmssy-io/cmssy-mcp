@@ -1,5 +1,17 @@
 # @cmssy/mcp-server
 
+## 0.105.0
+
+- **Member accounts** (`@cmssy/ai-tools` 0.80.0, cmssy CMS-2107):
+  - a model field carries `memberCanSet`: a signed-in member may change it on
+    their own account. `get_model` returns it, `create_model` and
+    `update_model` set it;
+  - cmssy no longer emails customers. `send_customer_password_reset` and
+    `resend_customer_verification` hand a token to your app as the
+    `account.password_reset_requested` / `account.verification_requested`
+    webhook events, and return `endpointSubscribed` - false means no enabled
+    endpoint receives the event, so nothing reaches the customer.
+
 ## 0.104.0
 
 - **Order returns** (`@cmssy/ai-tools` 0.78.0, cmssy CMS-2103):
