@@ -1090,7 +1090,11 @@ type Customer {
 
 type CustomerAccountRequestResult {
   customer: Customer!
-  emailSent: Boolean! @deprecated(reason: "cmssy no longer emails customers. Use endpointSubscribed.")
+
+  """
+  Same value as endpointSubscribed. cmssy never emails a customer; read endpointSubscribed.
+  """
+  emailSent: Boolean!
 
   """
   Whether an enabled webhook endpoint receives the account event. cmssy never emails a customer: the endpoint's app does. False means the token was issued but nothing will reach the customer.
