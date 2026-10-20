@@ -226,43 +226,43 @@ Manage the storefront's orders, carts, and discount codes. **All money fields
 are integer minor units (cents).** Order/discount write tools accept the
 `response` arg (see [Response shape](#response-shape-write-tools)).
 
-| Tool                           | Description                                                         |
-| ------------------------------ | ------------------------------------------------------------------- |
-| `list_orders`                  | List orders by payment/fulfillment/delivery/state, customer, dates  |
-| `get_order`                    | Get an order with items, payments, parcels, and tax summary         |
-| `get_order_pipeline`           | Get the workspace's configurable order pipeline stages              |
-| `create_manual_order`          | Create an admin-entered order                                       |
-| `edit_order`                   | Replace an order's line items (recomputes totals)                   |
-| `update_order_details`         | Update customer email, notes, PO number, and shipping address       |
-| `mark_order_paid`              | Record a full payment (manual reconciliation, no provider verify)   |
-| `record_order_payment`         | Record a partial payment against the balance due                    |
-| `refund_order`                 | Refund an order (full, or partial with `amount`)                    |
-| `cancel_order`                 | Cancel an order                                                     |
-| `close_order`                  | Mark an order done; reopens itself if payment or fulfillment slips  |
-| `reopen_order`                 | Reopen a closed order                                               |
-| `create_return`                | Open a return: lines, quantities, reasons, return-parcel tracking   |
-| `approve_return`               | Approve a return the customer requested                             |
-| `reject_return`                | Reject a requested return (asks for confirmation)                   |
-| `cancel_return`                | Cancel a return not yet refunded (asks for confirmation)            |
-| `receive_return`               | Record received units per line and how many go back to stock        |
-| `refund_return`                | Record a refund for a return (asks for confirmation)                |
-| `complete_return`              | Close a received return without a refund                            |
-| `update_return_tracking`       | Set the carrier and tracking number of the return parcel            |
-| `create_shipment`              | Add a parcel (carrier, tracking number, link, status) to an order   |
-| `update_shipment`              | Change a parcel's status or tracking, with a note for its history   |
-| `set_order_pipeline_stage`     | Move an order to a pipeline stage                                   |
-| `record_order_invoice`         | Attach an invoice (number, url, provider) to an order               |
-| `list_carts`                   | List shopping carts (admin view, optional status filter)            |
-| `list_discounts`               | List discount codes (filter by enabled/type/code)                   |
-| `get_discount`                 | Get a discount by id                                                |
-| `create_discount`              | Create a discount (`percentage` / `fixed` / `free_shipping`)        |
-| `update_discount`              | Partial update (code/type/currency lock once the code is used)      |
-| `set_discount_enabled`         | Enable or disable a discount                                        |
-| `list_products`                | Product catalog with stock + variant info (over a Data Model)       |
-| `bulk_update_products`         | Bulk set/adjust status, stock, or price on selected products        |
-| `bulk_delete_products`         | Bulk-delete selected product records                                |
-| `set_product_tiers`            | Set a product's record-level volume price breaks                    |
-| `set_product_variants`         | Replace a product's whole variant set (confirm-gated)               |
+| Tool                       | Description                                                        |
+| -------------------------- | ------------------------------------------------------------------ |
+| `list_orders`              | List orders by payment/fulfillment/delivery/state, customer, dates |
+| `get_order`                | Get an order with items, payments, parcels, and tax summary        |
+| `get_order_pipeline`       | Get the workspace's configurable order pipeline stages             |
+| `create_manual_order`      | Create an admin-entered order                                      |
+| `edit_order`               | Replace an order's line items (recomputes totals)                  |
+| `update_order_details`     | Update customer email, notes, PO number, and shipping address      |
+| `mark_order_paid`          | Record a full payment (manual reconciliation, no provider verify)  |
+| `record_order_payment`     | Record a partial payment against the balance due                   |
+| `refund_order`             | Refund an order (full, or partial with `amount`)                   |
+| `cancel_order`             | Cancel an order                                                    |
+| `close_order`              | Mark an order done; reopens itself if payment or fulfillment slips |
+| `reopen_order`             | Reopen a closed order                                              |
+| `create_return`            | Open a return: lines, quantities, reasons, return-parcel tracking  |
+| `approve_return`           | Approve a return the customer requested                            |
+| `reject_return`            | Reject a requested return (asks for confirmation)                  |
+| `cancel_return`            | Cancel a return not yet refunded (asks for confirmation)           |
+| `receive_return`           | Record received units per line and how many go back to stock       |
+| `refund_return`            | Record a refund for a return (asks for confirmation)               |
+| `complete_return`          | Close a received return without a refund                           |
+| `update_return_tracking`   | Set the carrier and tracking number of the return parcel           |
+| `create_shipment`          | Add a parcel (carrier, tracking number, link, status) to an order  |
+| `update_shipment`          | Change a parcel's status or tracking, with a note for its history  |
+| `set_order_pipeline_stage` | Move an order to a pipeline stage                                  |
+| `record_order_invoice`     | Attach an invoice (number, url, provider) to an order              |
+| `list_carts`               | List shopping carts (admin view, optional status filter)           |
+| `list_discounts`           | List discount codes (filter by enabled/type/code)                  |
+| `get_discount`             | Get a discount by id                                               |
+| `create_discount`          | Create a discount (`percentage` / `fixed` / `free_shipping`)       |
+| `update_discount`          | Partial update (code/type/currency lock once the code is used)     |
+| `set_discount_enabled`     | Enable or disable a discount                                       |
+| `list_products`            | Product catalog with stock + variant info (over a Data Model)      |
+| `bulk_update_products`     | Bulk set/adjust status, stock, or price on selected products       |
+| `bulk_delete_products`     | Bulk-delete selected product records                               |
+| `set_product_tiers`        | Set a product's record-level volume price breaks                   |
+| `set_product_variants`     | Replace a product's whole variant set (confirm-gated)              |
 
 Products are records of a Custom Data Model; these tools add product-aware
 stock/variant reads and bulk writes on top of the generic record tools. The
@@ -281,15 +281,15 @@ Customers are the accounts that sign in to the site - records of a model
 with accounts enabled - not the team that manages the workspace
 (`list_team`).
 
-| Tool                 | Description                                                                 |
-| -------------------- | --------------------------------------------------------------------------- |
-| `list_customers`     | List customers with status, verification, last login, company and order stats (paginated) |
-| `get_customer`       | One customer's account summary plus the profile record's data               |
-| `suspend_customer`   | Block sign-in and end every live session (orders and carts stay)            |
-| `unsuspend_customer` | Let a suspended customer sign in again                                      |
-| `send_customer_password_reset` | Email an active customer the forgot-password reset link            |
-| `resend_customer_verification` | Issue and email a fresh verification link to a pending customer    |
-| `unlock_customer`    | Clear the failed sign-in counter and lockout                                |
+| Tool                           | Description                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| `list_customers`               | List customers with status, verification, last login, company and order stats (paginated) |
+| `get_customer`                 | One customer's account summary plus the profile record's data                             |
+| `suspend_customer`             | Block sign-in and end every live session (orders and carts stay)                          |
+| `unsuspend_customer`           | Let a suspended customer sign in again                                                    |
+| `send_customer_password_reset` | Issue a reset token to an active customer; the app's `account.*` webhook sends the mail   |
+| `resend_customer_verification` | Issue a fresh verification token to a pending customer; the app's webhook sends the mail  |
+| `unlock_customer`              | Clear the failed sign-in counter and lockout                                              |
 
 ### Webhook Tools
 
