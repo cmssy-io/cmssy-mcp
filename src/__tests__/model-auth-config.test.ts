@@ -152,3 +152,51 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
     expect(postDetail?.product).toBeNull();
   });
 });
+
+describe("models company capability (CMS-2108)", () => {
+  it("create and update forward company, and leave it out when unset", async () => {
+    const created = {
+      model: { create: { id: "m1", name: "Firms", slug: "firms", fields: [{}] } },
+    };
+    const { client, sent } = clientAnswering([
+      created,
+      structuredClone(created),
+      { model: { get: { id: MODEL_ID, name: "Firms", slug: "firms", fields: [] } } },
+      { model: { update: { id: MODEL_ID, name: "Firms", slug: "firms", fields: [] } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.models.create({ name: "Firms", fields, company: { enabled: true } });
+    await ops.models.create({ name: "Firms", fields });
+    await ops.models.update(MODEL_ID, { company: { enabled: false } });
+
+    const input = (i: number) => sent[i]!.variables.input as Record<string, unknown>;
+    expect(input(0).company).toEqual({ enabled: true });
+    expect(input(1)).not.toHaveProperty("company");
+    expect(input(3).company).toEqual({ enabled: false });
+  });
+
+  it("get selects company and returns it, null when the model has none", async () => {
+    expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "company")]).toEqual([
+      "enabled",
+    ]);
+    const firms = {
+      model: {
+        get: { id: MODEL_ID, name: "Firms", slug: "firms", fields: [], company: { enabled: true } },
+      },
+    };
+    const post = {
+      model: { get: { id: MODEL_ID, name: "Post", slug: "post", fields: [] } },
+    };
+    const { client } = clientAnswering([
+      structuredClone(firms),
+      firms,
+      structuredClone(post),
+      post,
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect((await ops.models.get(MODEL_ID))?.company).toEqual({ enabled: true });
+    expect((await ops.models.get(MODEL_ID))?.company).toBeNull();
+  });
+});

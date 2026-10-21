@@ -48,6 +48,7 @@ import {
   CUSTOMER_BY_ID_QUERY,
   SUSPEND_CUSTOMER_MUTATION,
   UNSUSPEND_CUSTOMER_MUTATION,
+  SET_CUSTOMER_COMPANY_ROLE_MUTATION,
   SEND_CUSTOMER_PASSWORD_RESET_MUTATION,
   RESEND_CUSTOMER_VERIFICATION_MUTATION,
   UNLOCK_CUSTOMER_MUTATION,
@@ -390,6 +391,7 @@ interface RawModelDefinition {
   fields: RawPropertyField[] | null;
   product: ModelDetail["product"];
   auth: ModelDetail["auth"];
+  company?: ModelDetail["company"];
   uniqueFields?: string[] | null;
   updatedAt: string | null;
 }
@@ -549,6 +551,7 @@ function toModelDetail(m: RawModelDefinition): ModelDetail {
       : null,
     product: m.product ?? null,
     auth: m.auth ?? null,
+    company: m.company ?? null,
     uniqueFields: m.uniqueFields ?? [],
     fields: toProposedFields(m.fields ?? []),
     updatedAt: m.updatedAt ?? null,
@@ -635,6 +638,7 @@ export function createMcpWorkspaceOps(
           mutationInput.statusField = input.statusField;
         if (input.product !== undefined) mutationInput.product = input.product;
         if (input.auth !== undefined) mutationInput.auth = input.auth;
+        if (input.company !== undefined) mutationInput.company = input.company;
         if (input.uniqueFields !== undefined)
           mutationInput.uniqueFields = input.uniqueFields;
         if (input.deliveryAccess !== undefined)
@@ -673,6 +677,7 @@ export function createMcpWorkspaceOps(
           "statusField",
           "product",
           "auth",
+          "company",
           "uniqueFields",
           "deliveryAccess",
         ] as const) {
@@ -2646,6 +2651,12 @@ export function createMcpWorkspaceOps(
           customer: { unsuspend: RawCustomer };
         }>(UNSUSPEND_CUSTOMER_MUTATION, { id });
         return toCustomerSummary(res.customer.unsuspend);
+      },
+      setCompanyRole: async (id, role) => {
+        const res = await client.query<{
+          customer: { setCompanyRole: RawCustomer };
+        }>(SET_CUSTOMER_COMPANY_ROLE_MUTATION, { id, role });
+        return toCustomerSummary(res.customer.setCompanyRole);
       },
       sendPasswordReset: async (id) => {
         const res = await client.query<{

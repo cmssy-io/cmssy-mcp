@@ -15,9 +15,21 @@ type AcceptOrganizationInvitationResult {
   success: Boolean!
 }
 
+"""
+Whose orders account.orders lists: MINE - the member's own; COMPANY - every order placed for the member's company, which needs the orders.company.read company permission.
+"""
+enum AccountOrderScope {
+  COMPANY
+  MINE
+}
+
 type AccountQueries {
   order(id: ID!, workspaceId: ID!): PublicOrder
-  orders(limit: Int, skip: Int, workspaceId: ID!): PublicOrderListResult!
+
+  """
+  The signed-in member's orders, newest first. scope COMPANY lists every order placed for the member's company and is refused with FORBIDDEN (extensions.reason COMPANY_PERMISSION_REQUIRED, extensions.permission) unless the member's company role grants orders.company.read.
+  """
+  orders(limit: Int, scope: AccountOrderScope = MINE, skip: Int, workspaceId: ID!): PublicOrderListResult!
 
   """The signed-in member's own account record."""
   profile(workspaceId: ID!): MemberProfile!
@@ -356,6 +368,7 @@ enum AuditLogVia {
 }
 
 type AuthMutations {
+  confirmEmailChange(token: String!): UserAuthResponse!
   login(input: LoginInput!): AuthResponse!
   logout: Boolean!
   oauthLogin(input: OAuthLoginInput!): AuthResponse!
@@ -372,6 +385,22 @@ type AuthResponse {
   accessToken: String!
   accessTokenExpiresIn: Int!
   refreshToken: String
+}
+
+"""A presigned PUT authorizing one avatar upload"""
+type AuthorizeAvatarUploadPayload {
+  """
+  The canonical URL the uploaded avatar is served from, as viewer.updateProfile accepts it
+  """
+  assetUrl: String!
+  maximumSizeInBytes: Int!
+  pathname: String!
+
+  """
+  PUT the bytes here with Content-Type set to the declared mimeType, then pass assetUrl to viewer.updateProfile
+  """
+  uploadUrl: String!
+  validUntil: DateTime!
 }
 
 """A presigned PUT authorizing one direct upload to the media bucket"""
@@ -901,6 +930,14 @@ type CommentUser {
   userId: ID!
 }
 
+"""
+A company role a customer can hold, and the permissions it grants on the delivery API.
+"""
+type CompanyRoleDefinition {
+  key: String!
+  permissions: [String!]!
+}
+
 input CreateApiTokenInput {
   expiresInDays: Int
   name: String!
@@ -964,6 +1001,7 @@ input CreateMediaFolderInput {
 input CreateModelDefinitionInput {
   auth: ModelAuthConfigInput
   color: String
+  company: ModelCompanyConfigInput
   defaultSort: DefaultSortInput
   deliveryAccess: ModelDeliveryAccess
   description: String
@@ -1061,6 +1099,10 @@ A record of a model with accounts enabled, seen through its sign-in state.
 """
 type Customer {
   company: CustomerCompany
+
+  """
+  The customer's effective built-in company role (a key of customer.companyRoles), granted for the company they belong to now. buyer unless staff set another for this company; null without a company, or when the linked model is not a Company model.
+  """
   companyRole: String
   createdAt: DateTime!
   displayName: String!
@@ -1158,6 +1200,11 @@ type CustomerMutations {
   sendPasswordReset(id: ID!): CustomerAccountRequestResult!
 
   """
+  Give the customer a company role (a key of customer.companyRoles) in the company they belong to now. The role holds only while they stay in that company: any change of their company clears it, so they are buyer wherever they land, the same company included. Refused when the customer has no company.
+  """
+  setCompanyRole(id: ID!, role: String!): Customer!
+
+  """
   Block sign-in and end every live session of the customer. Orders and carts stay.
   """
   suspend(id: ID!): Customer!
@@ -1190,6 +1237,11 @@ type CustomerOrderStats {
 
 type CustomerQueries {
   byIds(ids: [ID!]!): [Customer!]!
+
+  """
+  The company roles a customer can be given with customer.setCompanyRole. Absent a role, a customer is buyer.
+  """
+  companyRoles: [CompanyRoleDefinition!]!
   get(id: ID!): Customer
 
   """
@@ -2036,6 +2088,28 @@ input MemberAuthConfigInput {
   showRegisterInHeader: Boolean
 }
 
+"""
+The company the signed-in member belongs to, and what their company role lets them do.
+"""
+type MemberCompany {
+  id: ID!
+
+  """
+  The company model's display field; null when the record has no usable name.
+  """
+  name: String
+
+  """
+  What the role grants, e.g. orders.company.read for account.orders(scope: COMPANY). Branch on a permission, not on the role name.
+  """
+  permissions: [String!]!
+
+  """
+  The member's company role: buyer unless the workspace gave them another for this company.
+  """
+  role: String!
+}
+
 type MemberMutations {
   add(input: AddWorkspaceMemberInput!): Workspace!
   leave: Boolean!
@@ -2049,6 +2123,10 @@ type MemberMutations {
 The signed-in site member's own account record, redacted like a delivery read.
 """
 type MemberProfile {
+  """
+  The member's company; null when they belong to none, or the linked model is not a Company model.
+  """
+  company: MemberCompany
   createdAt: DateTime!
   data: JSON!
 
@@ -2099,11 +2177,7 @@ type ModelAuthConfig {
   Relation field on this model that points at the customer's company (a record of another model).
   """
   companyField: String
-
-  """
-  Select field on this model that holds the customer's role in their company.
-  """
-  companyRoleField: String
+  companyRoleField: String @deprecated(reason: "The company role is an ordinary field on the model; read it from the record.")
   enabled: Boolean!
   identityField: String!
   lockout: ModelAuthLockout!
@@ -2113,7 +2187,6 @@ type ModelAuthConfig {
 
 input ModelAuthConfigInput {
   companyField: String
-  companyRoleField: String
   enabled: Boolean
   identityField: String
   lockout: ModelAuthLockoutInput
@@ -2147,9 +2220,24 @@ input ModelAuthVerificationInput {
   required: Boolean
 }
 
+"""
+Company capability of a model: its records are companies an account model's company field can link. A model is a product, an account or a company model - one at most.
+"""
+type ModelCompanyConfig {
+  enabled: Boolean!
+}
+
+"""
+Company capability PATCH: an omitted enabled keeps the stored value. Turning it off is refused while an account model's company field links this model.
+"""
+input ModelCompanyConfigInput {
+  enabled: Boolean
+}
+
 type ModelDefinition {
   auth: ModelAuthConfig
   color: String
+  company: ModelCompanyConfig
   createdAt: DateTime!
   createdBy: String
   defaultSort: DefaultSort
@@ -3965,6 +4053,11 @@ type PublicOrder {
   balanceDue: Int!
   canceledAt: DateTime
   closedAt: DateTime
+
+  """
+  The buyer's company as it was named when the order was placed; null for an order placed without one.
+  """
+  companyName: String
   createdAt: DateTime!
   currency: String!
 
@@ -4812,6 +4905,9 @@ type SiteMemberMutations {
 }
 
 input SiteMemberRegisterInput {
+  """
+  Initial values, keyed by field. Only fields the account model marks memberCanSet are accepted; any other non-null key refuses the registration and the message names it. Password fields and the company field are never accepted, whatever their flag. The login field may be sent but is ignored: the login comes from identity, the password from password.
+  """
   fields: JSON
   identity: String!
   modelSlug: String!
@@ -5036,6 +5132,7 @@ input UpdateMediaInput {
 input UpdateModelDefinitionInput {
   auth: ModelAuthConfigInput
   color: String
+  company: ModelCompanyConfigInput
   defaultSort: DefaultSortInput
   deliveryAccess: ModelDeliveryAccess
   description: String
@@ -5133,6 +5230,16 @@ input UpdatePageTypeInput {
   schemaType: String
   slug: String
   urlPrefix: String
+}
+
+input UpdateProfileInput {
+  """
+  Null removes the avatar. Otherwise the URL of an image this account uploaded through viewer.authorizeAvatarUpload.
+  """
+  avatarUrl: String
+  displayName: String
+  firstName: String
+  lastName: String
 }
 
 input UpdateReturnTrackingInput {
@@ -5274,12 +5381,22 @@ type UsageHistoryTotals {
 type User {
   createdAt: DateTime!
   email: String!
+
+  """
+  Whether the account signs in with a password. Only on the signed-in account itself; null for anyone else.
+  """
+  hasPassword: Boolean
   id: String!
   isOrganizationOwner: Boolean
   isVerified: Boolean!
   joinedAt: DateTime
   lastLoginAt: DateTime
   membershipStatus: String
+
+  """
+  The address an unconfirmed email change is waiting on. Only on the signed-in account itself; null for anyone else.
+  """
+  pendingEmail: String
   profile: UserProfile!
   updatedAt: DateTime!
   username: String
@@ -5333,7 +5450,18 @@ type ValidationRules {
 }
 
 type ViewerMutations {
+  authorizeAvatarUpload(mimeType: String!, size: Int!): AuthorizeAvatarUploadPayload!
   beginMfa: MfaEnrolment!
+
+  """
+  Drop an unconfirmed email change, so the link sent to the new address stops working.
+  """
+  cancelEmailChange: Boolean!
+
+  """
+  Change the password, or set one on an account that has none. Signs out every other device and returns fresh tokens for this one.
+  """
+  changePassword(currentPassword: String, mfaCode: String, newPassword: String!): AuthResponse!
   confirmMfa(code: String!): [String!]!
   deleteAccount: DeletionResult!
   disableMfa(code: String!): MfaStatus!
@@ -5342,8 +5470,17 @@ type ViewerMutations {
   Mint a fresh set of recovery codes and invalidate every outstanding one. Gated on a current authenticator or recovery code, so a hijacked session cannot lock the owner out.
   """
   reissueRecoveryCodes(code: String!): [String!]!
+
+  """
+  Send a confirmation link to a new address. The email changes only when that link is opened.
+  """
+  requestEmailChange(currentPassword: String, mfaCode: String, newEmail: String!): UserAuthResponse!
   resendVerificationEmail: UserAuthResponse!
+
+  """End every session of this account, on every device."""
+  signOutEverywhere: Boolean!
   updateLocale(locale: String!): User!
+  updateProfile(input: UpdateProfileInput!): User!
 }
 
 type ViewerQueries {

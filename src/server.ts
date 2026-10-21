@@ -109,6 +109,7 @@ import {
   sendCustomerPasswordResetTool,
   resendCustomerVerificationTool,
   unlockCustomerTool,
+  setCustomerCompanyRoleTool,
   type AiTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
@@ -147,6 +148,7 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     sendCustomerPasswordResetTool,
     resendCustomerVerificationTool,
     unlockCustomerTool,
+    setCustomerCompanyRoleTool,
 
     // ─── Write Tools ─────────────────────────────────────────────
 

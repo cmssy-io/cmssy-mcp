@@ -1004,6 +1004,7 @@ const MODEL_DEFINITION_FRAGMENT = `
     verification { required }
     lockout { enabled maxAttempts lockMinutes }
   }
+  company { enabled }
   uniqueFields
   createdAt
   updatedAt
@@ -1908,6 +1909,12 @@ export const SUSPEND_CUSTOMER_MUTATION = `
 export const UNSUSPEND_CUSTOMER_MUTATION = `
   mutation UnsuspendCustomer($id: ID!) {
     customer { unsuspend(id: $id) { ${CUSTOMER_FRAGMENT} } }
+  }
+`;
+
+export const SET_CUSTOMER_COMPANY_ROLE_MUTATION = `
+  mutation SetCustomerCompanyRole($id: ID!, $role: String!) {
+    customer { setCompanyRole(id: $id, role: $role) { ${CUSTOMER_FRAGMENT} } }
   }
 `;
 

@@ -1,7 +1,7 @@
 {
   "name": "cmssy",
   "displayName": "Cmssy",
-  "version": "0.106.0",
+  "version": "0.107.0",
   "description": "Run a Cmssy workspace from Claude: pages, records, media, forms, products, orders, refunds and discounts.",
   "author": {
     "name": "Cmssy",

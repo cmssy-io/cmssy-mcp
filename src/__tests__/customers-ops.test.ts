@@ -8,6 +8,7 @@ import {
   CUSTOMERS_QUERY,
   SUSPEND_CUSTOMER_MUTATION,
   UNSUSPEND_CUSTOMER_MUTATION,
+  SET_CUSTOMER_COMPANY_ROLE_MUTATION,
   SEND_CUSTOMER_PASSWORD_RESET_MUTATION,
   RESEND_CUSTOMER_VERIFICATION_MUTATION,
   UNLOCK_CUSTOMER_MUTATION,
@@ -97,6 +98,7 @@ describe("customers ops (CMS-1911)", () => {
       ["get", CUSTOMER_BY_ID_QUERY, "get"],
       ["suspend", SUSPEND_CUSTOMER_MUTATION, "suspend"],
       ["unsuspend", UNSUSPEND_CUSTOMER_MUTATION, "unsuspend"],
+      ["setCompanyRole", SET_CUSTOMER_COMPANY_ROLE_MUTATION, "setCompanyRole"],
       ["sendPasswordReset", SEND_CUSTOMER_PASSWORD_RESET_MUTATION, "customer"],
       ["resendVerification", RESEND_CUSTOMER_VERIFICATION_MUTATION, "customer"],
       ["unlock", UNLOCK_CUSTOMER_MUTATION, "unlock"],
@@ -248,6 +250,19 @@ describe("customers ops (CMS-1911)", () => {
     expect(sent[1]!.document).toBe(UNSUSPEND_CUSTOMER_MUTATION);
     expect(sent[1]!.variables).toEqual({ id: "c-1" });
     expect(active).toEqual(summary);
+  });
+
+  it("setCompanyRole sends the id and the role to its own mutation and maps the answer", async () => {
+    const { client, sent } = clientAnswering([
+      { customer: { setCompanyRole: { ...raw, companyRole: "admin" } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    const updated = await ops.customers.setCompanyRole("c-1", "admin");
+
+    expect(sent[0]!.document).toBe(SET_CUSTOMER_COMPANY_ROLE_MUTATION);
+    expect(sent[0]!.variables).toEqual({ id: "c-1", role: "admin" });
+    expect(updated).toEqual({ ...summary, companyRole: "admin" });
   });
 
   it("the account actions send the id to their own mutation and keep endpointSubscribed as the backend reported it (CMS-1921)", async () => {

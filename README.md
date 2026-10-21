@@ -290,6 +290,7 @@ with accounts enabled - not the team that manages the workspace
 | `send_customer_password_reset` | Issue a reset token to an active customer; the app's `account.*` webhook sends the mail   |
 | `resend_customer_verification` | Issue a fresh verification token to a pending customer; the app's webhook sends the mail  |
 | `unlock_customer`              | Clear the failed sign-in counter and lockout                                              |
+| `set_customer_company_role`    | Give a customer a role in their company (`admin` sees every company order, `buyer` their own) |
 
 ### Webhook Tools
 
