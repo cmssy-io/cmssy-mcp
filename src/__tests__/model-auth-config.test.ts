@@ -46,7 +46,6 @@ const auth = {
   strategy: "local" as const,
   identityField: "email",
   companyField: "company",
-  companyRoleField: "role",
   verification: { required: false },
   lockout: { enabled: false, maxAttempts: 5, lockMinutes: 15 },
 };
@@ -92,7 +91,7 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
     expect(without).not.toHaveProperty("auth");
   });
 
-  it("update forwards the auth patch, null company keys included", async () => {
+  it("update forwards the auth patch, a null company included", async () => {
     const { client, sent } = clientAnswering([
       { model: { get: { id: MODEL_ID, name: "Buyer", slug: "buyer", fields: [] } } },
       { model: { update: { id: MODEL_ID, name: "Buyer", slug: "buyer", fields: [] } } },
@@ -100,18 +99,17 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
     const ops = createMcpWorkspaceOps(client);
 
     await ops.models.update(MODEL_ID, {
-      auth: { companyField: null, companyRoleField: null },
+      auth: { companyField: null, identityField: "email" },
     });
 
     const input = sent[1]!.variables.input as Record<string, unknown>;
-    expect(input.auth).toEqual({ companyField: null, companyRoleField: null });
+    expect(input.auth).toEqual({ companyField: null, identityField: "email" });
   });
 
   it("the model fragment asks for the accounts config and the resolved product roles", () => {
     expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "auth")].sort()).toEqual(
       [
         "companyField",
-        "companyRoleField",
         "enabled",
         "identityField",
         "lockout",

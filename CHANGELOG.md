@@ -1,5 +1,12 @@
 # @cmssy/mcp-server
 
+## 0.106.0
+
+- **Company role field removed** (`@cmssy/ai-tools` 0.81.0, cmssy CMS-1912):
+  a member's company role is an ordinary model field now. `create_model` and
+  `update_model` no longer take `auth.companyRoleField`, and `get_model` no
+  longer returns it. Customers keep `companyRole`.
+
 ## 0.105.0
 
 - **Member accounts** (`@cmssy/ai-tools` 0.80.0, cmssy CMS-2107):
