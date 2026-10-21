@@ -228,7 +228,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 
 | Tool                       | Description                                                        |
 | -------------------------- | ------------------------------------------------------------------ |
-| `list_orders`              | List orders by payment/fulfillment/delivery/state, customer, dates |
+| `list_orders`              | List orders by payment/fulfillment/delivery/state, warehouse queue, customer, dates |
 | `get_order`                | Get an order with items, payments, parcels, and tax summary        |
 | `get_order_pipeline`       | Get the workspace's configurable order pipeline stages             |
 | `create_manual_order`      | Create an admin-entered order                                      |
@@ -253,6 +253,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `set_order_pipeline_stage` | Move an order to a pipeline stage                                  |
 | `record_order_invoice`     | Attach an invoice (number, url, provider) to an order              |
 | `list_carts`               | List shopping carts (admin view, optional status filter)           |
+| `delete_carts`             | Permanently delete 1-100 carts, all or nothing (confirm-gated)     |
 | `list_discounts`           | List discount codes (filter by enabled/type/code)                  |
 | `get_discount`             | Get a discount by id                                               |
 | `create_discount`          | Create a discount (`percentage` / `fixed` / `free_shipping`)       |

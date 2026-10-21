@@ -80,6 +80,7 @@ import {
   setOrderPipelineStageTool,
   recordOrderInvoiceTool,
   listCartsTool,
+  deleteCartsTool,
   listDiscountsTool,
   getDiscountTool,
   createDiscountTool,
@@ -256,6 +257,7 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     // ─── Commerce: Carts ─────────────────────────────────────────
 
     listCartsTool,
+    deleteCartsTool,
 
     // ─── Commerce: Discounts ─────────────────────────────────────
 
