@@ -110,6 +110,16 @@ import {
   resendCustomerVerificationTool,
   unlockCustomerTool,
   setCustomerCompanyRoleTool,
+  listPriceListsTool,
+  getPriceListTool,
+  createPriceListTool,
+  updatePriceListTool,
+  deletePriceListTool,
+  setPriceListEntryTool,
+  setPriceListEntriesTool,
+  removePriceListEntriesTool,
+  setCustomerPriceListTool,
+  setCompanyPriceListTool,
   type AiTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
@@ -149,6 +159,16 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     resendCustomerVerificationTool,
     unlockCustomerTool,
     setCustomerCompanyRoleTool,
+    listPriceListsTool,
+    getPriceListTool,
+    createPriceListTool,
+    updatePriceListTool,
+    deletePriceListTool,
+    setPriceListEntryTool,
+    setPriceListEntriesTool,
+    removePriceListEntriesTool,
+    setCustomerPriceListTool,
+    setCompanyPriceListTool,
 
     // ─── Write Tools ─────────────────────────────────────────────
 

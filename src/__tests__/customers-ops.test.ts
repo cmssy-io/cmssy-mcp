@@ -9,6 +9,7 @@ import {
   SUSPEND_CUSTOMER_MUTATION,
   UNSUSPEND_CUSTOMER_MUTATION,
   SET_CUSTOMER_COMPANY_ROLE_MUTATION,
+  SET_CUSTOMER_PRICE_LIST_MUTATION,
   SEND_CUSTOMER_PASSWORD_RESET_MUTATION,
   RESEND_CUSTOMER_VERIFICATION_MUTATION,
   UNLOCK_CUSTOMER_MUTATION,
@@ -46,6 +47,13 @@ const raw = {
   lastLoginAt: "2026-09-20T10:00:00.000Z",
   company: { id: "co-1", name: "Acme" },
   companyRole: "admin",
+  priceList: { id: "pl-1", name: "VIP" },
+  effectivePriceList: {
+    id: "pl-2",
+    name: "Gold",
+    source: "COMPANY" as const,
+    companyName: "Acme",
+  },
   orderStats: {
     ordersCount: 3,
     lastOrderAt: "2026-03-01T00:00:00.000Z",
@@ -68,6 +76,13 @@ const summary = {
   lastLoginAt: "2026-09-20T10:00:00.000Z",
   company: { id: "co-1", name: "Acme" },
   companyRole: "admin",
+  priceList: { id: "pl-1", name: "VIP" },
+  effectivePriceList: {
+    id: "pl-2",
+    name: "Gold",
+    source: "COMPANY" as const,
+    companyName: "Acme",
+  },
   orderStats: {
     ordersCount: 3,
     lastOrderAt: "2026-03-01T00:00:00.000Z",
@@ -99,6 +114,7 @@ describe("customers ops (CMS-1911)", () => {
       ["suspend", SUSPEND_CUSTOMER_MUTATION, "suspend"],
       ["unsuspend", UNSUSPEND_CUSTOMER_MUTATION, "unsuspend"],
       ["setCompanyRole", SET_CUSTOMER_COMPANY_ROLE_MUTATION, "setCompanyRole"],
+      ["setPriceList", SET_CUSTOMER_PRICE_LIST_MUTATION, "setPriceList"],
       ["sendPasswordReset", SEND_CUSTOMER_PASSWORD_RESET_MUTATION, "customer"],
       ["resendVerification", RESEND_CUSTOMER_VERIFICATION_MUTATION, "customer"],
       ["unlock", UNLOCK_CUSTOMER_MUTATION, "unlock"],
@@ -106,6 +122,13 @@ describe("customers ops (CMS-1911)", () => {
       const selected = selectedUnder(document, parent);
       expect(keys.filter((k) => !selected.has(k)), name).toEqual([]);
       expect([...selectedUnder(document, "company")].sort(), name).toEqual(["id", "name"]);
+      expect([...selectedUnder(document, "priceList")].sort(), name).toEqual(["id", "name"]);
+      expect([...selectedUnder(document, "effectivePriceList")].sort(), name).toEqual([
+        "companyName",
+        "id",
+        "name",
+        "source",
+      ]);
     }
     expect(selectedUnder(CUSTOMER_BY_ID_QUERY, "record").has("data")).toBe(true);
   });
@@ -186,6 +209,8 @@ describe("customers ops (CMS-1911)", () => {
                 lastLoginAt: null,
                 company: { id: "co-2", name: null },
                 companyRole: undefined,
+                priceList: undefined,
+                effectivePriceList: null,
                 orderStats: undefined,
                 createdAt: undefined,
               },
@@ -205,6 +230,8 @@ describe("customers ops (CMS-1911)", () => {
       lastLoginAt: null,
       company: { id: "co-2", name: null },
       companyRole: null,
+      priceList: null,
+      effectivePriceList: null,
       orderStats: null,
       createdAt: null,
     });
@@ -263,6 +290,24 @@ describe("customers ops (CMS-1911)", () => {
     expect(sent[0]!.document).toBe(SET_CUSTOMER_COMPANY_ROLE_MUTATION);
     expect(sent[0]!.variables).toEqual({ id: "c-1", role: "admin" });
     expect(updated).toEqual({ ...summary, companyRole: "admin" });
+  });
+
+  it("setPriceList sends the id and the list to its own mutation, null to unassign, and maps the answer", async () => {
+    const cleared = { ...raw, priceList: null, effectivePriceList: null };
+    const { client, sent } = clientAnswering([
+      { customer: { setPriceList: raw } },
+      { customer: { setPriceList: cleared } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    const assigned = await ops.customers.setPriceList("c-1", "pl-1");
+    const unassigned = await ops.customers.setPriceList("c-1", null);
+
+    expect(sent[0]!.document).toBe(SET_CUSTOMER_PRICE_LIST_MUTATION);
+    expect(sent[0]!.variables).toEqual({ id: "c-1", priceListId: "pl-1" });
+    expect(sent[1]!.variables).toEqual({ id: "c-1", priceListId: null });
+    expect(assigned).toEqual(summary);
+    expect(unassigned).toEqual({ ...summary, priceList: null, effectivePriceList: null });
   });
 
   it("the account actions send the id to their own mutation and keep endpointSubscribed as the backend reported it (CMS-1921)", async () => {

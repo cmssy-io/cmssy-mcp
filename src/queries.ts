@@ -1216,6 +1216,7 @@ const ORDER_FRAGMENT = `
   customerId
   companyId
   companyName
+  priceListName
   customerEmail
   currency
   subtotal
@@ -1858,6 +1859,8 @@ const CUSTOMER_FRAGMENT = `
   lastLoginAt
   company { id name }
   companyRole
+  priceList { id name }
+  effectivePriceList { id name source companyName }
   orderStats { ordersCount lastOrderAt spent { currency amount } }
   createdAt
   updatedAt
@@ -1918,6 +1921,12 @@ export const SET_CUSTOMER_COMPANY_ROLE_MUTATION = `
   }
 `;
 
+export const SET_CUSTOMER_PRICE_LIST_MUTATION = `
+  mutation SetCustomerPriceList($id: ID!, $priceListId: ID) {
+    customer { setPriceList(id: $id, priceListId: $priceListId) { ${CUSTOMER_FRAGMENT} } }
+  }
+`;
+
 export const SEND_CUSTOMER_PASSWORD_RESET_MUTATION = `
   mutation SendCustomerPasswordReset($id: ID!) {
     customer {
@@ -1952,5 +1961,93 @@ export const ROLES_QUERY = `
         isSystem
       }
     }
+  }
+`;
+
+// ─── Commerce: Price lists ───────────────────────────────────
+
+const PRICE_LIST_FRAGMENT = `
+  id
+  name
+  percentOff
+  overrideCount
+  assignedCount
+  createdAt
+  updatedAt
+`;
+
+const PRICE_LIST_ENTRY_FRAGMENT = `
+  id
+  priceListId
+  recordId
+  variantKey
+  price
+  tiers { minQty price }
+  currency
+  recordMissing
+`;
+
+export const PRICE_LISTS_QUERY = `
+  query PriceLists {
+    priceList { list { ${PRICE_LIST_FRAGMENT} } }
+  }
+`;
+
+export const PRICE_LIST_BY_ID_QUERY = `
+  query PriceList($id: ID!) {
+    priceList { get(id: $id) { ${PRICE_LIST_FRAGMENT} } }
+  }
+`;
+
+export const PRICE_LIST_ENTRIES_QUERY = `
+  query PriceListEntries($priceListId: ID!, $recordId: ID, $first: Int, $after: String) {
+    priceList {
+      entries(priceListId: $priceListId, recordId: $recordId, first: $first, after: $after) {
+        items { ${PRICE_LIST_ENTRY_FRAGMENT} }
+        nextCursor
+      }
+    }
+  }
+`;
+
+export const CREATE_PRICE_LIST_MUTATION = `
+  mutation CreatePriceList($input: CreatePriceListInput!) {
+    priceList { create(input: $input) { ${PRICE_LIST_FRAGMENT} } }
+  }
+`;
+
+export const UPDATE_PRICE_LIST_MUTATION = `
+  mutation UpdatePriceList($id: ID!, $input: UpdatePriceListInput!) {
+    priceList { update(id: $id, input: $input) { ${PRICE_LIST_FRAGMENT} } }
+  }
+`;
+
+export const DELETE_PRICE_LIST_MUTATION = `
+  mutation DeletePriceList($id: ID!) {
+    priceList { delete(id: $id) }
+  }
+`;
+
+export const SET_PRICE_LIST_ENTRY_MUTATION = `
+  mutation SetPriceListEntry($priceListId: ID!, $entry: PriceListEntryInput!) {
+    priceList { setEntry(priceListId: $priceListId, entry: $entry) { ${PRICE_LIST_ENTRY_FRAGMENT} } }
+  }
+`;
+
+export const SET_PRICE_LIST_ENTRIES_MUTATION = `
+  mutation SetPriceListEntries($priceListId: ID!, $entries: [PriceListEntryInput!]!) {
+    priceList { setEntries(priceListId: $priceListId, entries: $entries) }
+  }
+`;
+
+export const REMOVE_PRICE_LIST_ENTRIES_MUTATION = `
+  mutation RemovePriceListEntries($priceListId: ID!, $keys: [PriceListEntryKeyInput!]!) {
+    priceList { removeEntries(priceListId: $priceListId, keys: $keys) }
+  }
+`;
+
+export const SET_RECORD_PRICE_LIST_MUTATION = `
+  mutation SetRecordPriceList($id: ID!, $priceListId: ID) {
+    record { setPriceList(id: $id, priceListId: $priceListId) { id priceListId } }
   }
 `;

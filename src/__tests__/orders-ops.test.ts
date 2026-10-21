@@ -153,6 +153,20 @@ describe("orders ops (CMS-1915)", () => {
   });
 });
 
+describe("order price list (CMS-2111)", () => {
+  it("get selects priceListName and maps it, null when no list priced the order", async () => {
+    expect(selectedUnder(ORDER_BY_ID_QUERY, "get").has("priceListName")).toBe(true);
+    const { client } = clientAnswering([
+      { order: { get: { ...rawSummary, priceListName: "Gold" } } },
+      { order: { get: { ...rawSummary } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect((await ops.orders.get("o-1"))?.priceListName).toBe("Gold");
+    expect((await ops.orders.get("o-1"))?.priceListName).toBeNull();
+  });
+});
+
 describe("order status axes (CMS-2102)", () => {
   const AXES = [
     "paymentStatus",

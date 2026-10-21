@@ -291,6 +291,26 @@ with accounts enabled - not the team that manages the workspace
 | `resend_customer_verification` | Issue a fresh verification token to a pending customer; the app's webhook sends the mail  |
 | `unlock_customer`              | Clear the failed sign-in counter and lockout                                              |
 | `set_customer_company_role`    | Give a customer a role in their company (`admin` sees every company order, `buyer` their own) |
+| `set_customer_price_list`      | Assign a price list to a customer without a company; `null` unassigns                     |
+
+### Price List Tools
+
+A price list (Gold, Silver, dealer tiers) prices a buyer at a percent off the
+catalogue plus fixed prices per product or variant. Each buyer has one list:
+a company's members pay the company's list, a customer without a company
+their own.
+
+| Tool                        | Description                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| `list_price_lists`          | Every price list with percentOff, fixed-price count and assignment count             |
+| `get_price_list`            | One list with a page of its fixed prices (filter by product, cursor-paginated)       |
+| `create_price_list`         | Create a list with a name and an optional percent off the catalogue                  |
+| `update_price_list`         | Rename a list or change its percentOff                                               |
+| `delete_price_list`         | Delete a list and unassign it everywhere (confirm-gated)                             |
+| `set_price_list_entry`      | Set the fixed price for one product or variant, with optional volume breaks          |
+| `set_price_list_entries`    | Upsert up to 1000 fixed prices at once, all or nothing (confirm-gated)               |
+| `remove_price_list_entries` | Remove up to 1000 fixed prices by product / variant (confirm-gated)                  |
+| `set_company_price_list`    | Assign a price list to a company record; every member pays it; `null` unassigns      |
 
 ### Webhook Tools
 

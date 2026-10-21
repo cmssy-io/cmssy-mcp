@@ -27,6 +27,8 @@ import type {
   CustomerAccountRequestResult,
   OrderShipment,
   OrderReturn,
+  PriceListSummary,
+  PriceListEntry,
 } from "@cmssy/ai-tools";
 import {
   BLOCK_USAGE_QUERY,
@@ -143,6 +145,17 @@ import {
   SET_PRODUCT_VARIANTS_MUTATION,
   UPDATE_CART_CONFIG_MUTATION,
   CLEAR_CART_CONFIG_MUTATION,
+  SET_CUSTOMER_PRICE_LIST_MUTATION,
+  PRICE_LISTS_QUERY,
+  PRICE_LIST_BY_ID_QUERY,
+  PRICE_LIST_ENTRIES_QUERY,
+  CREATE_PRICE_LIST_MUTATION,
+  UPDATE_PRICE_LIST_MUTATION,
+  DELETE_PRICE_LIST_MUTATION,
+  SET_PRICE_LIST_ENTRY_MUTATION,
+  SET_PRICE_LIST_ENTRIES_MUTATION,
+  REMOVE_PRICE_LIST_ENTRIES_MUTATION,
+  SET_RECORD_PRICE_LIST_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -409,6 +422,8 @@ interface RawCustomer {
   lastLoginAt: string | null;
   company: { id: string; name: string | null } | null;
   companyRole: string | null;
+  priceList?: CustomerSummary["priceList"];
+  effectivePriceList?: CustomerSummary["effectivePriceList"];
   orderStats: CustomerSummary["orderStats"];
   createdAt: string | null;
   updatedAt: string | null;
@@ -442,9 +457,57 @@ function toCustomerSummary(c: RawCustomer): CustomerSummary {
     lastLoginAt: c.lastLoginAt ?? null,
     company: c.company ?? null,
     companyRole: c.companyRole ?? null,
+    priceList: c.priceList ?? null,
+    effectivePriceList: c.effectivePriceList ?? null,
     orderStats: c.orderStats ?? null,
     createdAt: c.createdAt ?? null,
     updatedAt: c.updatedAt ?? null,
+  };
+}
+
+interface RawPriceList {
+  id: string;
+  name: string;
+  percentOff: number;
+  overrideCount: number;
+  assignedCount: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+function toPriceListSummary(p: RawPriceList): PriceListSummary {
+  return {
+    id: p.id,
+    name: p.name,
+    percentOff: p.percentOff,
+    overrideCount: p.overrideCount,
+    assignedCount: p.assignedCount,
+    createdAt: p.createdAt ?? null,
+    updatedAt: p.updatedAt ?? null,
+  };
+}
+
+interface RawPriceListEntry {
+  id: string;
+  priceListId: string;
+  recordId: string;
+  variantKey: string | null;
+  price: number;
+  tiers: PriceListEntry["tiers"] | null;
+  currency: string | null;
+  recordMissing: boolean;
+}
+
+function toPriceListEntry(e: RawPriceListEntry): PriceListEntry {
+  return {
+    id: e.id,
+    priceListId: e.priceListId,
+    recordId: e.recordId,
+    variantKey: e.variantKey ?? null,
+    price: e.price,
+    tiers: e.tiers ?? [],
+    currency: e.currency ?? null,
+    recordMissing: e.recordMissing,
   };
 }
 
@@ -1939,6 +2002,7 @@ export function createMcpWorkspaceOps(
               customerId?: string | null;
               companyId?: string | null;
               companyName?: string | null;
+              priceListName?: string | null;
               subtotal?: number | null;
               discount?: number | null;
               appliedDiscount?: {
@@ -1982,6 +2046,7 @@ export function createMcpWorkspaceOps(
           customerId: o.customerId ?? null,
           companyId: o.companyId ?? null,
           companyName: o.companyName ?? null,
+          priceListName: o.priceListName ?? null,
           subtotal: o.subtotal ?? null,
           discount: o.discount ?? null,
           appliedDiscount: o.appliedDiscount ?? null,
@@ -2658,6 +2723,12 @@ export function createMcpWorkspaceOps(
         }>(SET_CUSTOMER_COMPANY_ROLE_MUTATION, { id, role });
         return toCustomerSummary(res.customer.setCompanyRole);
       },
+      setPriceList: async (id, priceListId) => {
+        const res = await client.query<{
+          customer: { setPriceList: RawCustomer };
+        }>(SET_CUSTOMER_PRICE_LIST_MUTATION, { id, priceListId });
+        return toCustomerSummary(res.customer.setPriceList);
+      },
       sendPasswordReset: async (id) => {
         const res = await client.query<{
           customer: { sendPasswordReset: RawAccountRequestResult };
@@ -2675,6 +2746,84 @@ export function createMcpWorkspaceOps(
           customer: { unlock: RawCustomer };
         }>(UNLOCK_CUSTOMER_MUTATION, { id });
         return toCustomerSummary(res.customer.unlock);
+      },
+    },
+    priceLists: {
+      list: async () => {
+        const res = await client.query<{
+          priceList: { list: RawPriceList[] };
+        }>(PRICE_LISTS_QUERY, {});
+        return res.priceList.list.map(toPriceListSummary);
+      },
+      get: async (id) => {
+        const res = await client.query<{
+          priceList: { get: RawPriceList | null };
+        }>(PRICE_LIST_BY_ID_QUERY, { id });
+        const list = res.priceList.get;
+        return list ? toPriceListSummary(list) : null;
+      },
+      entries: async (priceListId, options) => {
+        const res = await client.query<{
+          priceList: {
+            entries: { items: RawPriceListEntry[]; nextCursor: string | null };
+          };
+        }>(PRICE_LIST_ENTRIES_QUERY, {
+          priceListId,
+          recordId: options?.recordId,
+          first: options?.first,
+          after: options?.after,
+        });
+        return {
+          items: res.priceList.entries.items.map(toPriceListEntry),
+          nextCursor: res.priceList.entries.nextCursor ?? null,
+        };
+      },
+      create: async (input) => {
+        const res = await client.query<{
+          priceList: { create: RawPriceList };
+        }>(CREATE_PRICE_LIST_MUTATION, { input });
+        return toPriceListSummary(res.priceList.create);
+      },
+      update: async (id, input) => {
+        const res = await client.query<{
+          priceList: { update: RawPriceList };
+        }>(UPDATE_PRICE_LIST_MUTATION, { id, input });
+        return toPriceListSummary(res.priceList.update);
+      },
+      delete: async (id) => {
+        const res = await client.query<{ priceList: { delete: boolean } }>(
+          DELETE_PRICE_LIST_MUTATION,
+          { id },
+        );
+        return res.priceList.delete;
+      },
+      setEntry: async (priceListId, entry) => {
+        const res = await client.query<{
+          priceList: { setEntry: RawPriceListEntry };
+        }>(SET_PRICE_LIST_ENTRY_MUTATION, { priceListId, entry });
+        return toPriceListEntry(res.priceList.setEntry);
+      },
+      setEntries: async (priceListId, entries) => {
+        const res = await client.query<{ priceList: { setEntries: number } }>(
+          SET_PRICE_LIST_ENTRIES_MUTATION,
+          { priceListId, entries },
+        );
+        return res.priceList.setEntries;
+      },
+      removeEntries: async (priceListId, keys) => {
+        const res = await client.query<{
+          priceList: { removeEntries: number };
+        }>(REMOVE_PRICE_LIST_ENTRIES_MUTATION, { priceListId, keys });
+        return res.priceList.removeEntries;
+      },
+      setRecordPriceList: async (recordId, priceListId) => {
+        const res = await client.query<{
+          record: { setPriceList: { id: string; priceListId: string | null } };
+        }>(SET_RECORD_PRICE_LIST_MUTATION, { id: recordId, priceListId });
+        return {
+          id: res.record.setPriceList.id,
+          priceListId: res.record.setPriceList.priceListId ?? null,
+        };
       },
     },
   };
