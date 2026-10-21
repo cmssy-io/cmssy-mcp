@@ -31,6 +31,11 @@ type AccountQueries {
   """
   orders(limit: Int, scope: AccountOrderScope = MINE, skip: Int, workspaceId: ID!): PublicOrderListResult!
 
+  """
+  The signed-in member's prices for up to 100 products, one row per item asked; an unknown or hidden product is left out. Read it after the cached, anonymous catalogue has rendered, and never cache the response for another visitor.
+  """
+  prices(items: [PriceQueryItem!]!, workspaceId: ID!): [BuyerPrice!]!
+
   """The signed-in member's own account record."""
   profile(workspaceId: ID!): MemberProfile!
 }
@@ -596,6 +601,33 @@ type BulkUpdateModelRecordsResult {
   updated: Int!
 }
 
+"""
+What the signed-in member pays for one product or variant, in minor units: their price list applied, else the catalogue price.
+"""
+type BuyerPrice {
+  currency: String!
+
+  """True when a price list set this price."""
+  listed: Boolean!
+
+  """
+  Unit price before volume breaks. For a variant product asked without variantKey, the lowest across its variants.
+  """
+  price: Int!
+
+  """
+  The highest price across the variants, set only when a variant product was asked without variantKey.
+  """
+  priceMax: Int
+  recordId: ID!
+
+  """
+  Volume breaks this member gets; empty for a variant product asked without variantKey.
+  """
+  tiers: [PriceTier!]!
+  variantKey: String
+}
+
 input CancelOrderInput {
   orderId: ID!
 }
@@ -782,12 +814,16 @@ type CartItem {
 
 """Snapshot of product data captured at add-to-cart time"""
 type CartItemSnapshot {
+  """
+  Catalogue unit price before the buyer's price list and volume breaks; null on a line added before price lists existed, which was priced without one.
+  """
+  basePrice: Int
   currency: String!
   imageUrl: String
   name: String!
 
   """
-  Base (single-unit) price frozen at add-time. The price actually charged is CartItem.unitPrice, which applies volume breaks.
+  Unit price for this buyer before volume breaks, frozen at add-time (their price list applied). The price actually charged is CartItem.unitPrice, which applies volume breaks.
   """
   price: Int!
   sku: String
@@ -1042,6 +1078,13 @@ input CreatePageTypeInput {
   urlPrefix: String
 }
 
+input CreatePriceListInput {
+  name: String!
+
+  """0 to 99.99, at most two decimals. Defaults to 0."""
+  percentOff: Float
+}
+
 input CreateReturnInput {
   carrier: String
   lines: [ReturnLineInput!]!
@@ -1106,6 +1149,11 @@ type Customer {
   companyRole: String
   createdAt: DateTime!
   displayName: String!
+
+  """
+  The price list cmssy prices this customer's carts and orders from; null when they pay catalogue prices.
+  """
+  effectivePriceList: CustomerEffectivePriceList
   id: String!
   identity: String!
   lastLoginAt: DateTime
@@ -1119,6 +1167,11 @@ type Customer {
   Order count, last order date and net spend. Null for a caller without `orders:view`.
   """
   orderStats: CustomerOrderStats
+
+  """
+  The price list assigned to the customer themselves. While they belong to a live company it is replaced by the company's; effectivePriceList says which one prices them.
+  """
+  priceList: CustomerPriceList
   record(
     """
     Expand the record's model relations to { id, data }. Ignored without models:view, which is what reading another model's records takes.
@@ -1132,7 +1185,6 @@ type Customer {
 
 type CustomerAccountRequestResult {
   customer: Customer!
-  emailSent: Boolean! @deprecated(reason: "cmssy never emails a customer. Use endpointSubscribed.")
 
   """
   Whether an enabled webhook endpoint receives the account event. cmssy never emails a customer: the endpoint's app does. False means the token was issued but nothing will reach the customer.
@@ -1174,6 +1226,14 @@ type CustomerCompany {
   name: String
 }
 
+type CustomerEffectivePriceList {
+  """The company whose list applies, when source is COMPANY."""
+  companyName: String
+  id: ID!
+  name: String!
+  source: PriceListSource!
+}
+
 type CustomerList {
   hasMore: Boolean!
   items: [Customer!]!
@@ -1205,6 +1265,11 @@ type CustomerMutations {
   setCompanyRole(id: ID!, role: String!): Customer!
 
   """
+  Assign a price list to a customer without a company; null unassigns. Refused while the customer belongs to a live company - assign the list to that company instead.
+  """
+  setPriceList(id: ID!, priceListId: ID): Customer!
+
+  """
   Block sign-in and end every live session of the customer. Orders and carts stay.
   """
   suspend(id: ID!): Customer!
@@ -1233,6 +1298,11 @@ type CustomerOrderStats {
   lastOrderAt: DateTime
   ordersCount: Int!
   spent: [CustomerSpend!]!
+}
+
+type CustomerPriceList {
+  id: ID!
+  name: String!
 }
 
 type CustomerQueries {
@@ -2120,6 +2190,13 @@ type MemberMutations {
 }
 
 """
+The price list the signed-in member buys from, for a badge like Gold dealer. Their prices come from account.prices.
+"""
+type MemberPriceList {
+  name: String!
+}
+
+"""
 The signed-in site member's own account record, redacted like a delivery read.
 """
 type MemberProfile {
@@ -2147,6 +2224,11 @@ type MemberProfile {
   A login waiting for confirmLoginChange with the token from account.login_change_requested.
   """
   pendingLogin: String
+
+  """
+  The member's own price list: their company's when they belong to one, else their own; null when none applies.
+  """
+  priceList: MemberPriceList
 }
 
 type MemberScopedGrant {
@@ -2177,7 +2259,6 @@ type ModelAuthConfig {
   Relation field on this model that points at the customer's company (a record of another model).
   """
   companyField: String
-  companyRoleField: String @deprecated(reason: "The company role is an ordinary field on the model; read it from the record.")
   enabled: Boolean!
   identityField: String!
   lockout: ModelAuthLockout!
@@ -2325,6 +2406,11 @@ type ModelRecord {
   modelId: String!
 
   """
+  The price list assigned to this customer or company record with record.setPriceList; null when none.
+  """
+  priceListId: String
+
+  """
   Record-level volume breaks. Price a product without variants, and any variant that defines no tiers of its own.
   """
   priceTiers: [PriceTier!]!
@@ -2371,6 +2457,7 @@ type Mutation {
   pageComment: PageCommentMutations!
   pageTask: PageTaskMutations!
   pageType: PageTypeMutations!
+  priceList: PriceListMutations!
   product: ProductMutations!
   public: PublicMutations!
   record: RecordMutations!
@@ -2594,6 +2681,11 @@ type Order {
 
   """Buyer's purchase-order reference (CMS-913)"""
   poNumber: String
+
+  """
+  The price list the order was priced from, its name frozen at checkout; null when none applied.
+  """
+  priceListName: String
   pricesIncludeTax: Boolean!
   refundedAmount: Int!
   returns: [OrderReturn!]!
@@ -2725,7 +2817,9 @@ type OrderItem {
   """Stable line id; shipments name lines by it."""
   id: ID!
 
-  """Single-unit price this line would have cost without a volume break"""
+  """
+  Catalogue unit price before the buyer's price list and volume breaks. Equals the unit price without a list; can be below price when a list sets a contract price above the catalogue.
+  """
   listPrice: Int
   modelId: String
   name: String!
@@ -3548,6 +3642,130 @@ type PooledUsage {
 }
 
 """
+A price list (Gold, Silver, ...): a percent off the catalogue plus fixed prices per product or variant, assigned to companies and to customers without a company.
+"""
+type PriceList {
+  """Companies and customers the list is assigned to."""
+  assignedCount: Int!
+  createdAt: DateTime!
+  id: ID!
+  name: String!
+
+  """Fixed prices the list holds."""
+  overrideCount: Int!
+
+  """
+  Percent taken off the catalogue price of every product the list has no fixed price for, 0 to 99.99.
+  """
+  percentOff: Float!
+  updatedAt: DateTime!
+}
+
+"""
+A fixed price a list sets for one product, or one variant of it, in minor units.
+"""
+type PriceListEntry {
+  """
+  ISO 4217 code the product is priced in, resolved like a cart line snapshot: the record's currency field, else the cart default currency. Null when the product record was removed.
+  """
+  currency: String
+  id: ID!
+  price: Int!
+  priceListId: ID!
+  recordId: ID!
+
+  """
+  The product or its variant was removed. The entry prices nothing; remove it.
+  """
+  recordMissing: Boolean!
+  tiers: [PriceTier!]!
+  variantKey: String
+}
+
+input PriceListEntryInput {
+  """Unit price in minor units, above 0."""
+  price: Int!
+  recordId: ID!
+  tiers: [PriceTierInput!]
+
+  """
+  Required for a product with variants, and must be one of its variant keys; leave it out otherwise.
+  """
+  variantKey: String
+}
+
+input PriceListEntryKeyInput {
+  recordId: ID!
+  variantKey: String
+}
+
+type PriceListEntryPage {
+  items: [PriceListEntry!]!
+
+  """Pass as `after` for the next page; null on the last."""
+  nextCursor: String
+}
+
+type PriceListMutations {
+  create(input: CreatePriceListInput!): PriceList!
+
+  """
+  Delete the list with its fixed prices and unassign it from every company and customer. Orders keep the name they were priced under.
+  """
+  delete(id: ID!): Boolean!
+
+  """
+  Remove up to 1000 fixed prices by product and variant. Returns how many were removed.
+  """
+  removeEntries(keys: [PriceListEntryKeyInput!]!, priceListId: ID!): Int!
+  removeEntry(id: ID!): Boolean!
+
+  """
+  Upsert up to 1000 fixed prices at once - how an ERP sync writes a list. All or nothing: one invalid row refuses the whole call, and the error names every bad row by index. Returns how many entries were written.
+  """
+  setEntries(entries: [PriceListEntryInput!]!, priceListId: ID!): Int!
+
+  """
+  Set the list's fixed price for one product, or one variant of a product with variants. Replaces the price already set for it.
+  """
+  setEntry(entry: PriceListEntryInput!, priceListId: ID!): PriceListEntry!
+
+  """
+  Rename the list or change its percent. Carts already priced from it keep their prices until the buyer adds again; orders keep theirs.
+  """
+  update(id: ID!, input: UpdatePriceListInput!): PriceList!
+}
+
+type PriceListQueries {
+  """The list's fixed prices, oldest first, at most 200 per page."""
+  entries(after: String, first: Int, priceListId: ID!, recordId: ID): PriceListEntryPage!
+  get(id: ID!): PriceList
+
+  """
+  Every price list of the workspace, by name. Readable with customers:view too, so the customer screen can offer them.
+  """
+  list: [PriceList!]!
+}
+
+"""
+Where a customer's price list comes from: MEMBER - assigned to the customer; COMPANY - assigned to the company they buy for.
+"""
+enum PriceListSource {
+  COMPANY
+  MEMBER
+}
+
+"""A product, or one variant of it, to price for the signed-in member."""
+input PriceQueryItem {
+  recordId: ID!
+
+  """
+  The variant's id as the delivery ProductVariant.id returns it. Leave it out on a variant product to get its lowest and highest price.
+  """
+  variantKey: String
+}
+
+"""
 Volume price break: from `minQty` units, each unit costs `price` (minor units). Sorted ascending by minQty.
 """
 type PriceTier {
@@ -4102,7 +4320,9 @@ type PublicOrderItem {
   currency: String!
   id: ID!
 
-  """Single-unit price without a volume break"""
+  """
+  Catalogue unit price before the buyer's price list and volume breaks. Equals the unit price without a list; can be below price when a list sets a contract price above the catalogue.
+  """
   listPrice: Int
   name: String!
 
@@ -4314,6 +4534,7 @@ type Query {
   pageComment: PageCommentQueries!
   pageTask: PageTaskQueries!
   pageType: PageTypeQueries!
+  priceList: PriceListQueries!
   product: ProductQueries!
   property: PropertyQueries!
   public: PublicQueries!
@@ -4347,6 +4568,11 @@ type RecordMutations {
   delete(force: Boolean, id: ID!): DeletionResult!
   import(input: ImportModelRecordsInput!): ImportModelRecordsResult!
   patch(input: PatchModelRecordInput!): ModelRecord
+
+  """
+  Assign a price list to a record of a Company model, or to a customer without a company; null unassigns. Refused for a customer whose company is live - their company's list prices them.
+  """
+  setPriceList(id: ID!, priceListId: ID): ModelRecord!
   setStatus(input: UpdateModelRecordStatusInput!): ModelRecord
   update(input: UpdateModelRecordInput!): ModelRecord
 }
@@ -5230,6 +5456,11 @@ input UpdatePageTypeInput {
   schemaType: String
   slug: String
   urlPrefix: String
+}
+
+input UpdatePriceListInput {
+  name: String
+  percentOff: Float
 }
 
 input UpdateProfileInput {

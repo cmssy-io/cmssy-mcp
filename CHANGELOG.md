@@ -1,5 +1,19 @@
 # @cmssy/mcp-server
 
+## 0.108.0
+
+- **Price lists** (`@cmssy/ai-tools` 0.83.0, cmssy CMS-2111): new
+  `list_price_lists`, `get_price_list`, `create_price_list`,
+  `update_price_list`, `delete_price_list`, `set_price_list_entry`,
+  `set_price_list_entries`, `remove_price_list_entries`,
+  `set_customer_price_list` and `set_company_price_list`. A list is a percent
+  off the catalogue plus fixed prices per product or variant, assigned to a
+  company or to a customer without one. `delete_price_list`,
+  `set_price_list_entries` and `remove_price_list_entries` are confirm-gated.
+- Customers carry `priceList` (their own) and `effectivePriceList` (the one
+  that prices them, from the customer or their company); `get_order` returns
+  the `priceListName` the order was priced under.
+
 ## 0.107.0
 
 - **Company models and company roles** (`@cmssy/ai-tools` 0.82.0, cmssy

@@ -126,6 +126,20 @@ describe("the binder hands the MCP server the schema the tool declared (CMS-1982
 
 const OBJECT_LEVEL_RULES: Record<string, { refused: unknown; accepted: unknown }> =
   {
+    set_price_list_entry: {
+      refused: {
+        priceListId: "6abd61e1a51c17ea3525336b",
+        recordId: "6abd61e1a51c17ea3525336c",
+        price: 1000,
+        tiers: [{ minQty: 10, price: 1000 }],
+      },
+      accepted: {
+        priceListId: "6abd61e1a51c17ea3525336b",
+        recordId: "6abd61e1a51c17ea3525336c",
+        price: 1000,
+        tiers: [{ minQty: 10, price: 900 }],
+      },
+    },
     update_media_folder: {
       refused: { id: "6abd61e1a51c17ea3525336a" },
       accepted: { id: "6abd61e1a51c17ea3525336a", name: "renamed" },
