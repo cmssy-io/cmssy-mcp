@@ -1090,11 +1090,7 @@ type Customer {
 
 type CustomerAccountRequestResult {
   customer: Customer!
-
-  """
-  Same value as endpointSubscribed. cmssy never emails a customer; read endpointSubscribed.
-  """
-  emailSent: Boolean!
+  emailSent: Boolean! @deprecated(reason: "cmssy never emails a customer. Use endpointSubscribed.")
 
   """
   Whether an enabled webhook endpoint receives the account event. cmssy never emails a customer: the endpoint's app does. False means the token was issued but nothing will reach the customer.
@@ -5187,8 +5183,6 @@ input UpdateSiteConfigInput {
 }
 
 input UpdateUserInput {
-  email: String
-  password: String
   profile: UserProfileInput
   roleId: String
   username: String
@@ -5317,7 +5311,6 @@ type UserProfile {
 }
 
 input UserProfileInput {
-  avatarUrl: String
   displayName: String
   firstName: String
   lastName: String
