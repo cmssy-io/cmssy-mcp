@@ -1295,6 +1295,8 @@ const ORDER_FRAGMENT = `
     price
     listPrice
     tierMinQty
+    listUnitPrice
+    priceSource
     currency
     quantity
     sku

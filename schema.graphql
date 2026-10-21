@@ -606,6 +606,10 @@ type BulkUpdateModelRecordsResult {
 What the signed-in member pays for one product or variant, in minor units: their price list applied, else the catalogue price.
 """
 type BuyerPrice {
+  """
+  Catalogue unit price before the member's price list. For a variant product asked without variantKey, that of the variant priced lowest.
+  """
+  basePrice: Int!
   currency: String!
 
   """True when a price list set this price."""
@@ -621,6 +625,11 @@ type BuyerPrice {
   """
   priceMax: Int
   recordId: ID!
+
+  """
+  Where price came from: catalogue (no list applies), price_list_entry (a fixed price the list sets, with its own volume breaks in place of the product's) or price_list_percent (the list's percent off the catalogue price and its volume breaks).
+  """
+  source: PriceSource!
 
   """
   Volume breaks this member gets; empty for a variant product asked without variantKey.
@@ -2822,11 +2831,21 @@ type OrderItem {
   Catalogue unit price before the buyer's price list and volume breaks. Equals the unit price without a list; can be below price when a list sets a contract price above the catalogue.
   """
   listPrice: Int
+
+  """
+  Unit price after the buyer's price list, before volume breaks. Null on orders placed before it was recorded.
+  """
+  listUnitPrice: Int
   modelId: String
   name: String!
 
   """Unit price charged (volume break applied, CMS-910)"""
   price: Int!
+
+  """
+  Where listUnitPrice came from. Null on orders placed before it was recorded.
+  """
+  priceSource: PriceSource
   quantity: Int!
   recordDeleted: Boolean!
   recordId: String
@@ -3663,6 +3682,33 @@ type PriceList {
 }
 
 """
+A company or a customer the list is assigned to. A customer of a company with its own list is priced by the company's list.
+"""
+type PriceListAssignee {
+  """The company or customer record id."""
+  id: ID!
+  kind: PriceListAssigneeKind!
+
+  """
+  A customer's sign-in identity when the caller has customers:view, else the record's display field, else the end of its id.
+  """
+  label: String!
+  modelId: ID!
+}
+
+enum PriceListAssigneeKind {
+  COMPANY
+  CUSTOMER
+}
+
+type PriceListAssigneePage {
+  items: [PriceListAssignee!]!
+
+  """Pass as `after` for the next page; null on the last."""
+  nextCursor: String
+}
+
+"""
 A fixed price a list sets for one product, or one variant of it, in minor units.
 """
 type PriceListEntry {
@@ -3738,6 +3784,11 @@ type PriceListMutations {
 }
 
 type PriceListQueries {
+  """
+  The companies and customers the list is assigned to, oldest first, at most 200 per page.
+  """
+  assignees(after: String, first: Int, priceListId: ID!): PriceListAssigneePage!
+
   """The list's fixed prices, oldest first, at most 200 per page."""
   entries(after: String, first: Int, priceListId: ID!, recordId: ID): PriceListEntryPage!
   get(id: ID!): PriceList
@@ -3764,6 +3815,12 @@ input PriceQueryItem {
   The variant's id as the delivery ProductVariant.id returns it. Leave it out on a variant product to get its lowest and highest price.
   """
   variantKey: String
+}
+
+enum PriceSource {
+  catalogue
+  price_list_entry
+  price_list_percent
 }
 
 """

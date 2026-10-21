@@ -1,5 +1,12 @@
 # @cmssy/mcp-server
 
+## 0.111.0
+
+- `get_order` returns each line's `listUnitPrice` (the unit
+  price before any quantity tier) and `priceSource` - `catalogue`,
+  `price_list_entry` or `price_list_percent` - so an assistant can say where a
+  line's price came from. Older orders have neither.
+
 ## 0.110.0
 
 - `@cmssy/ai-tools` 0.85.0 and `@cmssy/types` 0.65.0: the order, cart,
