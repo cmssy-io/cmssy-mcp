@@ -1,5 +1,13 @@
 # @cmssy/mcp-server
 
+## 0.110.0
+
+- `@cmssy/ai-tools` 0.85.0 and `@cmssy/types` 0.65.0: the order, cart,
+  shipment and return vocabularies the tools validate against now come from
+  `@cmssy/types` instead of local copies. `list_orders` `paymentStatus` and
+  `list_carts` `status` are validated against those vocabularies - an unknown
+  value is refused by the tool rather than by the API.
+
 ## 0.109.0
 
 - **Cart deletion and warehouse queues** (`@cmssy/ai-tools` 0.84.0): new
