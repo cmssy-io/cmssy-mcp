@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.109.0
+
+- **Cart deletion and warehouse queues** (`@cmssy/ai-tools` 0.84.0): new
+  `delete_carts` permanently deletes 1 to 100 carts with their analytics
+  events and any discount use they held - all or nothing, a cart already
+  turned into an order is refused. It is confirm-gated. `list_orders` takes
+  `queue` (`to_pack`, `in_transit`, `shipping_problem`, `returns`), the admin
+  order list's warehouse tabs.
+
 ## 0.108.0
 
 - **Price lists** (`@cmssy/ai-tools` 0.83.0, cmssy CMS-2111): new

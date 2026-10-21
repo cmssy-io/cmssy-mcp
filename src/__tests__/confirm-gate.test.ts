@@ -180,6 +180,7 @@ describe("the MCP confirm gate (CMS-2067)", () => {
       "cancel_order",
       "cancel_return",
       "clear_cart_config",
+      "delete_carts",
       "delete_form",
       "delete_form_submission",
       "delete_media_folder",

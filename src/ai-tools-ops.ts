@@ -152,6 +152,7 @@ import {
   CREATE_PRICE_LIST_MUTATION,
   UPDATE_PRICE_LIST_MUTATION,
   DELETE_PRICE_LIST_MUTATION,
+  DELETE_CARTS_MUTATION,
   SET_PRICE_LIST_ENTRY_MUTATION,
   SET_PRICE_LIST_ENTRIES_MUTATION,
   REMOVE_PRICE_LIST_ENTRIES_MUTATION,
@@ -1959,6 +1960,7 @@ export function createMcpWorkspaceOps(
           companyId: options?.companyId,
           search: options?.search,
           pipelineStageId: options?.pipelineStageId,
+          queue: options?.queue,
           dateFrom: options?.dateFrom,
           dateTo: options?.dateTo,
           skip: options?.skip,
@@ -2561,6 +2563,13 @@ export function createMcpWorkspaceOps(
           },
         );
         return res.adminCart.list;
+      },
+      delete: async (ids) => {
+        const res = await client.query<{ adminCart: { delete: number } }>(
+          DELETE_CARTS_MUTATION,
+          { ids },
+        );
+        return res.adminCart.delete;
       },
     },
     products: {

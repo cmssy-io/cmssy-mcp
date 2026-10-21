@@ -1349,6 +1349,7 @@ export const ORDERS_QUERY = `
     $companyId: ID
     $search: String
     $pipelineStageId: String
+    $queue: OrderQueue
     $dateFrom: DateTime
     $dateTo: DateTime
     $skip: Int
@@ -1364,6 +1365,7 @@ export const ORDERS_QUERY = `
         companyId: $companyId
         search: $search
         pipelineStageId: $pipelineStageId
+        queue: $queue
         dateFrom: $dateFrom
         dateTo: $dateTo
         skip: $skip
@@ -1525,6 +1527,12 @@ export const RECORD_ORDER_INVOICE_MUTATION = `
 `;
 
 // ─── Commerce: Carts ─────────────────────────────────────────
+
+export const DELETE_CARTS_MUTATION = `
+  mutation DeleteCarts($ids: [ID!]!) {
+    adminCart { delete(ids: $ids) }
+  }
+`;
 
 export const ADMIN_CARTS_QUERY = `
   query AdminCarts($status: String, $skip: Int, $limit: Int) {

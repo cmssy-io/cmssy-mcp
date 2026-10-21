@@ -273,6 +273,21 @@ describe("order status axes (CMS-2102)", () => {
   });
 });
 
+describe("order warehouse queue", () => {
+  it("list declares and forwards the queue as the API's OrderQueue enum", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { list: { items: [], total: 0, hasMore: false } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.orders.list({ queue: "shipping_problem" });
+
+    expect(ORDERS_QUERY).toMatch(/\$queue: OrderQueue\b/);
+    expect(ORDERS_QUERY).toMatch(/queue: \$queue/);
+    expect(sent[0]!.variables).toMatchObject({ queue: "shipping_problem" });
+  });
+});
+
 describe("order custom fields ops", () => {
   it("get selects and hands back the custom fields, and {} when the API sends none", async () => {
     const { client } = clientAnswering([

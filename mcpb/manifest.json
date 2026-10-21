@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "cmssy",
   "display_name": "Cmssy",
-  "version": "0.108.0",
+  "version": "0.109.0",
   "description": "Hosted headless CMS with native commerce. Lets an agent run pages, records, media, forms, products, orders, refunds and discounts in a Cmssy workspace.",
   "long_description": "Cmssy is a hosted headless CMS with built-in commerce: products, carts, orders, discounts, refunds, fulfillment and customers, plus forms, media and webhooks. Your own Next.js, Astro or React Router app renders the site. This server exposes the workspace to an MCP client over stdio. Destructive actions such as refunds, cancellations and page deletes return a summary first and run only after you confirm.",
   "author": {
