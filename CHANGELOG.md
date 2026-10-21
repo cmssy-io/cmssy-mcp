@@ -1,5 +1,16 @@
 # @cmssy/mcp-server
 
+## 0.107.0
+
+- **Company models and company roles** (`@cmssy/ai-tools` 0.82.0, cmssy
+  CMS-2108): `create_model`, `update_model` and `get_model` take and return
+  `company { enabled }`, the capability that makes a model the companies an
+  account model's company field links. New `set_customer_company_role` gives a
+  customer a role (`admin`, `buyer`) in the company they belong to now; it is
+  confirm-gated like `suspend_customer`. The role is cleared whenever the
+  customer's company changes.
+- `@cmssy/types` 0.64.0.
+
 ## 0.106.0
 
 - **Company role field removed** (`@cmssy/ai-tools` 0.81.0, cmssy CMS-1912):
