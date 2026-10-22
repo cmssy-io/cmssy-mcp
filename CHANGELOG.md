@@ -1,5 +1,13 @@
 # @cmssy/mcp-server
 
+## 0.112.0
+
+- Price lists can mark up and expire: `percentOff` takes -1000 to 99.99
+  (negative = above the catalogue), and `create_price_list` /
+  `update_price_list` take `startsAt` / `endsAt` (null clears a bound).
+  `list_price_lists` and `get_price_list` return both bounds and `active`.
+- `@cmssy/ai-tools` 0.86.0.
+
 ## 0.111.0
 
 - `get_order` returns each line's `listUnitPrice` (the unit

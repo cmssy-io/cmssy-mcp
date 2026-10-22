@@ -126,6 +126,29 @@ describe("the binder hands the MCP server the schema the tool declared (CMS-1982
 
 const OBJECT_LEVEL_RULES: Record<string, { refused: unknown; accepted: unknown }> =
   {
+    create_price_list: {
+      refused: {
+        name: "Black Friday",
+        startsAt: "2026-11-30T00:00:00.000Z",
+        endsAt: "2026-11-27T00:00:00.000Z",
+      },
+      accepted: {
+        name: "Black Friday",
+        startsAt: "2026-11-27T00:00:00.000Z",
+        endsAt: "2026-11-30T00:00:00.000Z",
+      },
+    },
+    update_price_list: {
+      refused: {
+        id: "6abd61e1a51c17ea3525336b",
+        startsAt: "2026-11-30T00:00:00.000Z",
+        endsAt: "2026-11-27T00:00:00.000Z",
+      },
+      accepted: {
+        id: "6abd61e1a51c17ea3525336b",
+        endsAt: "2026-11-27T00:00:00.000Z",
+      },
+    },
     set_price_list_entry: {
       refused: {
         priceListId: "6abd61e1a51c17ea3525336b",

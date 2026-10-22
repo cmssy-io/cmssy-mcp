@@ -470,6 +470,9 @@ interface RawPriceList {
   id: string;
   name: string;
   percentOff: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  active: boolean;
   overrideCount: number;
   assignedCount: number;
   createdAt: string | null;
@@ -481,6 +484,9 @@ function toPriceListSummary(p: RawPriceList): PriceListSummary {
     id: p.id,
     name: p.name,
     percentOff: p.percentOff,
+    startsAt: p.startsAt ?? null,
+    endsAt: p.endsAt ?? null,
+    active: p.active,
     overrideCount: p.overrideCount,
     assignedCount: p.assignedCount,
     createdAt: p.createdAt ?? null,
