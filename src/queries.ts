@@ -1216,7 +1216,15 @@ const ORDER_FRAGMENT = `
   customerId
   companyId
   companyName
+  channel { id key name }
+  priceList { id name deleted }
   priceListName
+  priceListSource
+  pricingChain {
+    buyer { id name deleted }
+    channelDated { id name deleted }
+    channelBase { id name deleted }
+  }
   customerEmail
   currency
   subtotal
@@ -1314,6 +1322,8 @@ const ORDER_FRAGMENT = `
     recordDeleted
     taxRate
     taxAmount
+    priceListId
+    priceListSource
   }
   payments { amount reference provider at }
   taxSummary { name rate base amount }
@@ -1552,6 +1562,7 @@ export const ADMIN_CARTS_QUERY = `
           id
           status
           customerId
+          channel
           itemCount
           totalValue
           currency
@@ -1995,6 +2006,7 @@ const PRICE_LIST_FRAGMENT = `
   active
   overrideCount
   assignedCount
+  channels { id key name priceAccess }
   createdAt
   updatedAt
 `;
@@ -2098,5 +2110,51 @@ export const SET_RECORD_TAX_ROUNDING_METHOD_MUTATION = `
         taxRoundingMethod
       }
     }
+  }
+`;
+
+const SALES_CHANNEL_PRICE_LIST_FRAGMENT = `id name startsAt endsAt active`;
+
+const SALES_CHANNEL_FRAGMENT = `
+  id
+  key
+  name
+  displayMode
+  priceAccess
+  activeCartCount
+  activePriceList { ${SALES_CHANNEL_PRICE_LIST_FRAGMENT} }
+  priceLists { ${SALES_CHANNEL_PRICE_LIST_FRAGMENT} }
+  nextChangeAt
+  createdAt
+  updatedAt
+`;
+
+export const SALES_CHANNELS_QUERY = `
+  query SalesChannels {
+    salesChannel { list { ${SALES_CHANNEL_FRAGMENT} } }
+  }
+`;
+
+export const SALES_CHANNEL_BY_ID_QUERY = `
+  query SalesChannel($id: ID!) {
+    salesChannel { get(id: $id) { ${SALES_CHANNEL_FRAGMENT} } }
+  }
+`;
+
+export const CREATE_SALES_CHANNEL_MUTATION = `
+  mutation CreateSalesChannel($input: CreateSalesChannelInput!) {
+    salesChannel { create(input: $input) { ${SALES_CHANNEL_FRAGMENT} } }
+  }
+`;
+
+export const UPDATE_SALES_CHANNEL_MUTATION = `
+  mutation UpdateSalesChannel($id: ID!, $input: UpdateSalesChannelInput!) {
+    salesChannel { update(id: $id, input: $input) { ${SALES_CHANNEL_FRAGMENT} } }
+  }
+`;
+
+export const DELETE_SALES_CHANNEL_MUTATION = `
+  mutation DeleteSalesChannel($id: ID!) {
+    salesChannel { delete(id: $id) }
   }
 `;

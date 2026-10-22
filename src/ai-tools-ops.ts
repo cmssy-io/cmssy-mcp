@@ -33,6 +33,14 @@ import type {
   PriceDisplayMode,
   TaxRoundingMethod,
   TaxBreakdown,
+  PriceListChannel,
+  PriceListSource,
+  SalesChannelPriceList,
+  SalesChannelSummary,
+  ChannelPriceAccess,
+  OrderChannel,
+  OrderPriceListRef,
+  OrderPricingChain,
 } from "@cmssy/ai-tools";
 import {
   BLOCK_USAGE_QUERY,
@@ -163,6 +171,11 @@ import {
   SET_RECORD_PRICE_LIST_MUTATION,
   SET_RECORD_PRICE_DISPLAY_MODE_MUTATION,
   SET_RECORD_TAX_ROUNDING_METHOD_MUTATION,
+  SALES_CHANNELS_QUERY,
+  SALES_CHANNEL_BY_ID_QUERY,
+  CREATE_SALES_CHANNEL_MUTATION,
+  UPDATE_SALES_CHANNEL_MUTATION,
+  DELETE_SALES_CHANNEL_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -497,6 +510,7 @@ interface RawPriceList {
   active: boolean;
   overrideCount: number;
   assignedCount: number;
+  channels?: PriceListChannel[] | null;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -511,8 +525,61 @@ function toPriceListSummary(p: RawPriceList): PriceListSummary {
     active: p.active,
     overrideCount: p.overrideCount,
     assignedCount: p.assignedCount,
+    channels: p.channels ?? [],
     createdAt: p.createdAt ?? null,
     updatedAt: p.updatedAt ?? null,
+  };
+}
+
+interface RawSalesChannelPriceList {
+  id: string;
+  name: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  active: boolean;
+}
+
+function toSalesChannelPriceList(
+  p: RawSalesChannelPriceList,
+): SalesChannelPriceList {
+  return {
+    id: p.id,
+    name: p.name,
+    startsAt: p.startsAt ?? null,
+    endsAt: p.endsAt ?? null,
+    active: p.active,
+  };
+}
+
+interface RawSalesChannel {
+  id: string;
+  key: string;
+  name: string;
+  displayMode: PriceDisplayMode;
+  priceAccess: ChannelPriceAccess;
+  activeCartCount: number;
+  activePriceList?: RawSalesChannelPriceList | null;
+  priceLists?: RawSalesChannelPriceList[] | null;
+  nextChangeAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+function toSalesChannelSummary(c: RawSalesChannel): SalesChannelSummary {
+  return {
+    id: c.id,
+    key: c.key,
+    name: c.name,
+    displayMode: c.displayMode,
+    priceAccess: c.priceAccess,
+    activeCartCount: c.activeCartCount,
+    activePriceList: c.activePriceList
+      ? toSalesChannelPriceList(c.activePriceList)
+      : null,
+    priceLists: (c.priceLists ?? []).map(toSalesChannelPriceList),
+    nextChangeAt: c.nextChangeAt ?? null,
+    createdAt: c.createdAt ?? null,
+    updatedAt: c.updatedAt ?? null,
   };
 }
 
@@ -2036,7 +2103,11 @@ export function createMcpWorkspaceOps(
               customerId?: string | null;
               companyId?: string | null;
               companyName?: string | null;
+              channel?: OrderChannel | null;
+              priceList?: OrderPriceListRef | null;
               priceListName?: string | null;
+              priceListSource?: PriceListSource | null;
+              pricingChain?: OrderPricingChain | null;
               subtotal?: number | null;
               discount?: number | null;
               appliedDiscount?: {
@@ -2083,7 +2154,11 @@ export function createMcpWorkspaceOps(
           customerId: o.customerId ?? null,
           companyId: o.companyId ?? null,
           companyName: o.companyName ?? null,
+          channel: o.channel ?? null,
+          priceList: o.priceList ?? null,
           priceListName: o.priceListName ?? null,
+          priceListSource: o.priceListSource ?? null,
+          pricingChain: o.pricingChain ?? null,
           subtotal: o.subtotal ?? null,
           discount: o.discount ?? null,
           appliedDiscount: o.appliedDiscount ?? null,
@@ -2889,6 +2964,40 @@ export function createMcpWorkspaceOps(
           record: { setTaxRoundingMethod: CompanyTaxPreferencesRow };
         }>(SET_RECORD_TAX_ROUNDING_METHOD_MUTATION, { id: recordId, method });
         return toCompanyTaxPreferences(res.record.setTaxRoundingMethod);
+      },
+    },
+    salesChannels: {
+      list: async () => {
+        const res = await client.query<{
+          salesChannel: { list: RawSalesChannel[] };
+        }>(SALES_CHANNELS_QUERY, {});
+        return res.salesChannel.list.map(toSalesChannelSummary);
+      },
+      get: async (id) => {
+        const res = await client.query<{
+          salesChannel: { get: RawSalesChannel | null };
+        }>(SALES_CHANNEL_BY_ID_QUERY, { id });
+        const channel = res.salesChannel.get;
+        return channel ? toSalesChannelSummary(channel) : null;
+      },
+      create: async (input) => {
+        const res = await client.query<{
+          salesChannel: { create: RawSalesChannel };
+        }>(CREATE_SALES_CHANNEL_MUTATION, { input });
+        return toSalesChannelSummary(res.salesChannel.create);
+      },
+      update: async (id, input) => {
+        const res = await client.query<{
+          salesChannel: { update: RawSalesChannel };
+        }>(UPDATE_SALES_CHANNEL_MUTATION, { id, input });
+        return toSalesChannelSummary(res.salesChannel.update);
+      },
+      delete: async (id) => {
+        const res = await client.query<{ salesChannel: { delete: boolean } }>(
+          DELETE_SALES_CHANNEL_MUTATION,
+          { id },
+        );
+        return res.salesChannel.delete;
       },
     },
   };

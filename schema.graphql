@@ -28,6 +28,8 @@ type AccountQueries {
   A product listing ordered, filtered and paged by the signed-in member's own price - their price list applied, else the catalogue price. Rows are prices only: read the records themselves from the cached, anonymous catalogue (public.model.recordsByIds). A variant product is priced from its lowest variant. filter, stockState, sku and locale work as on public.model.records; a listing that matches more than 2000 products is refused - narrow it with filter. Never cache the response for another visitor.
   """
   catalogPrices(
+    channel: String
+
     """
     Keep only products priced in this currency. Required when the listing mixes currencies, which it then refuses without.
     """
@@ -58,7 +60,7 @@ type AccountQueries {
   """
   The signed-in member's prices for up to 100 products, one row per item asked; an unknown or hidden product is left out. Read it after the cached, anonymous catalogue has rendered, and never cache the response for another visitor.
   """
-  prices(items: [PriceQueryItem!]!, workspaceId: ID!): [BuyerPrice!]!
+  prices(channel: String, items: [PriceQueryItem!]!, workspaceId: ID!): [BuyerPrice!]!
 
   """The signed-in member's own account record."""
   profile(workspaceId: ID!): MemberProfile!
@@ -66,6 +68,7 @@ type AccountQueries {
 
 """Input for adding an item to a cart"""
 input AddToCartInput {
+  channel: String
   notes: String
   quantity: Int!
 
@@ -81,6 +84,10 @@ input AddWorkspaceMemberInput {
 }
 
 type AdminCart {
+  """
+  Key of the sales channel the cart was started on; null for a cart without one.
+  """
+  channel: String
   companyId: String
   createdAt: DateTime!
   currency: String
@@ -633,7 +640,7 @@ enum BuyerCatalogSort {
 }
 
 """
-What the signed-in member pays for one product or variant, in minor units: their price list applied, else the catalogue price.
+What a buyer pays for one product or variant, in minor units: their list, else the channel's, else the catalogue price.
 """
 type BuyerPrice {
   """
@@ -646,6 +653,7 @@ type BuyerPrice {
 
   """Quantities must be a multiple of this; 1 when any quantity goes."""
   increment: Int!
+  listSource: PriceListSource
 
   """True when a price list set this price."""
   listed: Boolean!
@@ -708,13 +716,14 @@ type Cart {
 
   """Enabled shipping methods the shopper can choose from"""
   availableShippingMethods: [ShippingMethod!]!
+  channel: String
   createdAt: DateTime!
 
   """Currency from the first item's snapshot, or null when empty"""
   currency: String
 
   """
-  subtotal - discount amount (re-derived from appliedDiscount type/value against the CURRENT subtotal, clamped to >= 0). Equals subtotal when no code is applied. free_shipping contributes 0 here; shipping handling lives downstream. computedAmount on the stored snapshot is informational only - the live total always uses fresh derivation so cart edits after apply (add/remove items) can't lock in over-discounts. Eligibility guards (minSubtotal / currency) are re-checked against the snapshot so a cart that drops out of eligibility post-apply contributes 0 discount until the shopper removes and re-applies the code.
+  subtotal minus the applied code's discount, re-derived against the current subtotal and clamped to 0. Equals subtotal without a code; a code the cart no longer qualifies for takes 0 off.
   """
   discountedTotal: Int!
   displayMode: PriceDisplayMode!
@@ -917,7 +926,7 @@ type CartMutations {
   """
   Apply a discount code to the active cart for this session (public, rate-limited). Errors with NOT_APPLICABLE when the code is expired / out of redemptions / cart fails minSubtotal / currency mismatch.
   """
-  applyDiscount(code: String!, workspaceId: ID!): Cart!
+  applyDiscount(channel: String, code: String!, workspaceId: ID!): Cart!
 
   """
   Convert the active cart into an order (public, rate-limited). Attaches the site member as customer when logged in; otherwise a guest order with the supplied customerEmail.
@@ -925,30 +934,30 @@ type CartMutations {
   checkout(input: CheckoutInput!): PublicOrder!
 
   """Remove all items from the cart (public, rate-limited)"""
-  clear(workspaceId: ID!): Cart!
+  clear(channel: String, workspaceId: ID!): Cart!
 
   """
   Merge a guest cart (identified by the cart-session cookie) into the authenticated user's cart. Called by the frontend right after login. Idempotent - safe to call when no guest session exists or after a prior merge succeeded.
   """
-  merge(workspaceId: ID!): Cart!
+  merge(channel: String, workspaceId: ID!): Cart!
 
   """
   Remove the applied discount from the active cart (public, rate-limited). Idempotent: succeeds with no change when nothing was applied.
   """
-  removeDiscount(workspaceId: ID!): Cart!
+  removeDiscount(channel: String, workspaceId: ID!): Cart!
 
   """Remove an item from the cart (public, rate-limited)"""
-  removeItem(itemId: ID!, workspaceId: ID!): Cart!
+  removeItem(channel: String, itemId: ID!, workspaceId: ID!): Cart!
 
   """
   Give the cart a shipping address, or pass an explicit null to clear it (CMS-1906). availableShippingMethods is filtered by the address's country and the cart's subtotal after discount; a selected method that stops being eligible is cleared.
   """
-  setShippingAddress(shippingAddress: ShippingAddressInput, workspaceId: ID!): Cart!
+  setShippingAddress(channel: String, shippingAddress: ShippingAddressInput, workspaceId: ID!): Cart!
 
   """
-  Choose the cart's shipping method, or pass an explicit null to clear it (public, rate-limited). The argument must be present: omitting it is an error, not a clear. Errors with BAD_USER_INPUT when the id is not an enabled method in this workspace's cart config.
+  Choose the cart's shipping method; an explicit null clears it, omitting the argument is an error. BAD_USER_INPUT for an id that is not an enabled method.
   """
-  setShippingMethod(shippingMethodId: String, workspaceId: ID!): Cart!
+  setShippingMethod(channel: String, shippingMethodId: String, workspaceId: ID!): Cart!
 
   """Update quantity or notes on a cart item (public, rate-limited)"""
   updateItem(input: UpdateCartItemInput!): Cart!
@@ -958,7 +967,7 @@ type CartQueries {
   """
   Get the active cart for the current session in this workspace. Returns an empty (non-persistent) cart if no session/cart exists.
   """
-  get(workspaceId: ID!): Cart!
+  get(channel: String, workspaceId: ID!): Cart!
 }
 
 type CartSeriesPoint {
@@ -1013,7 +1022,18 @@ type CatalogVariantStock {
   tiers: [PriceTier!]!
 }
 
+"""
+Who sees a channel's prices and may buy through it: PUBLIC - anyone; MEMBERS - signed-in customers (registration is open); COMPANY_MEMBERS - buyers of an approved company.
+"""
+enum ChannelPriceAccess {
+  COMPANY_MEMBERS
+  MEMBERS
+  PUBLIC
+}
+
 input CheckoutInput {
+  channel: String
+
   """
   Values for the order fields the customer can set (publicCart.orderFields), by key
   """
@@ -1148,6 +1168,10 @@ input CreatePageTypeInput {
 }
 
 input CreatePriceListInput {
+  """
+  Keys of the sales channels to publish the list to. A channel takes one undated base list plus dated lists whose windows do not overlap; a clash is refused with CONFLICT (extensions.reason CHANNEL_BASE_TAKEN or CHANNEL_WINDOW_OVERLAP).
+  """
+  channels: [String!]
   endsAt: DateTime
   name: String!
 
@@ -1164,6 +1188,17 @@ input CreateReturnInput {
   note: String
   orderId: ID!
   trackingNumber: String
+}
+
+input CreateSalesChannelInput {
+  displayMode: PriceDisplayMode
+
+  """
+  1-40 lowercase letters and digits, words joined by - or _. Cannot change later.
+  """
+  key: String!
+  name: String!
+  priceAccess: ChannelPriceAccess
 }
 
 input CreateShipmentInput {
@@ -2550,6 +2585,7 @@ type Mutation {
   public: PublicMutations!
   record: RecordMutations!
   role: RoleMutations!
+  salesChannel: SalesChannelMutations!
   siteConfig: SiteConfigMutations!
   siteMember: SiteMemberMutations!
   user: UserMutations!
@@ -2715,6 +2751,7 @@ type Order {
   balanceDue: Int!
   canceledAt: DateTime
   cartId: String
+  channel: OrderChannel
   closedAt: DateTime
 
   """
@@ -2781,10 +2818,21 @@ type Order {
   poNumber: String
 
   """
+  The price list the order was priced from, frozen at purchase; null when none applied.
+  """
+  priceList: OrderPriceListRef
+
+  """
   The price list the order was priced from, its name frozen at checkout; null when none applied.
   """
   priceListName: String
+
+  """
+  Where priceListName came from: the buyer's own list, their company's, or the channel's.
+  """
+  priceListSource: PriceListSource
   pricesIncludeTax: Boolean!
+  pricingChain: OrderPricingChain
   refundedAmount: Int!
   returns: [OrderReturn!]!
   shipments: [OrderShipment!]!
@@ -2826,6 +2874,13 @@ type OrderAddress {
   postalCode: String!
   region: String
   vatId: String
+}
+
+"""The sales channel an order was placed through, frozen."""
+type OrderChannel {
+  id: String!
+  key: String!
+  name: String!
 }
 
 enum OrderDeliveryStatus {
@@ -2939,6 +2994,10 @@ type OrderItem {
 
   """Unit price charged (volume break applied, CMS-910)"""
   price: Int!
+
+  """The price list that priced this line; null when the catalogue did."""
+  priceListId: String
+  priceListSource: PriceListSource
 
   """
   Where listUnitPrice came from. Null on orders placed before it was recorded.
@@ -3109,6 +3168,23 @@ input OrderPipelineStageInput {
   isTerminal: Boolean
   label: String!
   position: Int!
+}
+
+"""A price list as frozen on an order: its id and name at purchase time."""
+type OrderPriceListRef {
+  """True once the list has been deleted since the order."""
+  deleted: Boolean!
+  id: String!
+  name: String!
+}
+
+"""
+The lists that could price the order's lines, in the order tried: the buyer's own or company list, the channel's dated list, the channel's base list.
+"""
+type OrderPricingChain {
+  buyer: OrderPriceListRef
+  channelBase: OrderPriceListRef
+  channelDated: OrderPriceListRef
 }
 
 type OrderQueries {
@@ -3770,7 +3846,7 @@ enum PriceDisplayMode {
 }
 
 """
-A price list (Gold, Silver, ...): a percent off the catalogue plus fixed prices per product or variant, assigned to companies and to customers without a company.
+A price list (Gold, Silver, ...): a percent off the catalogue plus fixed prices per product or variant, assigned to companies and to customers without a company, or published to sales channels.
 """
 type PriceList {
   """
@@ -3780,6 +3856,11 @@ type PriceList {
 
   """Companies and customers the list is assigned to."""
   assignedCount: Int!
+
+  """
+  The sales channels the list is published to. Anyone can read the prices of a list published to a PUBLIC channel.
+  """
+  channels: [SalesChannel!]!
   createdAt: DateTime!
 
   """
@@ -3935,9 +4016,10 @@ type PriceListQueries {
 }
 
 """
-Where a customer's price list comes from: MEMBER - assigned to the customer; COMPANY - assigned to the company they buy for.
+Whose list it is: the customer's (MEMBER), their company's or the sales channel's.
 """
 enum PriceListSource {
+  CHANNEL
   COMPANY
   MEMBER
 }
@@ -3974,6 +4056,11 @@ input PriceTierInput {
 
   """Unit price in minor units"""
   price: Int!
+}
+
+enum PriceWithheldReason {
+  COMPANY_MEMBERS_ONLY
+  MEMBERS_ONLY
 }
 
 """
@@ -4645,12 +4732,39 @@ type PublicPriceRange {
   min: Int!
 }
 
+type PublicPriceResult {
+  displayMode: PriceDisplayMode!
+  items: [PublicPricedRecord!]!
+  nextChangeAt: DateTime
+  priceWithheld: PriceWithheldReason
+}
+
+type PublicPricedRecord {
+  price: BuyerPrice
+  record: PublicModelRecord!
+}
+
+type PublicPricedRecordPage {
+  displayMode: PriceDisplayMode!
+  hasMore: Boolean!
+  items: [PublicPricedRecord!]!
+  nextChangeAt: DateTime
+  priceWithheld: PriceWithheldReason
+  total: Int!
+}
+
+type PublicPricingQueries {
+  catalogPrices(channel: String!, currency: String, filter: JSON, limit: Int = 20, locale: String, modelSlug: String!, offset: Int = 0, priceMax: Int, priceMin: Int, sku: String, sort: BuyerCatalogSort = PRICE_ASC, stockState: String, workspaceId: String!): PublicPricedRecordPage!
+  prices(channel: String!, items: [PriceQueryItem!]!, locale: String, workspaceId: String!): PublicPriceResult!
+}
+
 type PublicQueries {
   draftSecretValid(secret: String!, workspaceSlug: String!): Boolean!
   form: PublicFormQueries!
   model: PublicModelQueries!
   order: PublicOrderQueries!
   page: PublicPageQueries!
+  pricing: PublicPricingQueries!
   siteConfig(workspaceSlug: String): PublicSiteConfig
   workspaceBranding(workspaceSlug: String!): WorkspaceBranding
   workspaceI18n(workspaceSlug: String!): I18nSettings
@@ -4742,6 +4856,7 @@ type Query {
   public: PublicQueries!
   record: RecordQueries!
   role: RoleQueries!
+  salesChannel: SalesChannelQueries!
   siteConfig: SiteConfigQueries!
   user: UserQueries!
   version: String!
@@ -5031,6 +5146,66 @@ type RoleQueries {
   availablePermissions: [PermissionCategory!]!
   get(id: ID!): WorkspaceRoleType
   list: [WorkspaceRoleType!]!
+}
+
+"""
+A sales channel (horeca, retail ...): a key a storefront sends to be priced from the price lists published to it.
+"""
+type SalesChannel {
+  """Carts still open on the channel - deleting the channel abandons them."""
+  activeCartCount: Int!
+
+  """
+  The list pricing the channel now: the dated list whose window holds now, else the base list.
+  """
+  activePriceList: PriceList
+  createdAt: DateTime!
+
+  """
+  Net or gross prices for visitors and customers without a company; a company buyer keeps their company's mode.
+  """
+  displayMode: PriceDisplayMode!
+  id: ID!
+
+  """
+  What the storefront sends as channel. Fixed once created; orders keep it.
+  """
+  key: String!
+  name: String!
+
+  """
+  The next startsAt or endsAt of a list published to the channel - when its prices next change.
+  """
+  nextChangeAt: DateTime
+  priceAccess: ChannelPriceAccess!
+
+  """Every price list published to the channel, by name."""
+  priceLists: [PriceList!]!
+  updatedAt: DateTime!
+}
+
+type SalesChannelMutations {
+  """
+  Create a sales channel, at most 20 per workspace. A duplicate key is refused with CONFLICT.
+  """
+  create(input: CreateSalesChannelInput!): SalesChannel!
+
+  """
+  Delete the channel and unpublish every price list from it. Storefronts still sending its key get BAD_USER_INPUT; orders keep the channel they were placed through.
+  """
+  delete(id: ID!): Boolean!
+
+  """
+  Rename the channel or change its display mode or price access. The key cannot change.
+  """
+  update(id: ID!, input: UpdateSalesChannelInput!): SalesChannel!
+}
+
+type SalesChannelQueries {
+  get(id: ID!): SalesChannel
+
+  """Every sales channel of the workspace, by key."""
+  list: [SalesChannel!]!
 }
 
 input SaveDevDraftInput {
@@ -5518,6 +5693,7 @@ input UpdateApiTokenInput {
 
 """Input for updating a cart item"""
 input UpdateCartItemInput {
+  channel: String
   itemId: ID!
   notes: String
 
@@ -5695,6 +5871,11 @@ input UpdatePageTypeInput {
 }
 
 input UpdatePriceListInput {
+  """
+  Replaces the channels the list is published to; [] unpublishes it, leave out to keep.
+  """
+  channels: [String!]
+
   """Pass null to clear; leave out to keep."""
   endsAt: DateTime
   name: String
@@ -5722,6 +5903,12 @@ input UpdateReturnTrackingInput {
 
   """Omitted leaves it unchanged; null clears it."""
   trackingNumber: String
+}
+
+input UpdateSalesChannelInput {
+  displayMode: PriceDisplayMode
+  name: String
+  priceAccess: ChannelPriceAccess
 }
 
 input UpdateShipmentInput {

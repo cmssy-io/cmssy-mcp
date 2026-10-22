@@ -1,5 +1,21 @@
 # @cmssy/mcp-server
 
+## 0.116.0
+
+- Sales channels (CMS-2123): new `list_sales_channels`, `get_sales_channel`,
+  `create_sales_channel`, `update_sales_channel` and `delete_sales_channel`
+  (confirm-gated). Each channel reads back its key, displayMode, priceAccess,
+  activePriceList, priceLists, nextChangeAt and activeCartCount - the open
+  carts a delete would abandon.
+- `create_price_list` / `update_price_list` take `channels` (keys; `[]`
+  unpublishes); price list reads return the channels a list is published to.
+- `get_order` returns `channel`, `priceList` and `priceListSource`, the
+  `pricingChain` (buyer, channelDated, channelBase) with `deleted` on every
+  list reference, and each line's `priceListId` / `priceListSource`.
+- `list_carts` returns the `channel` a cart was started on.
+- Vendored SDL synced with the backend.
+- `@cmssy/ai-tools` 0.90.0, `@cmssy/types` 0.67.0.
+
 ## 0.115.0
 
 - Net/gross per buyer type (CMS-2117): `update_cart_config` takes

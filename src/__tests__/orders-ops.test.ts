@@ -167,6 +167,76 @@ describe("order price list (CMS-2111)", () => {
   });
 });
 
+describe("order sales channel and pricing chain (CMS-2123)", () => {
+  const REF = ["deleted", "id", "name"];
+
+  it("get selects the channel, the list refs with deleted, the source and each line's list", () => {
+    const fields = selectedUnder(ORDER_BY_ID_QUERY, "get");
+    for (const f of ["channel", "priceList", "priceListSource", "pricingChain"]) {
+      expect(fields.has(f), f).toBe(true);
+    }
+    expect([...selectedUnder(ORDER_BY_ID_QUERY, "channel")].sort()).toEqual([
+      "id",
+      "key",
+      "name",
+    ]);
+    expect([...selectedUnder(ORDER_BY_ID_QUERY, "priceList")].sort()).toEqual(
+      REF,
+    );
+    expect([...selectedUnder(ORDER_BY_ID_QUERY, "pricingChain")].sort()).toEqual(
+      ["buyer", "channelBase", "channelDated"],
+    );
+    for (const link of ["buyer", "channelDated", "channelBase"]) {
+      expect([...selectedUnder(ORDER_BY_ID_QUERY, link)].sort(), link).toEqual(
+        REF,
+      );
+    }
+    const items = selectedUnder(ORDER_BY_ID_QUERY, "items");
+    expect(items.has("priceListId")).toBe(true);
+    expect(items.has("priceListSource")).toBe(true);
+  });
+
+  it("get maps the channel, the list, its source, the chain and each line's list; null when none", async () => {
+    const channelBase = { id: "pl-2", name: "Retail", deleted: true };
+    const priceList = { id: "pl-1", name: "Spring", deleted: false };
+    const items = [
+      { id: "i-1", priceListId: "pl-1", priceListSource: "CHANNEL" },
+      { id: "i-2", priceListId: null, priceListSource: null },
+    ];
+    const { client } = clientAnswering([
+      {
+        order: {
+          get: {
+            ...rawSummary,
+            channel: { id: "ch-1", key: "horeca", name: "HoReCa" },
+            priceList,
+            priceListName: "Spring",
+            priceListSource: "CHANNEL",
+            pricingChain: { buyer: null, channelDated: priceList, channelBase },
+            items,
+          },
+        },
+      },
+      { order: { get: { ...rawSummary } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.orders.get("o-1")).toMatchObject({
+      channel: { id: "ch-1", key: "horeca", name: "HoReCa" },
+      priceList,
+      priceListSource: "CHANNEL",
+      pricingChain: { buyer: null, channelDated: priceList, channelBase },
+      items,
+    });
+    expect(await ops.orders.get("o-1")).toMatchObject({
+      channel: null,
+      priceList: null,
+      priceListSource: null,
+      pricingChain: null,
+    });
+  });
+});
+
 describe("order net/gross amounts (CMS-2117)", () => {
   const taxed = (net: number, tax: number) => ({ net, tax, gross: net + tax });
   const amounts = {
