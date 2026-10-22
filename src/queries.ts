@@ -1980,6 +1980,9 @@ const PRICE_LIST_FRAGMENT = `
   id
   name
   percentOff
+  startsAt
+  endsAt
+  active
   overrideCount
   assignedCount
   createdAt
