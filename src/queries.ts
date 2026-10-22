@@ -1749,6 +1749,7 @@ export const PRODUCT_CATALOG_QUERY = `
           reserved
           available
           hasVariants
+          quantityIncrement
           tiers { minQty price }
           variants {
             key
@@ -1777,6 +1778,7 @@ export const SET_PRODUCT_TIERS_MUTATION = `
       setTiers(input: $input) {
         id
         priceTiers { minQty price }
+        quantityIncrement
         variants { id sku price tiers { minQty price } }
       }
     }
@@ -1995,6 +1997,8 @@ const PRICE_LIST_ENTRY_FRAGMENT = `
   variantKey
   price
   tiers { minQty price }
+  minQuantity
+  maxQuantity
   currency
   recordMissing
 `;

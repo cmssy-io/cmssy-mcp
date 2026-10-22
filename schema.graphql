@@ -642,8 +642,21 @@ type BuyerPrice {
   basePrice: Int!
   currency: String!
 
+  """Quantities must be a multiple of this; 1 when any quantity goes."""
+  increment: Int!
+
   """True when a price list set this price."""
   listed: Boolean!
+
+  """
+  Largest quantity this member may put in the cart, never above the cart's per-item cap.
+  """
+  maxQuantity: Int!
+
+  """
+  Smallest quantity this member may put in the cart. For a variant product asked without variantKey, the product-wide value; ask per variant for its own.
+  """
+  minQuantity: Int!
 
   """
   Unit price before volume breaks. For a variant product asked without variantKey, the lowest across its variants.
@@ -790,7 +803,6 @@ type CartConfig {
   maxQuantityPerItem: Int!
   orderFields: [OrderField!]!
   pricesIncludeTax: Boolean!
-  productSources: [CartProductSource!]! @deprecated(reason: "A store sells from every model whose product settings are turned on; read the models instead.")
   reservationTtlMinutes: Int
 
   """
@@ -923,13 +935,6 @@ type CartMutations {
   updateItem(input: UpdateCartItemInput!): Cart!
 }
 
-"""
-A model the store sells from: a model whose product settings are turned on. Which record fields carry the name, price, currency, image, SKU and tax rate is declared on the model's product config.
-"""
-type CartProductSource {
-  modelSlug: String!
-}
-
 type CartQueries {
   """
   Get the active cart for the current session in this workspace. Returns an empty (non-persistent) cart if no session/cart exists.
@@ -959,6 +964,11 @@ type CatalogItem {
   hasVariants: Boolean!
   id: String!
   onHand: Int
+
+  """
+  Order quantities must be a multiple of this; 1 when the product has no step. Variants inherit it.
+  """
+  quantityIncrement: Int!
   reserved: Int!
   status: String
 
@@ -2458,6 +2468,11 @@ type ModelRecord {
   Record-level volume breaks. Price a product without variants, and any variant that defines no tiers of its own.
   """
   priceTiers: [PriceTier!]!
+
+  """
+  Order quantities must be a multiple of this; 1 when the product has no step. Variants inherit it.
+  """
+  quantityIncrement: Int!
   status: String
   updatedAt: DateTime!
   updatedBy: String
@@ -3766,6 +3781,8 @@ type PriceListEntry {
   """
   currency: String
   id: ID!
+  maxQuantity: Int
+  minQuantity: Int
   price: Int!
   priceListId: ID!
   recordId: ID!
@@ -3779,6 +3796,16 @@ type PriceListEntry {
 }
 
 input PriceListEntryInput {
+  """
+  Largest quantity a buyer on this list may order; leave it out for no maximum beyond the cart's per-item cap.
+  """
+  maxQuantity: Int
+
+  """
+  Smallest quantity a buyer on this list may order of this product or variant; leave it out for no minimum.
+  """
+  minQuantity: Int
+
   """Unit price in minor units, above 0."""
   price: Int!
   recordId: ID!
@@ -4187,7 +4214,6 @@ type PublicCartConfig {
   """The order fields a customer can fill in at checkout."""
   orderFields: [OrderField!]!
   pricesIncludeTax: Boolean!
-  productSources: [CartProductSource!]! @deprecated(reason: "A store sells from every model whose product settings are turned on; read the models instead.")
   shippingMethods: [ShippingMethodConfig!]!
   taxRates: [TaxRate!]!
 }
@@ -4261,7 +4287,7 @@ type PublicModelDefinition {
   name: String!
 
   """
-  Set when the model is a product source; null for models without the commerce capability.
+  Set when the model is a product model; null for models without the commerce capability.
   """
   productRoles: ProductFieldRoles
   recordCount: Int!
@@ -4326,6 +4352,11 @@ type PublicModelRecord {
   Record-level volume breaks. Price a product without variants, and any variant that defines no tiers of its own.
   """
   priceTiers: [PriceTier!]!
+
+  """
+  Order quantities must be a multiple of this; 1 when the product has no step. Variants inherit it.
+  """
+  quantityIncrement: Int!
   status: String
   updatedAt: DateTime!
 
@@ -4983,6 +5014,10 @@ input SetOrderPipelineStageInput {
 }
 
 input SetProductTiersInput {
+  """
+  Order quantities must be a multiple of this (12 = buy in 12s). 1 removes the rule; omit to keep the current one. Variants inherit it.
+  """
+  increment: Int
   recordId: ID!
   tiers: [PriceTierInput!]!
 }
