@@ -66,6 +66,8 @@ const entry = {
   variantKey: "v-red",
   price: 900,
   tiers: [{ minQty: 10, price: 800 }],
+  minQuantity: 6,
+  maxQuantity: null,
   currency: "USD",
   recordMissing: false,
 };
@@ -203,6 +205,8 @@ describe("price lists ops (CMS-2111)", () => {
       variantKey: "v-red",
       price: 900,
       tiers: [{ minQty: 10, price: 800 }],
+      minQuantity: 6,
+      maxQuantity: null,
     };
     const { client, sent } = clientAnswering([
       { priceList: { setEntry: entry } },

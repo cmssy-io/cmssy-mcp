@@ -1,8 +1,26 @@
+import { parse, visit, type FieldNode } from "graphql";
 import { describe, expect, it, vi } from "vitest";
 
 import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import type { CmssyClient } from "../graphql-client.js";
-import { SET_PRODUCT_VARIANTS_MUTATION } from "../queries.js";
+import {
+  PRODUCT_CATALOG_QUERY,
+  SET_PRODUCT_TIERS_MUTATION,
+  SET_PRODUCT_VARIANTS_MUTATION,
+} from "../queries.js";
+
+function selectedUnder(document: string, parent: string): Set<string> {
+  const names = new Set<string>();
+  visit(parse(document), {
+    Field(node: FieldNode) {
+      if (node.name.value !== parent || !node.selectionSet) return;
+      for (const sel of node.selectionSet.selections) {
+        if (sel.kind === "Field") names.add(sel.name.value);
+      }
+    },
+  });
+  return names;
+}
 
 describe("products ops (CMS-2089)", () => {
   it("sends the whole variant set to product.setVariants and returns what it wrote", async () => {
@@ -36,5 +54,38 @@ describe("products ops (CMS-2089)", () => {
       input: { recordId: "r1", variants },
     });
     expect(result).toBe(written);
+  });
+
+  it("sends the order step to product.setTiers only when one is given (CMS-2116)", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValue({ product: { setTiers: { id: "r1" } } });
+    const ops = createMcpWorkspaceOps({ query } as unknown as CmssyClient);
+    const tiers = [{ minQty: 12, price: 400 }];
+
+    await ops.products.setTiers("r1", tiers, 12);
+    await ops.products.setTiers("r1", tiers);
+
+    expect(query.mock.calls).toEqual([
+      [
+        SET_PRODUCT_TIERS_MUTATION,
+        { input: { recordId: "r1", tiers, increment: 12 } },
+      ],
+      [SET_PRODUCT_TIERS_MUTATION, { input: { recordId: "r1", tiers } }],
+    ]);
+    expect(Object.keys(query.mock.calls[1]![1].input)).not.toContain(
+      "increment",
+    );
+  });
+
+  it("reads the order step wherever a product comes back (CMS-2116)", () => {
+    expect(
+      selectedUnder(SET_PRODUCT_TIERS_MUTATION, "setTiers").has(
+        "quantityIncrement",
+      ),
+    ).toBe(true);
+    expect(
+      selectedUnder(PRODUCT_CATALOG_QUERY, "items").has("quantityIncrement"),
+    ).toBe(true);
   });
 });

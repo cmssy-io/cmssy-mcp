@@ -501,6 +501,8 @@ interface RawPriceListEntry {
   variantKey: string | null;
   price: number;
   tiers: PriceListEntry["tiers"] | null;
+  minQuantity: number | null;
+  maxQuantity: number | null;
   currency: string | null;
   recordMissing: boolean;
 }
@@ -513,6 +515,8 @@ function toPriceListEntry(e: RawPriceListEntry): PriceListEntry {
     variantKey: e.variantKey ?? null,
     price: e.price,
     tiers: e.tiers ?? [],
+    minQuantity: e.minQuantity ?? null,
+    maxQuantity: e.maxQuantity ?? null,
     currency: e.currency ?? null,
     recordMissing: e.recordMissing,
   };
@@ -2599,10 +2603,16 @@ export function createMcpWorkspaceOps(
         }>(BULK_DELETE_PRODUCT_RECORDS_MUTATION, { modelId, selection });
         return res.product.bulkDelete;
       },
-      setTiers: async (recordId, tiers) => {
+      setTiers: async (recordId, tiers, increment) => {
         const res = await client.query<{ product: { setTiers: unknown } }>(
           SET_PRODUCT_TIERS_MUTATION,
-          { input: { recordId, tiers } },
+          {
+            input: {
+              recordId,
+              tiers,
+              ...(increment === undefined ? {} : { increment }),
+            },
+          },
         );
         return res.product.setTiers;
       },

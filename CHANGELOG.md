@@ -1,5 +1,17 @@
 # @cmssy/mcp-server
 
+## 0.114.0
+
+- Quantity rules: `set_product_tiers` takes an optional `increment` (order
+  step, 1-999; 1 removes it, omitted keeps it), and `list_products` /
+  `set_product_tiers` return `quantityIncrement`. `set_price_list_entry` /
+  `set_price_list_entries` take optional `minQuantity` / `maxQuantity`
+  (1-999, null = none); a write replaces the whole entry, so re-send the
+  bounds to keep them. `get_price_list` returns both bounds per entry.
+- Vendored SDL synced with the backend (quantity rules, `productSources`
+  removed).
+- `@cmssy/ai-tools` 0.88.0.
+
 ## 0.113.0
 
 - `update_cart_config` no longer takes `productSources`: a store sells every
