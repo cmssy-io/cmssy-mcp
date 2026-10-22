@@ -229,7 +229,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 | Tool                       | Description                                                        |
 | -------------------------- | ------------------------------------------------------------------ |
 | `list_orders`              | List orders by payment/fulfillment/delivery/state, warehouse queue, customer, dates |
-| `get_order`                | Get an order with items, payments, parcels, and tax summary        |
+| `get_order`                | Get an order with items, payments, parcels, tax summary, sales channel and the price lists that priced it |
 | `get_order_pipeline`       | Get the workspace's configurable order pipeline stages             |
 | `create_manual_order`      | Create an admin-entered order                                      |
 | `edit_order`               | Replace an order's line items (recomputes totals)                  |
@@ -252,7 +252,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `update_shipment`          | Change a parcel's status or tracking, with a note for its history  |
 | `set_order_pipeline_stage` | Move an order to a pipeline stage                                  |
 | `record_order_invoice`     | Attach an invoice (number, url, provider) to an order              |
-| `list_carts`               | List shopping carts (admin view, optional status filter)           |
+| `list_carts`               | List shopping carts (admin view, optional status filter) with their sales channel |
 | `delete_carts`             | Permanently delete 1-100 carts, all or nothing (confirm-gated)     |
 | `list_discounts`           | List discount codes (filter by enabled/type/code)                  |
 | `get_discount`             | Get a discount by id                                               |
@@ -303,10 +303,10 @@ their own.
 
 | Tool                        | Description                                                                          |
 | --------------------------- | ------------------------------------------------------------------------------------ |
-| `list_price_lists`          | Every price list with percentOff, fixed-price count and assignment count             |
+| `list_price_lists`          | Every price list with percentOff, fixed-price count, assignment count and channels   |
 | `get_price_list`            | One list with a page of its fixed prices (filter by product, cursor-paginated)       |
-| `create_price_list`         | Create a list with a name and an optional percent off the catalogue                  |
-| `update_price_list`         | Rename a list or change its percentOff                                               |
+| `create_price_list`         | Create a list with a name, an optional percent off and the channels it is published to |
+| `update_price_list`         | Rename a list, change its percentOff, window or channels (`[]` unpublishes)          |
 | `delete_price_list`         | Delete a list and unassign it everywhere (confirm-gated)                             |
 | `set_price_list_entry`      | Set the fixed price for one product or variant, with optional volume breaks          |
 | `set_price_list_entries`    | Upsert up to 1000 fixed prices at once, all or nothing (confirm-gated)               |
@@ -314,6 +314,22 @@ their own.
 | `set_company_price_list`    | Assign a price list to a company record; every member pays it; `null` unassigns      |
 | `set_company_price_display_mode` | Set whether a company's buyers read net or gross prices; `null` = default (net) |
 | `set_company_tax_rounding`  | Set a company's VAT rounding, per_line or per_rate; `null` = workspace setting      |
+
+### Sales Channel Tools
+
+A sales channel (retail, horeca, b2b) is a key a storefront sends to be priced
+from the price lists published to it: per product the buyer's own or company
+list wins, then the channel's dated list, then its base list, then the
+catalogue. Lists are published with `create_price_list` / `update_price_list`
+`channels`.
+
+| Tool                   | Description                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `list_sales_channels`  | Every channel with key, displayMode, priceAccess, active list and open-cart count   |
+| `get_sales_channel`    | One channel with its published lists, nextChangeAt and activeCartCount              |
+| `create_sales_channel` | Create a channel (key fixed once created), at most 20 per workspace                 |
+| `update_sales_channel` | Rename a channel or change its displayMode or priceAccess                           |
+| `delete_sales_channel` | Delete a channel, unpublish its lists, abandon its open carts (confirm-gated)       |
 
 ### Webhook Tools
 

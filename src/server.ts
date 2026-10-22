@@ -123,6 +123,11 @@ import {
   setCompanyPriceListTool,
   setCompanyPriceDisplayModeTool,
   setCompanyTaxRoundingTool,
+  listSalesChannelsTool,
+  getSalesChannelTool,
+  createSalesChannelTool,
+  updateSalesChannelTool,
+  deleteSalesChannelTool,
   type AiTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
@@ -174,6 +179,11 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     setCompanyPriceListTool,
     setCompanyPriceDisplayModeTool,
     setCompanyTaxRoundingTool,
+    listSalesChannelsTool,
+    getSalesChannelTool,
+    createSalesChannelTool,
+    updateSalesChannelTool,
+    deleteSalesChannelTool,
 
     // ─── Write Tools ─────────────────────────────────────────────
 

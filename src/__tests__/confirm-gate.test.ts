@@ -189,6 +189,7 @@ describe("the MCP confirm gate (CMS-2067)", () => {
       "delete_page_type",
       "delete_price_list",
       "delete_record",
+      "delete_sales_channel",
       "delete_webhook",
       "promote_dev_draft",
       "publish_page",

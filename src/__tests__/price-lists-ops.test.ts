@@ -57,6 +57,9 @@ const gold = {
   active: false,
   overrideCount: 2,
   assignedCount: 3,
+  channels: [
+    { id: "ch-1", key: "horeca", name: "HoReCa", priceAccess: "MEMBERS" },
+  ],
   createdAt: "2026-10-01T00:00:00.000Z",
   updatedAt: "2026-10-02T00:00:00.000Z",
 };
@@ -332,5 +335,41 @@ describe("price lists ops (CMS-2111)", () => {
     expect(sent[0]!.document).toBe(SET_RECORD_TAX_ROUNDING_METHOD_MUTATION);
     expect(sent[0]!.variables).toEqual({ id: "co-1", method: "per_rate" });
     expect(sent[1]!.variables).toEqual({ id: "co-1", method: null });
+  });
+
+  it("every summary read selects the channels a list is published to", () => {
+    for (const document of [
+      PRICE_LISTS_QUERY,
+      PRICE_LIST_BY_ID_QUERY,
+      CREATE_PRICE_LIST_MUTATION,
+      UPDATE_PRICE_LIST_MUTATION,
+    ]) {
+      expect([...selectedUnder(document, "channels")].sort()).toEqual([
+        "id",
+        "key",
+        "name",
+        "priceAccess",
+      ]);
+    }
+  });
+
+  it("create and update send channels in the input, [] to unpublish, and map a list without channels to []", async () => {
+    const { client, sent } = clientAnswering([
+      { priceList: { create: gold } },
+      { priceList: { update: { ...gold, channels: null } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(
+      (await ops.priceLists.create({ name: "Gold", channels: ["horeca"] }))
+        .channels,
+    ).toEqual(gold.channels);
+    expect(
+      (await ops.priceLists.update("pl-1", { channels: [] })).channels,
+    ).toEqual([]);
+    expect(sent[0]!.variables).toEqual({
+      input: { name: "Gold", channels: ["horeca"] },
+    });
+    expect(sent[1]!.variables).toEqual({ id: "pl-1", input: { channels: [] } });
   });
 });
