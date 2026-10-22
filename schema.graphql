@@ -640,7 +640,9 @@ type BuyerPrice {
   Catalogue unit price before the member's price list. For a variant product asked without variantKey, that of the variant priced lowest.
   """
   basePrice: Int!
+  basePriceAmount: TaxedAmount!
   currency: String!
+  displayMode: PriceDisplayMode!
 
   """Quantities must be a multiple of this; 1 when any quantity goes."""
   increment: Int!
@@ -662,17 +664,20 @@ type BuyerPrice {
   Unit price before volume breaks. For a variant product asked without variantKey, the lowest across its variants.
   """
   price: Int!
+  priceAmount: TaxedAmount!
 
   """
   The highest price across the variants, set only when a variant product was asked without variantKey.
   """
   priceMax: Int
+  priceMaxAmount: TaxedAmount
   recordId: ID!
 
   """
   Where price came from: catalogue (no list applies), price_list_entry (a fixed price the list sets, with its own volume breaks in place of the product's) or price_list_percent (the list's percent off the catalogue price and its volume breaks).
   """
   source: PriceSource!
+  taxRate: Float!
 
   """
   Volume breaks this member gets; empty for a variant product asked without variantKey.
@@ -682,6 +687,7 @@ type BuyerPrice {
 }
 
 type BuyerPricePage {
+  displayMode: PriceDisplayMode!
   hasMore: Boolean!
   items: [BuyerPrice!]!
 
@@ -695,6 +701,8 @@ input CancelOrderInput {
 
 """Shopping cart for a session, scoped to a workspace"""
 type Cart {
+  amounts: TaxBreakdown!
+
   """Discount snapshot if a code is currently applied"""
   appliedDiscount: CartAppliedDiscount
 
@@ -709,6 +717,7 @@ type Cart {
   subtotal - discount amount (re-derived from appliedDiscount type/value against the CURRENT subtotal, clamped to >= 0). Equals subtotal when no code is applied. free_shipping contributes 0 here; shipping handling lives downstream. computedAmount on the stored snapshot is informational only - the live total always uses fresh derivation so cart edits after apply (add/remove items) can't lock in over-discounts. Eligibility guards (minSubtotal / currency) are re-checked against the snapshot so a cart that drops out of eligibility post-apply contributes 0 discount until the shopper removes and re-applies the code.
   """
   discountedTotal: Int!
+  displayMode: PriceDisplayMode!
   id: String!
 
   """Sum of quantities across all items"""
@@ -744,12 +753,13 @@ type Cart {
   VAT on the discounted goods plus the shipping line, computed with the same rules checkout freezes onto the order (CMS-911). 0 when the workspace configured no rates.
   """
   tax: Int!
+  taxRoundingMethod: TaxRoundingMethod!
 
   """Per-rate VAT rollup: one entry per distinct rate used"""
   taxSummary: [CartTaxSummaryLine!]!
 
   """
-  Amount payable: discountedTotal + tax when prices are net, or discountedTotal itself when prices already include tax.
+  Amount payable: discountedTotal + shippingTotal, plus tax when prices are net.
   """
   totalGross: Int!
   updatedAt: DateTime!
@@ -793,6 +803,11 @@ type CartAppliedDiscount {
 type CartConfig {
   """Close an order by itself once it is paid and fulfilled (default on)."""
   autoCloseOrders: Boolean!
+
+  """
+  How VAT is rounded for company buyers who read net prices (default per_line). A company can override it; consumers are always per_line.
+  """
+  companyTaxRounding: TaxRoundingMethod!
   defaultCurrency: String!
   defaultTaxRateId: String
   enableQuoteRequests: Boolean!
@@ -816,6 +831,7 @@ type CartConfig {
 
 input CartConfigInput {
   autoCloseOrders: Boolean
+  companyTaxRounding: TaxRoundingMethod
   defaultCurrency: String
   defaultTaxRateId: String
   enableQuoteRequests: Boolean
@@ -853,6 +869,7 @@ type CartItem {
   """
   currentPrice: Int
   id: String!
+  line: TaxedAmount!
   modelId: String!
   notes: String
 
@@ -863,6 +880,8 @@ type CartItem {
   quantity: Int!
   recordId: String!
   snapshot: CartItemSnapshot!
+  taxRate: Float!
+  unit: TaxedAmount!
 
   """
   Price charged per unit: the frozen base price stepped down by whichever volume break this line's quantity reaches (CMS-910). Line total = unitPrice * quantity; Cart.subtotal sums these.
@@ -2460,6 +2479,11 @@ type ModelRecord {
   modelId: String!
 
   """
+  The Company record's override of how its buyers read prices, set with record.setPriceDisplayMode; null when it follows the default.
+  """
+  priceDisplayMode: PriceDisplayMode
+
+  """
   The price list assigned to this customer or company record with record.setPriceList; null when none.
   """
   priceListId: String
@@ -2474,6 +2498,11 @@ type ModelRecord {
   """
   quantityIncrement: Int!
   status: String
+
+  """
+  The Company record's override of VAT rounding for its net-price buyers, set with record.setTaxRoundingMethod; null when it follows the workspace setting.
+  """
+  taxRoundingMethod: TaxRoundingMethod
   updatedAt: DateTime!
   updatedBy: String
   variants: [ProductVariant!]!
@@ -2672,6 +2701,11 @@ type Order {
   amountPaid: Int!
 
   """
+  Net, VAT and gross of subtotal, discount, shipping and total, derived from the stored totals. amounts.total.gross == total.
+  """
+  amounts: TaxBreakdown!
+
+  """
   When the buyer's personal data was erased (GDPR). The order keeps its items, money and number.
   """
   anonymizedAt: DateTime
@@ -2711,6 +2745,11 @@ type Order {
   Money taken off the subtotal by the discount code, 0 when none (CMS-919)
   """
   discount: Int!
+
+  """
+  How the buyer read prices when the order was placed; gross on orders placed before it was recorded.
+  """
+  displayMode: PriceDisplayMode!
 
   """Admin edit trail; empty for a shopper reading their order."""
   edits: [OrderEdit!]!
@@ -2765,6 +2804,11 @@ type Order {
   state: OrderState!
   subtotal: Int!
   tax: Int!
+
+  """
+  How VAT on this order was rounded; per_line on orders placed before it was recorded.
+  """
+  taxRoundingMethod: TaxRoundingMethod!
   taxSummary: [OrderTaxSummaryLine!]!
   total: Int!
   updatedAt: DateTime!
@@ -2877,6 +2921,11 @@ type OrderItem {
   id: ID!
 
   """
+  This line after its share of the discount, split into net, VAT and gross; line.tax == taxAmount.
+  """
+  line: TaxedAmount!
+
+  """
   Catalogue unit price before the buyer's price list and volume breaks. Equals the unit price without a list; can be below price when a list sets a contract price above the catalogue.
   """
   listPrice: Int
@@ -2906,6 +2955,11 @@ type OrderItem {
 
   """minQty of the volume break that priced this line; null = base price"""
   tierMinQty: Int
+
+  """
+  Unit price split into net, VAT and gross, rounded on its own (informational).
+  """
+  unit: TaxedAmount!
   variantKey: String
 }
 
@@ -3710,6 +3764,11 @@ type PooledUsage {
   storageBytes: Float!
 }
 
+enum PriceDisplayMode {
+  gross
+  net
+}
+
 """
 A price list (Gold, Silver, ...): a percent off the catalogue plus fixed prices per product or variant, assigned to companies and to customers without a company.
 """
@@ -4403,6 +4462,7 @@ type PublicOrder {
   """
   accessToken: String
   amountPaid: Int!
+  amounts: TaxBreakdown!
 
   """The discount code frozen at order time (CMS-919)"""
   appliedDiscount: OrderDiscount
@@ -4430,6 +4490,7 @@ type PublicOrder {
   Money taken off the subtotal, in minor units (CMS-919). subtotal - discount + shippingTotal + tax === total.
   """
   discount: Int!
+  displayMode: PriceDisplayMode!
   fulfilledAt: DateTime
   fulfillmentStatus: String!
   id: String!
@@ -4450,6 +4511,7 @@ type PublicOrder {
   state: OrderState!
   subtotal: Int!
   tax: Int!
+  taxRoundingMethod: TaxRoundingMethod!
   taxSummary: [OrderTaxSummaryLine!]!
   total: Int!
 }
@@ -4457,6 +4519,7 @@ type PublicOrder {
 type PublicOrderItem {
   currency: String!
   id: ID!
+  line: TaxedAmount!
 
   """
   Catalogue unit price before the buyer's price list and volume breaks. Equals the unit price without a list; can be below price when a list sets a contract price above the catalogue.
@@ -4475,6 +4538,7 @@ type PublicOrderItem {
   taxRate: Float!
   taxRateName: String
   tierMinQty: Int
+  unit: TaxedAmount!
   variantKey: String
 }
 
@@ -4708,10 +4772,20 @@ type RecordMutations {
   patch(input: PatchModelRecordInput!): ModelRecord
 
   """
+  How the buyers of a Company record read prices: net or gross. null falls back to the default - net for a company buyer. Applies to carts started after the change.
+  """
+  setPriceDisplayMode(displayMode: PriceDisplayMode, id: ID!): ModelRecord!
+
+  """
   Assign a price list to a record of a Company model, or to a customer without a company; null unassigns. Refused for a customer whose company is live - their company's list prices them.
   """
   setPriceList(id: ID!, priceListId: ID): ModelRecord!
   setStatus(input: UpdateModelRecordStatusInput!): ModelRecord
+
+  """
+  How VAT is rounded for the net-price buyers of a Company record: per_line or per_rate. null falls back to the workspace's companyTaxRounding. Applies to carts started after the change.
+  """
+  setTaxRoundingMethod(id: ID!, method: TaxRoundingMethod): ModelRecord!
   update(input: UpdateModelRecordInput!): ModelRecord
 }
 
@@ -5094,6 +5168,8 @@ input ShippingAddressInput {
 A shipping option configured for the workspace (CMS-912). `price` is in minor units; `taxRateId` is the rate charged on the shipping line, null when shipping is untaxed.
 """
 type ShippingMethod {
+  amount: TaxedAmount!
+
   """The method's list price before any waiver, in minor units."""
   basePrice: Int!
 
@@ -5102,7 +5178,7 @@ type ShippingMethod {
   etaLabel: String
 
   """
-  Subtotal after discount (minor units) at or above which the method is free; null when it never is.
+  Subtotal after discount (minor units, stored price basis) at or above which the method is free; null when it never is.
   """
   freeAbove: Int
   freeAboveApplied: Boolean!
@@ -5373,6 +5449,13 @@ type TaskUser {
   userId: ID!
 }
 
+type TaxBreakdown {
+  discount: TaxedAmount!
+  shipping: TaxedAmount!
+  subtotal: TaxedAmount!
+  total: TaxedAmount!
+}
+
 """A merchant-defined tax rate (rate is a percentage)"""
 type TaxRate {
   id: String!
@@ -5384,6 +5467,17 @@ input TaxRateInput {
   id: String!
   name: String!
   rate: Float!
+}
+
+enum TaxRoundingMethod {
+  per_line
+  per_rate
+}
+
+type TaxedAmount {
+  gross: Int!
+  net: Int!
+  tax: Int!
 }
 
 """Result of test email operation"""

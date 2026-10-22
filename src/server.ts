@@ -121,6 +121,8 @@ import {
   removePriceListEntriesTool,
   setCustomerPriceListTool,
   setCompanyPriceListTool,
+  setCompanyPriceDisplayModeTool,
+  setCompanyTaxRoundingTool,
   type AiTool,
 } from "@cmssy/ai-tools";
 import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
@@ -170,6 +172,8 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     removePriceListEntriesTool,
     setCustomerPriceListTool,
     setCompanyPriceListTool,
+    setCompanyPriceDisplayModeTool,
+    setCompanyTaxRoundingTool,
 
     // ─── Write Tools ─────────────────────────────────────────────
 

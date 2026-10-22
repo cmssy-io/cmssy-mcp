@@ -312,6 +312,8 @@ their own.
 | `set_price_list_entries`    | Upsert up to 1000 fixed prices at once, all or nothing (confirm-gated)               |
 | `remove_price_list_entries` | Remove up to 1000 fixed prices by product / variant (confirm-gated)                  |
 | `set_company_price_list`    | Assign a price list to a company record; every member pays it; `null` unassigns      |
+| `set_company_price_display_mode` | Set whether a company's buyers read net or gross prices; `null` = default (net) |
+| `set_company_tax_rounding`  | Set a company's VAT rounding, per_line or per_rate; `null` = workspace setting      |
 
 ### Webhook Tools
 
