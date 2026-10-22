@@ -1,5 +1,20 @@
 # @cmssy/mcp-server
 
+## 0.115.0
+
+- Net/gross per buyer type (CMS-2117): `update_cart_config` takes
+  `companyTaxRounding` (`per_line` | `per_rate`), the workspace's VAT rounding
+  for company buyers who read net prices - consumers are always `per_line`;
+  `get_site_config` reads it back.
+- `get_order` returns `displayMode` (net or gross), `taxRoundingMethod` and
+  `amounts` - net, tax and gross of subtotal, discount, shipping and total.
+- New `set_company_price_display_mode` (net | gross | null) and
+  `set_company_tax_rounding` (per_line | per_rate | null) set a company
+  record's overrides; null falls back to the default. Both apply to carts
+  started after the change and need `customers:manage`.
+- Vendored SDL synced with the backend.
+- `@cmssy/ai-tools` 0.89.0.
+
 ## 0.114.0
 
 - Quantity rules: `set_product_tiers` takes an optional `increment` (order

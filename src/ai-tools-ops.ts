@@ -29,6 +29,10 @@ import type {
   OrderReturn,
   PriceListSummary,
   PriceListEntry,
+  CompanyTaxPreferences,
+  PriceDisplayMode,
+  TaxRoundingMethod,
+  TaxBreakdown,
 } from "@cmssy/ai-tools";
 import {
   BLOCK_USAGE_QUERY,
@@ -157,9 +161,27 @@ import {
   SET_PRICE_LIST_ENTRIES_MUTATION,
   REMOVE_PRICE_LIST_ENTRIES_MUTATION,
   SET_RECORD_PRICE_LIST_MUTATION,
+  SET_RECORD_PRICE_DISPLAY_MODE_MUTATION,
+  SET_RECORD_TAX_ROUNDING_METHOD_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
+
+interface CompanyTaxPreferencesRow {
+  id: string;
+  priceDisplayMode?: PriceDisplayMode | null;
+  taxRoundingMethod?: TaxRoundingMethod | null;
+}
+
+function toCompanyTaxPreferences(
+  row: CompanyTaxPreferencesRow,
+): CompanyTaxPreferences {
+  return {
+    id: row.id,
+    priceDisplayMode: row.priceDisplayMode ?? null,
+    taxRoundingMethod: row.taxRoundingMethod ?? null,
+  };
+}
 
 interface ProposedFieldLike {
   type: string;
@@ -2027,6 +2049,9 @@ export function createMcpWorkspaceOps(
               shippingMethod?: unknown;
               tax?: number | null;
               total?: number | null;
+              displayMode: PriceDisplayMode;
+              taxRoundingMethod: TaxRoundingMethod;
+              amounts: TaxBreakdown;
               currency?: string | null;
               poNumber?: string | null;
               customerNote?: string | null;
@@ -2066,6 +2091,9 @@ export function createMcpWorkspaceOps(
           shippingMethod: o.shippingMethod ?? null,
           tax: o.tax ?? null,
           total: o.total ?? null,
+          displayMode: o.displayMode,
+          taxRoundingMethod: o.taxRoundingMethod,
+          amounts: o.amounts,
           currency: o.currency ?? null,
           poNumber: o.poNumber ?? null,
           customerNote: o.customerNote ?? null,
@@ -2849,6 +2877,18 @@ export function createMcpWorkspaceOps(
           id: res.record.setPriceList.id,
           priceListId: res.record.setPriceList.priceListId ?? null,
         };
+      },
+      setRecordPriceDisplayMode: async (recordId, displayMode) => {
+        const res = await client.query<{
+          record: { setPriceDisplayMode: CompanyTaxPreferencesRow };
+        }>(SET_RECORD_PRICE_DISPLAY_MODE_MUTATION, { id: recordId, displayMode });
+        return toCompanyTaxPreferences(res.record.setPriceDisplayMode);
+      },
+      setRecordTaxRoundingMethod: async (recordId, method) => {
+        const res = await client.query<{
+          record: { setTaxRoundingMethod: CompanyTaxPreferencesRow };
+        }>(SET_RECORD_TAX_ROUNDING_METHOD_MUTATION, { id: recordId, method });
+        return toCompanyTaxPreferences(res.record.setTaxRoundingMethod);
       },
     },
   };

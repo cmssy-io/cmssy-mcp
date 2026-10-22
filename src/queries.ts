@@ -155,6 +155,7 @@ const CART_CONFIG_FRAGMENT = `
   enableQuoteRequests
   enableSavedCarts
   autoCloseOrders
+  companyTaxRounding
   returnWindowDays
   taxRates { id name rate }
   shippingMethods {
@@ -1224,6 +1225,14 @@ const ORDER_FRAGMENT = `
   tax
   total
   pricesIncludeTax
+  displayMode
+  taxRoundingMethod
+  amounts {
+    subtotal { net tax gross }
+    discount { net tax gross }
+    shipping { net tax gross }
+    total { net tax gross }
+  }
   amountPaid
   balanceDue
   refundedAmount
@@ -2065,5 +2074,29 @@ export const REMOVE_PRICE_LIST_ENTRIES_MUTATION = `
 export const SET_RECORD_PRICE_LIST_MUTATION = `
   mutation SetRecordPriceList($id: ID!, $priceListId: ID) {
     record { setPriceList(id: $id, priceListId: $priceListId) { id priceListId } }
+  }
+`;
+
+export const SET_RECORD_PRICE_DISPLAY_MODE_MUTATION = `
+  mutation SetRecordPriceDisplayMode($id: ID!, $displayMode: PriceDisplayMode) {
+    record {
+      setPriceDisplayMode(id: $id, displayMode: $displayMode) {
+        id
+        priceDisplayMode
+        taxRoundingMethod
+      }
+    }
+  }
+`;
+
+export const SET_RECORD_TAX_ROUNDING_METHOD_MUTATION = `
+  mutation SetRecordTaxRoundingMethod($id: ID!, $method: TaxRoundingMethod) {
+    record {
+      setTaxRoundingMethod(id: $id, method: $method) {
+        id
+        priceDisplayMode
+        taxRoundingMethod
+      }
+    }
   }
 `;

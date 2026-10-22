@@ -14,6 +14,8 @@ import {
   SET_PRICE_LIST_ENTRIES_MUTATION,
   REMOVE_PRICE_LIST_ENTRIES_MUTATION,
   SET_RECORD_PRICE_LIST_MUTATION,
+  SET_RECORD_PRICE_DISPLAY_MODE_MUTATION,
+  SET_RECORD_TAX_ROUNDING_METHOD_MUTATION,
 } from "../queries.js";
 
 interface Sent {
@@ -262,5 +264,73 @@ describe("price lists ops (CMS-2111)", () => {
     expect(sent[0]!.document).toBe(SET_RECORD_PRICE_LIST_MUTATION);
     expect(sent[0]!.variables).toEqual({ id: "co-1", priceListId: "pl-1" });
     expect(sent[1]!.variables).toEqual({ id: "co-1", priceListId: null });
+  });
+
+  it("setRecordPriceDisplayMode sends the mode to record.setPriceDisplayMode, null to fall back", async () => {
+    const { client, sent } = clientAnswering([
+      {
+        record: {
+          setPriceDisplayMode: {
+            id: "co-1",
+            priceDisplayMode: "gross",
+            taxRoundingMethod: "per_rate",
+          },
+        },
+      },
+      { record: { setPriceDisplayMode: { id: "co-1" } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.priceLists.setRecordPriceDisplayMode("co-1", "gross")).toEqual({
+      id: "co-1",
+      priceDisplayMode: "gross",
+      taxRoundingMethod: "per_rate",
+    });
+    expect(await ops.priceLists.setRecordPriceDisplayMode("co-1", null)).toEqual({
+      id: "co-1",
+      priceDisplayMode: null,
+      taxRoundingMethod: null,
+    });
+    expect(sent[0]!.document).toBe(SET_RECORD_PRICE_DISPLAY_MODE_MUTATION);
+    expect(sent[0]!.variables).toEqual({ id: "co-1", displayMode: "gross" });
+    expect(sent[1]!.variables).toEqual({ id: "co-1", displayMode: null });
+  });
+
+  it("setRecordTaxRoundingMethod sends the method to record.setTaxRoundingMethod, null to fall back", async () => {
+    const { client, sent } = clientAnswering([
+      {
+        record: {
+          setTaxRoundingMethod: {
+            id: "co-1",
+            priceDisplayMode: null,
+            taxRoundingMethod: "per_rate",
+          },
+        },
+      },
+      {
+        record: {
+          setTaxRoundingMethod: {
+            id: "co-1",
+            priceDisplayMode: "net",
+            taxRoundingMethod: null,
+          },
+        },
+      },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.priceLists.setRecordTaxRoundingMethod("co-1", "per_rate")).toEqual({
+      id: "co-1",
+      priceDisplayMode: null,
+      taxRoundingMethod: "per_rate",
+    });
+    expect(await ops.priceLists.setRecordTaxRoundingMethod("co-1", null)).toEqual({
+      id: "co-1",
+      priceDisplayMode: "net",
+      taxRoundingMethod: null,
+    });
+    expect(sent[0]!.document).toBe(SET_RECORD_TAX_ROUNDING_METHOD_MUTATION);
+    expect(sent[0]!.variables).toEqual({ id: "co-1", method: "per_rate" });
+    expect(sent[1]!.variables).toEqual({ id: "co-1", method: null });
   });
 });

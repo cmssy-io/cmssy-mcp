@@ -167,6 +167,49 @@ describe("order price list (CMS-2111)", () => {
   });
 });
 
+describe("order net/gross amounts (CMS-2117)", () => {
+  const taxed = (net: number, tax: number) => ({ net, tax, gross: net + tax });
+  const amounts = {
+    subtotal: taxed(10000, 2300),
+    discount: taxed(1000, 230),
+    shipping: taxed(500, 115),
+    total: taxed(9500, 2185),
+  };
+
+  it("get selects displayMode, taxRoundingMethod and net/tax/gross of every amount", () => {
+    const fields = selectedUnder(ORDER_BY_ID_QUERY, "get");
+    expect(fields.has("displayMode")).toBe(true);
+    expect(fields.has("taxRoundingMethod")).toBe(true);
+    for (const part of ["subtotal", "discount", "shipping", "total"]) {
+      expect(selectedUnder(ORDER_BY_ID_QUERY, part)).toEqual(
+        new Set(["net", "tax", "gross"]),
+      );
+    }
+  });
+
+  it("get maps the mode, the rounding and the amounts", async () => {
+    const { client } = clientAnswering([
+      {
+        order: {
+          get: {
+            ...rawSummary,
+            displayMode: "net",
+            taxRoundingMethod: "per_rate",
+            amounts,
+          },
+        },
+      },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.orders.get("o-1")).toMatchObject({
+      displayMode: "net",
+      taxRoundingMethod: "per_rate",
+      amounts,
+    });
+  });
+});
+
 describe("order status axes (CMS-2102)", () => {
   const AXES = [
     "paymentStatus",
