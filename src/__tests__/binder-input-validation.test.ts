@@ -163,6 +163,14 @@ const OBJECT_LEVEL_RULES: Record<string, { refused: unknown; accepted: unknown }
         tiers: [{ minQty: 10, price: 900 }],
       },
     },
+    set_company_vat_verified: {
+      refused: { recordId: "6abd61e1a51c17ea3525336d", verified: true },
+      accepted: {
+        recordId: "6abd61e1a51c17ea3525336d",
+        verified: true,
+        expectedVatId: "DE123456789",
+      },
+    },
     update_media_folder: {
       refused: { id: "6abd61e1a51c17ea3525336a" },
       accepted: { id: "6abd61e1a51c17ea3525336a", name: "renamed" },

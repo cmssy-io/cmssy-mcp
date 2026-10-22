@@ -199,6 +199,8 @@ describe("the MCP confirm gate (CMS-2067)", () => {
       "remove_price_list_entries",
       "revert_to_published",
       "rotate_webhook_secret",
+      "set_company_tax_exemption",
+      "set_company_vat_verified",
       "set_customer_company_role",
       "set_price_list_entries",
       "set_product_variants",

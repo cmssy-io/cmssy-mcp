@@ -210,7 +210,7 @@ model on every write.
 | `update_model`        | Update any field of a model (fields change triggers schema migrate)           |
 | `delete_model`        | Delete a model — **cascades to all its records**                              |
 | `list_records`        | List records with filter (JSON), sort, pagination, optional populate          |
-| `get_record`          | Get a record by id                                                            |
+| `get_record`          | Get a record by id; a company record carries its VAT id, verification and exemption |
 | `create_record`       | Create a record; `data` keyed by model field keys                             |
 | `update_record`       | Update a record's data and/or transition its status                           |
 | `delete_record`       | Delete a record                                                               |
@@ -229,9 +229,9 @@ are integer minor units (cents).** Order/discount write tools accept the
 | Tool                       | Description                                                        |
 | -------------------------- | ------------------------------------------------------------------ |
 | `list_orders`              | List orders by payment/fulfillment/delivery/state, warehouse queue, customer, dates |
-| `get_order`                | Get an order with items, payments, parcels, tax summary, sales channel and the price lists that priced it |
+| `get_order`                | Get an order with items, payments, parcels, tax summary and treatment, sales channel and the price lists that priced it |
 | `get_order_pipeline`       | Get the workspace's configurable order pipeline stages             |
-| `create_manual_order`      | Create an admin-entered order                                      |
+| `create_manual_order`      | Create an admin-entered order, with an optional shipping address   |
 | `edit_order`               | Replace an order's line items (recomputes totals)                  |
 | `update_order_details`     | Update customer email, notes, PO number, and shipping address      |
 | `mark_order_paid`          | Record a full payment (manual reconciliation, no provider verify)  |
@@ -314,6 +314,9 @@ their own.
 | `set_company_price_list`    | Assign a price list to a company record; every member pays it; `null` unassigns      |
 | `set_company_price_display_mode` | Set whether a company's buyers read net or gross prices; `null` = default (net) |
 | `set_company_tax_rounding`  | Set a company's VAT rounding, per_line or per_rate; `null` = workspace setting      |
+| `set_company_vat_id`        | Set or clear a company's EU VAT id; a changed id is no longer verified              |
+| `set_company_vat_verified`  | Attest or withdraw a company's checked VAT id; drives reverse charge (confirm-gated) |
+| `set_company_tax_exemption` | Exempt a company's orders from VAT with a legal reason; `null` clears (confirm-gated) |
 
 ### Sales Channel Tools
 

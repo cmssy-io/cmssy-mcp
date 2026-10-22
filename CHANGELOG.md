@@ -1,5 +1,21 @@
 # @cmssy/mcp-server
 
+## 0.117.0
+
+- Reverse charge (CMS-2121): new `set_company_vat_id`,
+  `set_company_vat_verified` and `set_company_tax_exemption` (the last two
+  confirm-gated), each returning the company's vatId, vatCountry,
+  vatVerifiedAt, vatVerifiedBy and taxExemptReason. `get_record` reads the
+  same fields.
+- `create_manual_order` takes `shippingAddress`; its country decides reverse
+  charge for a verified company buyer.
+- `get_order` returns `taxTreatment` (kind, legalNote and the VAT facts it was
+  frozen with) and `removedTax`.
+- `update_cart_config` takes `sellerCountry` and `reverseChargeNote`, and the
+  cart config reads them back.
+- Vendored SDL synced with the backend.
+- `@cmssy/ai-tools` 0.91.0, `@cmssy/types` 0.68.0.
+
 ## 0.116.0
 
 - Sales channels (CMS-2123): new `list_sales_channels`, `get_sales_channel`,

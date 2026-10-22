@@ -686,6 +686,7 @@ type BuyerPrice {
   """
   source: PriceSource!
   taxRate: Float!
+  taxTreatmentKind: TaxTreatmentKind!
 
   """
   Volume breaks this member gets; empty for a variant product asked without variantKey.
@@ -698,6 +699,7 @@ type BuyerPricePage {
   displayMode: PriceDisplayMode!
   hasMore: Boolean!
   items: [BuyerPrice!]!
+  taxTreatment: TaxTreatment!
 
   """Products matching the filter and the price range."""
   total: Int!
@@ -766,6 +768,7 @@ type Cart {
 
   """Per-rate VAT rollup: one entry per distinct rate used"""
   taxSummary: [CartTaxSummaryLine!]!
+  taxTreatment: TaxTreatment!
 
   """
   Amount payable: discountedTotal + shippingTotal, plus tax when prices are net.
@@ -833,6 +836,16 @@ type CartConfig {
   Days after delivery a buyer can still request a return; null means no limit.
   """
   returnWindowDays: Int
+
+  """
+  Legal note frozen on reverse-charge orders; null uses the default Article 196 wording.
+  """
+  reverseChargeNote: String
+
+  """
+  ISO country the workspace sells from. Needed for reverse charge: a verified EU VAT id of another member state zero-rates the order.
+  """
+  sellerCountry: String
   sessionTTLDays: Int!
   shippingMethods: [ShippingMethodConfig!]!
   taxRates: [TaxRate!]!
@@ -857,6 +870,12 @@ input CartConfigInput {
   pricesIncludeTax: Boolean
   reservationTtlMinutes: Int
   returnWindowDays: Int
+
+  """Up to 500 characters; null or empty restores the default."""
+  reverseChargeNote: String
+
+  """ISO 3166-1 alpha-2 code; null or empty clears it."""
+  sellerCountry: String
   sessionTTLDays: Int
   shippingMethods: [ShippingMethodInput!]
   taxRates: [TaxRateInput!]
@@ -983,6 +1002,7 @@ type CartTaxSummaryLine {
   name: String
   rate: Float!
   rateId: String
+  treatment: TaxTreatmentKind
 }
 
 type CatalogItem {
@@ -1116,6 +1136,11 @@ input CreateManualOrderInput {
   customerEmail: String!
   customerId: ID
   items: [ManualOrderItemInput!]!
+
+  """
+  Delivery address. Its country decides reverse charge for a verified company buyer.
+  """
+  shippingAddress: ShippingAddressInput
 }
 
 input CreateMediaFolderInput {
@@ -2535,12 +2560,33 @@ type ModelRecord {
   status: String
 
   """
+  The legal basis of the Company record's VAT exemption, set with record.setTaxExemption; null when it is not exempt.
+  """
+  taxExemptReason: String
+
+  """
   The Company record's override of VAT rounding for its net-price buyers, set with record.setTaxRoundingMethod; null when it follows the workspace setting.
   """
   taxRoundingMethod: TaxRoundingMethod
   updatedAt: DateTime!
   updatedBy: String
   variants: [ProductVariant!]!
+
+  """ISO country of vatId, read from its prefix."""
+  vatCountry: String
+
+  """
+  The Company record's EU VAT id, set with record.setVatId; null when none.
+  """
+  vatId: String
+
+  """
+  When vatId was verified with record.setVatVerified; null when it is not.
+  """
+  vatVerifiedAt: DateTime
+
+  """Id of the user who verified vatId."""
+  vatVerifiedBy: String
   workspaceId: String!
 }
 
@@ -2834,6 +2880,11 @@ type Order {
   pricesIncludeTax: Boolean!
   pricingChain: OrderPricingChain
   refundedAmount: Int!
+
+  """
+  VAT taken out of gross-stored prices for a reverse_charge or exempt buyer, in minor units; 0 otherwise. total = subtotal - discount + shippingTotal - removedTax.
+  """
+  removedTax: Int!
   returns: [OrderReturn!]!
   shipments: [OrderShipment!]!
 
@@ -2858,6 +2909,11 @@ type Order {
   """
   taxRoundingMethod: TaxRoundingMethod!
   taxSummary: [OrderTaxSummaryLine!]!
+
+  """
+  standard, or reverse_charge / exempt with tax 0. Orders placed before it was recorded read standard.
+  """
+  taxTreatment: OrderTaxTreatment!
   total: Int!
   updatedAt: DateTime!
   workspaceId: String!
@@ -3358,6 +3414,20 @@ type OrderTaxSummaryLine {
   name: String
   rate: Float!
   rateId: String
+  treatment: TaxTreatmentKind
+}
+
+"""
+How the order was taxed and the facts the decision rests on, frozen at checkout. legalNote is the text to print on the invoice; null for standard.
+"""
+type OrderTaxTreatment {
+  buyerVatCountry: String
+  buyerVatId: String
+  buyerVatVerifiedAt: DateTime
+  kind: TaxTreatmentKind!
+  legalNote: String
+  sellerCountry: String
+  shipToCountry: String
 }
 
 enum OrgAuditLogAction {
@@ -4600,6 +4670,7 @@ type PublicOrder {
   tax: Int!
   taxRoundingMethod: TaxRoundingMethod!
   taxSummary: [OrderTaxSummaryLine!]!
+  taxTreatment: TaxTreatment!
   total: Int!
 }
 
@@ -4898,9 +4969,24 @@ type RecordMutations {
   setStatus(input: UpdateModelRecordStatusInput!): ModelRecord
 
   """
+  Exempt a Company record's orders from VAT. reason is the legal basis printed on each order; null clears the exemption.
+  """
+  setTaxExemption(id: ID!, reason: String): ModelRecord!
+
+  """
   How VAT is rounded for the net-price buyers of a Company record: per_line or per_rate. null falls back to the workspace's companyTaxRounding. Applies to carts started after the change.
   """
   setTaxRoundingMethod(id: ID!, method: TaxRoundingMethod): ModelRecord!
+
+  """
+  The EU VAT id of a Company record, normalized (spaces, dots and dashes dropped, GR read as EL) and checked against the member state's format. null or empty clears it. A changed id is no longer verified.
+  """
+  setVatId(id: ID!, vatId: String): ModelRecord!
+
+  """
+  Attest that you checked the Company record's VAT id (for example in VIES). A verified EU VAT id of another member state zero-rates the company's orders as reverse charge. expectedVatId is the value you checked; a different stored id is refused with CONFLICT.
+  """
+  setVatVerified(expectedVatId: String, id: ID!, verified: Boolean!): ModelRecord!
   update(input: UpdateModelRecordInput!): ModelRecord
 }
 
@@ -5647,6 +5733,21 @@ input TaxRateInput {
 enum TaxRoundingMethod {
   per_line
   per_rate
+}
+
+type TaxTreatment {
+  buyerVatCountry: String
+  buyerVatId: String
+  kind: TaxTreatmentKind!
+  legalNote: String
+  sellerCountry: String
+  shipToCountry: String
+}
+
+enum TaxTreatmentKind {
+  exempt
+  reverse_charge
+  standard
 }
 
 type TaxedAmount {

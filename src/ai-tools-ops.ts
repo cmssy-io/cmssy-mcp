@@ -41,6 +41,8 @@ import type {
   OrderChannel,
   OrderPriceListRef,
   OrderPricingChain,
+  CompanyVatProfile,
+  OrderTaxTreatment,
 } from "@cmssy/ai-tools";
 import {
   BLOCK_USAGE_QUERY,
@@ -176,6 +178,9 @@ import {
   CREATE_SALES_CHANNEL_MUTATION,
   UPDATE_SALES_CHANNEL_MUTATION,
   DELETE_SALES_CHANNEL_MUTATION,
+  SET_RECORD_VAT_ID_MUTATION,
+  SET_RECORD_VAT_VERIFIED_MUTATION,
+  SET_RECORD_TAX_EXEMPTION_MUTATION,
 } from "./queries.js";
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
@@ -194,6 +199,28 @@ function toCompanyTaxPreferences(
     priceDisplayMode: row.priceDisplayMode ?? null,
     taxRoundingMethod: row.taxRoundingMethod ?? null,
   };
+}
+
+interface CompanyVatRow {
+  vatId?: string | null;
+  vatCountry?: string | null;
+  vatVerifiedAt?: string | null;
+  vatVerifiedBy?: string | null;
+  taxExemptReason?: string | null;
+}
+
+function toCompanyVat(row: CompanyVatRow): Omit<CompanyVatProfile, "id"> {
+  return {
+    vatId: row.vatId ?? null,
+    vatCountry: row.vatCountry ?? null,
+    vatVerifiedAt: row.vatVerifiedAt ?? null,
+    vatVerifiedBy: row.vatVerifiedBy ?? null,
+    taxExemptReason: row.taxExemptReason ?? null,
+  };
+}
+
+function toCompanyVatProfile(row: CompanyVatRow & { id: string }): CompanyVatProfile {
+  return { id: row.id, ...toCompanyVat(row) };
 }
 
 interface ProposedFieldLike {
@@ -948,14 +975,14 @@ export function createMcpWorkspaceOps(
       getRecord: async (recordId) => {
         const res = await client.query<{
           record: {
-            get: {
+            get: (CompanyVatRow & {
               id: string;
               modelId: string;
               status?: string | null;
               data?: Record<string, unknown> | null;
               createdAt?: string | null;
               updatedAt?: string | null;
-            } | null;
+            }) | null;
           };
         }>(MODEL_RECORD_BY_ID_QUERY, { id: recordId });
         const r = res.record.get;
@@ -965,6 +992,7 @@ export function createMcpWorkspaceOps(
           modelId: r.modelId,
           status: r.status ?? null,
           data: r.data ?? {},
+          ...toCompanyVat(r),
           createdAt: r.createdAt ?? null,
           updatedAt: r.updatedAt ?? null,
         };
@@ -2122,6 +2150,8 @@ export function createMcpWorkspaceOps(
               total?: number | null;
               displayMode: PriceDisplayMode;
               taxRoundingMethod: TaxRoundingMethod;
+              taxTreatment: OrderTaxTreatment;
+              removedTax: number;
               amounts: TaxBreakdown;
               currency?: string | null;
               poNumber?: string | null;
@@ -2168,6 +2198,8 @@ export function createMcpWorkspaceOps(
           total: o.total ?? null,
           displayMode: o.displayMode,
           taxRoundingMethod: o.taxRoundingMethod,
+          taxTreatment: o.taxTreatment,
+          removedTax: o.removedTax,
           amounts: o.amounts,
           currency: o.currency ?? null,
           poNumber: o.poNumber ?? null,
@@ -2190,11 +2222,11 @@ export function createMcpWorkspaceOps(
         );
         return res.order.pipeline;
       },
-      createManual: async (customerEmail, items, customerId) => {
+      createManual: async (customerEmail, items, customerId, shippingAddress) => {
         const res = await client.query<{
           order: { create: { id: string; orderNumber?: number | null } };
         }>(CREATE_MANUAL_ORDER_MUTATION, {
-          input: { customerEmail, customerId, items },
+          input: { customerEmail, customerId, items, shippingAddress },
         });
         const o = res.order.create;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
@@ -2964,6 +2996,28 @@ export function createMcpWorkspaceOps(
           record: { setTaxRoundingMethod: CompanyTaxPreferencesRow };
         }>(SET_RECORD_TAX_ROUNDING_METHOD_MUTATION, { id: recordId, method });
         return toCompanyTaxPreferences(res.record.setTaxRoundingMethod);
+      },
+      setRecordVatId: async (recordId, vatId) => {
+        const res = await client.query<{
+          record: { setVatId: CompanyVatRow & { id: string } };
+        }>(SET_RECORD_VAT_ID_MUTATION, { id: recordId, vatId });
+        return toCompanyVatProfile(res.record.setVatId);
+      },
+      setRecordVatVerified: async (recordId, verified, expectedVatId) => {
+        const res = await client.query<{
+          record: { setVatVerified: CompanyVatRow & { id: string } };
+        }>(SET_RECORD_VAT_VERIFIED_MUTATION, {
+          id: recordId,
+          verified,
+          expectedVatId,
+        });
+        return toCompanyVatProfile(res.record.setVatVerified);
+      },
+      setRecordTaxExemption: async (recordId, reason) => {
+        const res = await client.query<{
+          record: { setTaxExemption: CompanyVatRow & { id: string } };
+        }>(SET_RECORD_TAX_EXEMPTION_MUTATION, { id: recordId, reason });
+        return toCompanyVatProfile(res.record.setTaxExemption);
       },
     },
     salesChannels: {

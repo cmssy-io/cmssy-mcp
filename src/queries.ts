@@ -156,6 +156,8 @@ const CART_CONFIG_FRAGMENT = `
   enableSavedCarts
   autoCloseOrders
   companyTaxRounding
+  sellerCountry
+  reverseChargeNote
   returnWindowDays
   taxRates { id name rate }
   shippingMethods {
@@ -1084,11 +1086,20 @@ export const MODEL_RECORDS_QUERY = `
   }
 `;
 
+const COMPANY_VAT_FRAGMENT = `
+  vatId
+  vatCountry
+  vatVerifiedAt
+  vatVerifiedBy
+  taxExemptReason
+`;
+
 export const MODEL_RECORD_BY_ID_QUERY = `
   query ModelRecord($id: ID!) {
     record {
       get(id: $id) {
         ${MODEL_RECORD_FRAGMENT}
+        ${COMPANY_VAT_FRAGMENT}
       }
     }
   }
@@ -1235,6 +1246,16 @@ const ORDER_FRAGMENT = `
   pricesIncludeTax
   displayMode
   taxRoundingMethod
+  taxTreatment {
+    kind
+    legalNote
+    buyerVatId
+    buyerVatCountry
+    buyerVatVerifiedAt
+    sellerCountry
+    shipToCountry
+  }
+  removedTax
   amounts {
     subtotal { net tax gross }
     discount { net tax gross }
@@ -2110,6 +2131,29 @@ export const SET_RECORD_TAX_ROUNDING_METHOD_MUTATION = `
         taxRoundingMethod
       }
     }
+  }
+`;
+
+export const SET_RECORD_VAT_ID_MUTATION = `
+  mutation SetRecordVatId($id: ID!, $vatId: String) {
+    record { setVatId(id: $id, vatId: $vatId) { id ${COMPANY_VAT_FRAGMENT} } }
+  }
+`;
+
+export const SET_RECORD_VAT_VERIFIED_MUTATION = `
+  mutation SetRecordVatVerified($id: ID!, $verified: Boolean!, $expectedVatId: String) {
+    record {
+      setVatVerified(id: $id, verified: $verified, expectedVatId: $expectedVatId) {
+        id
+        ${COMPANY_VAT_FRAGMENT}
+      }
+    }
+  }
+`;
+
+export const SET_RECORD_TAX_EXEMPTION_MUTATION = `
+  mutation SetRecordTaxExemption($id: ID!, $reason: String) {
+    record { setTaxExemption(id: $id, reason: $reason) { id ${COMPANY_VAT_FRAGMENT} } }
   }
 `;
 
