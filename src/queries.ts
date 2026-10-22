@@ -158,6 +158,7 @@ const CART_CONFIG_FRAGMENT = `
   companyTaxRounding
   sellerCountry
   reverseChargeNote
+  exportNote
   returnWindowDays
   taxRates { id name rate }
   shippingMethods {

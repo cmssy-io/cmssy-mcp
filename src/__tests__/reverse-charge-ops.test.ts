@@ -240,7 +240,7 @@ describe("order tax treatment (CMS-2121)", () => {
     });
   });
 
-  it("update_cart_config sends sellerCountry and reverseChargeNote and reads them back", async () => {
+  it("update_cart_config sends sellerCountry, reverseChargeNote and exportNote and reads them back", async () => {
     const { client, sent } = clientAnswering([
       { siteConfig: { updateCart: { id: "s-1" } } },
     ]);
@@ -249,14 +249,16 @@ describe("order tax treatment (CMS-2121)", () => {
     await ops.workspace.updateCartConfig({
       sellerCountry: "PL",
       reverseChargeNote: null,
+      exportNote: "Eksport - mva-loven § 6-21",
     });
 
     expect(sent[0]!.document).toBe(UPDATE_CART_CONFIG_MUTATION);
     expect(sent[0]!.variables).toEqual({
-      input: { sellerCountry: "PL", reverseChargeNote: null },
+      input: { sellerCountry: "PL", reverseChargeNote: null, exportNote: "Eksport - mva-loven § 6-21" },
     });
     const cart = selectedUnder(UPDATE_CART_CONFIG_MUTATION, "cart");
     expect(cart.has("sellerCountry")).toBe(true);
     expect(cart.has("reverseChargeNote")).toBe(true);
+    expect(cart.has("exportNote")).toBe(true);
   });
 });

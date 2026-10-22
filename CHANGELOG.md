@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.118.0
+
+- Exports (CMS-2125): a seller outside the EU zero-rates orders shipped to
+  another country as tax treatment `export`. `update_cart_config` takes
+  `exportNote` (the printed legal note, max 500 characters, null restores the
+  default) and the cart config reads it back; `get_order` can return kind
+  `export`.
+- Vendored SDL synced with the backend.
+- `@cmssy/ai-tools` 0.92.0, `@cmssy/types` 0.69.0.
+
 ## 0.117.0
 
 - Reverse charge (CMS-2121): new `set_company_vat_id`,

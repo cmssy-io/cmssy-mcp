@@ -686,6 +686,10 @@ type BuyerPrice {
   """
   source: PriceSource!
   taxRate: Float!
+
+  """
+  Decided before any ship-to address is known, so never export: an export is zero-rated once the cart has a foreign shipping address.
+  """
   taxTreatmentKind: TaxTreatmentKind!
 
   """
@@ -824,6 +828,11 @@ type CartConfig {
   defaultTaxRateId: String
   enableQuoteRequests: Boolean!
   enableSavedCarts: Boolean!
+
+  """
+  Legal note frozen on export orders (a seller outside the EU shipping to another country); null uses the default wording.
+  """
+  exportNote: String
   loggedInTTLDays: Int!
   lowStockThreshold: Int
   maxItemsPerCart: Int!
@@ -843,7 +852,7 @@ type CartConfig {
   reverseChargeNote: String
 
   """
-  ISO country the workspace sells from. Needed for reverse charge: a verified EU VAT id of another member state zero-rates the order.
+  ISO country the workspace sells from. Needed for reverse charge: a verified EU VAT id of another member state zero-rates the order. A country outside the EU zero-rates every order shipped to another country as an export.
   """
   sellerCountry: String
   sessionTTLDays: Int!
@@ -858,6 +867,9 @@ input CartConfigInput {
   defaultTaxRateId: String
   enableQuoteRequests: Boolean
   enableSavedCarts: Boolean
+
+  """Up to 500 characters; null or empty restores the default."""
+  exportNote: String
   loggedInTTLDays: Int
   lowStockThreshold: Int
   maxItemsPerCart: Int
@@ -2882,7 +2894,7 @@ type Order {
   refundedAmount: Int!
 
   """
-  VAT taken out of gross-stored prices for a reverse_charge or exempt buyer, in minor units; 0 otherwise. total = subtotal - discount + shippingTotal - removedTax.
+  VAT taken out of gross-stored prices for a zero-rated (reverse_charge, exempt or export) order, in minor units; 0 otherwise. total = subtotal - discount + shippingTotal - removedTax.
   """
   removedTax: Int!
   returns: [OrderReturn!]!
@@ -2911,7 +2923,7 @@ type Order {
   taxSummary: [OrderTaxSummaryLine!]!
 
   """
-  standard, or reverse_charge / exempt with tax 0. Orders placed before it was recorded read standard.
+  standard, or reverse_charge / exempt / export with tax 0. Orders placed before it was recorded read standard.
   """
   taxTreatment: OrderTaxTreatment!
   total: Int!
@@ -3928,6 +3940,11 @@ type PriceList {
   assignedCount: Int!
 
   """
+  The first companies and customers the list is assigned to, oldest first, at most 5 (default 3). assignedCount minus its length is how many more there are. Batched across every list of one response.
+  """
+  assigneePreview(first: Int): [PriceListAssignee!]!
+
+  """
   The sales channels the list is published to. Anyone can read the prices of a list published to a PUBLIC channel.
   """
   channels: [SalesChannel!]!
@@ -4625,6 +4642,11 @@ type PublicOrder {
   appliedDiscount: OrderDiscount
   balanceDue: Int!
   canceledAt: DateTime
+
+  """
+  The sales channel the order was placed through, frozen at purchase; null when none applied.
+  """
+  channel: PublicOrderChannel
   closedAt: DateTime
 
   """
@@ -4658,6 +4680,16 @@ type PublicOrder {
   paidAt: DateTime
   paymentStatus: String!
   poNumber: String
+
+  """
+  The price list the order was priced from, frozen at purchase; null when none applied.
+  """
+  priceList: PublicOrderPriceList
+
+  """
+  Whose list priced the order: the buyer's own, their company's or the channel's; null when none applied.
+  """
+  priceListSource: PriceListSource
   pricesIncludeTax: Boolean!
   refundedAmount: Int!
   returns: [ReturnTracking!]!
@@ -4672,6 +4704,14 @@ type PublicOrder {
   taxSummary: [OrderTaxSummaryLine!]!
   taxTreatment: TaxTreatment!
   total: Int!
+}
+
+"""
+The sales channel the buyer's own order was placed through, frozen at purchase.
+"""
+type PublicOrderChannel {
+  key: String!
+  name: String!
 }
 
 type PublicOrderItem {
@@ -4714,6 +4754,13 @@ type PublicOrderMutations {
   Ask to return items of an order (public, rate-limited). A signed-in site member can request on an order they own; a guest sends the order's access token. Only handed-over units not already returned can be listed, within the workspace's return window. Refusals carry extensions.reason: RETURN_WINDOW_CLOSED, NOT_RETURNABLE or ORDER_CANCELED.
   """
   requestReturn(accessToken: String, lines: [ReturnLineInput!]!, note: String, orderId: ID!, workspaceId: ID!): PublicOrder!
+}
+
+"""
+The price list the buyer's own order was priced from, named as it was at purchase.
+"""
+type PublicOrderPriceList {
+  name: String!
 }
 
 type PublicOrderQueries {
@@ -5746,6 +5793,7 @@ type TaxTreatment {
 
 enum TaxTreatmentKind {
   exempt
+  export
   reverse_charge
   standard
 }
