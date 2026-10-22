@@ -1,5 +1,16 @@
 # @cmssy/mcp-server
 
+## 0.113.0
+
+- `update_cart_config` no longer takes `productSources`: a store sells every
+  public model whose product capability is enabled (`update_model`,
+  `product.enabled`). The input is strict, so the old field is refused rather
+  than ignored. `get_site_config` stops reading `productSources` (deprecated
+  on the backend) - `list_models` shows which models are products.
+- `update_cart_config` caps `maxItemsPerCart` / `maxQuantityPerItem` at 50 /
+  999, the most the cart enforces.
+- `@cmssy/ai-tools` 0.87.0.
+
 ## 0.112.0
 
 - Price lists can mark up and expire: `percentOff` takes -1000 to 99.99

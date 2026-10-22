@@ -30,7 +30,10 @@ function inputFields(name: string): string[] {
 function outputFields(name: string): string[] {
   const type = schema.getType(name);
   if (!isObjectType(type)) throw new Error(`${name} is not an object type`);
-  return Object.keys((type as GraphQLObjectType).getFields()).sort();
+  return Object.values((type as GraphQLObjectType).getFields())
+    .filter((field) => !field.deprecationReason)
+    .map((field) => field.name)
+    .sort();
 }
 
 function shapeKeys(shape: z.ZodRawShape): string[] {
@@ -80,14 +83,6 @@ describe("update_cart_config mirrors CartConfigInput (CMS-1908)", () => {
     const field = unwrapArrayItem(toolShape.orderFields!);
 
     expect(shapeKeys(field.shape)).toEqual(inputFields("OrderFieldInput"));
-  });
-
-  it("describes a product source with the backend's own fields", () => {
-    const source = unwrapArrayItem(toolShape.productSources!);
-
-    expect(shapeKeys(source.shape)).toEqual(
-      inputFields("CartProductSourceInput"),
-    );
   });
 });
 
