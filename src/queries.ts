@@ -169,7 +169,6 @@ const CART_CONFIG_FRAGMENT = `
     maxSubtotal
     freeAbove
   }
-  productSources { modelSlug }
   orderFields {
     key
     label

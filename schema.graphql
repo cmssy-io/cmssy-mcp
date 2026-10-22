@@ -790,7 +790,7 @@ type CartConfig {
   maxQuantityPerItem: Int!
   orderFields: [OrderField!]!
   pricesIncludeTax: Boolean!
-  productSources: [CartProductSource!]!
+  productSources: [CartProductSource!]! @deprecated(reason: "A store sells from every model whose product settings are turned on; read the models instead.")
   reservationTtlMinutes: Int
 
   """
@@ -818,7 +818,6 @@ input CartConfigInput {
   """
   orderFields: [OrderFieldInput!]
   pricesIncludeTax: Boolean
-  productSources: [CartProductSourceInput!]
   reservationTtlMinutes: Int
   returnWindowDays: Int
   sessionTTLDays: Int
@@ -925,16 +924,9 @@ type CartMutations {
 }
 
 """
-A model configured as a cart product source. Which record fields carry the name, price, currency, image, SKU and tax rate is declared on the model's product config.
+A model the store sells from: a model whose product settings are turned on. Which record fields carry the name, price, currency, image, SKU and tax rate is declared on the model's product config.
 """
 type CartProductSource {
-  modelSlug: String!
-}
-
-"""
-One cart product source (CMS-929). The full productSources list is replaced wholesale on update - send the complete desired set.
-"""
-input CartProductSourceInput {
   modelSlug: String!
 }
 
@@ -2407,7 +2399,7 @@ type ModelMutations {
   create(input: CreateModelDefinitionInput!): ModelDefinition!
 
   """
-  Create a ready product model (name, sku, price, inventory, image, description) and make it the cart's product source. Refused when the workspace already sells from a model.
+  Create a ready product model (name, sku, price, inventory, image, description) marked as a product, so the store sells from it. Refused when the workspace already has a product model.
   """
   createProductStarter(labels: ProductStarterLabelsInput!): ModelDefinition!
   delete(id: ID!): DeletionResult!
@@ -4195,7 +4187,7 @@ type PublicCartConfig {
   """The order fields a customer can fill in at checkout."""
   orderFields: [OrderField!]!
   pricesIncludeTax: Boolean!
-  productSources: [CartProductSource!]!
+  productSources: [CartProductSource!]! @deprecated(reason: "A store sells from every model whose product settings are turned on; read the models instead.")
   shippingMethods: [ShippingMethodConfig!]!
   taxRates: [TaxRate!]!
 }
