@@ -1,5 +1,10 @@
 # @cmssy/mcp-server
 
+## 0.125.0
+
+- `update_model` takes `fieldOrder`, every field key once, to reorder a
+  model's fields (@cmssy/ai-tools 0.98.0).
+
 ## 0.124.0
 
 - No confirmation step. A destructive tool runs on its first call; the
