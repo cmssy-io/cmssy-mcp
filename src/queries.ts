@@ -1461,7 +1461,7 @@ export const ORDER_PIPELINE_QUERY = `
   query OrderPipeline {
     order {
       pipeline {
-        stages { id label color position isDefault isTerminal }
+        stages { id label color position isDefault }
       }
     }
   }
