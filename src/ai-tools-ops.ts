@@ -84,6 +84,7 @@ import {
   MODEL_RECORD_BY_ID_QUERY,
   PATCH_MODEL_RECORD_MUTATION,
   UPDATE_MODEL_RECORD_STATUS_MUTATION,
+  SET_MODEL_RECORD_PUBLISHED_MUTATION,
   DELETE_MODEL_DEFINITION_MUTATION,
   DELETE_MODEL_RECORD_MUTATION,
   IMPORT_MODEL_RECORDS_MUTATION,
@@ -789,6 +790,7 @@ export function createMcpWorkspaceOps(
                 id: string;
                 modelId: string;
                 status?: string | null;
+                published: boolean;
                 data?: Record<string, unknown> | null;
                 createdAt?: string | null;
                 updatedAt?: string | null;
@@ -811,6 +813,7 @@ export function createMcpWorkspaceOps(
             id: r.id,
             modelId: r.modelId,
             status: r.status ?? null,
+            published: r.published,
             data: r.data ?? {},
             createdAt: r.createdAt ?? null,
             updatedAt: r.updatedAt ?? null,
@@ -907,7 +910,7 @@ export function createMcpWorkspaceOps(
           fieldCount: m.fields?.length ?? 0,
         };
       },
-      updateRecord: async (recordId, { data, status }) => {
+      updateRecord: async (recordId, { data, status, published }) => {
         const recRes = await client.query<{
           record: {
             get: {
@@ -949,6 +952,12 @@ export function createMcpWorkspaceOps(
           if (!res.record.patch) return null;
           currentData = res.record.patch.data ?? currentData;
         }
+        if (published !== undefined) {
+          const res = await client.query<{
+            record: { setPublished: { id: string } | null };
+          }>(SET_MODEL_RECORD_PUBLISHED_MUTATION, { id: recordId, published });
+          if (!res.record.setPublished) return null;
+        }
         const display = model?.displayField;
         const label =
           display && typeof currentData[display] === "string"
@@ -961,13 +970,17 @@ export function createMcpWorkspaceOps(
           modelId: rec.modelId,
         };
       },
-      createRecord: async (modelIdOrSlug, data) => {
+      createRecord: async (modelIdOrSlug, data, published) => {
         const model = await resolveModel(client, modelIdOrSlug);
         if (!model) return null;
         const res = await client.query<{
           record: { create: { id: string } };
         }>(CREATE_MODEL_RECORD_MUTATION, {
-          input: { modelId: model.id, data },
+          input: {
+            modelId: model.id,
+            data,
+            ...(published !== undefined ? { published } : {}),
+          },
         });
         const display = model.displayField;
         const label =
@@ -988,6 +1001,7 @@ export function createMcpWorkspaceOps(
               id: string;
               modelId: string;
               status?: string | null;
+              published: boolean;
               data?: Record<string, unknown> | null;
               currencyPrices?: CurrencyPrice[] | null;
               variantCurrencyPrices?: VariantCurrencyPrices[] | null;
@@ -1002,6 +1016,7 @@ export function createMcpWorkspaceOps(
           id: r.id,
           modelId: r.modelId,
           status: r.status ?? null,
+          published: r.published,
           data: r.data ?? {},
           ...toCompanyVat(r),
           currencyPrices: r.currencyPrices ?? [],
@@ -1054,6 +1069,9 @@ export function createMcpWorkspaceOps(
             ...selection,
             ...(patch.data !== undefined ? { data: patch.data } : {}),
             ...(patch.status !== undefined ? { status: patch.status } : {}),
+            ...(patch.published !== undefined
+              ? { published: patch.published }
+              : {}),
             ...(cursor !== undefined ? { cursor } : {}),
           },
         });

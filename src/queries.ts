@@ -1022,6 +1022,7 @@ const MODEL_RECORD_FRAGMENT = `
   modelId
   data
   status
+  published
   createdAt
   updatedAt
   createdBy
@@ -1182,6 +1183,16 @@ export const UPDATE_MODEL_RECORD_STATUS_MUTATION = `
   mutation UpdateModelRecordStatus($input: UpdateModelRecordStatusInput!) {
     record {
       setStatus(input: $input) {
+        ${MODEL_RECORD_FRAGMENT}
+      }
+    }
+  }
+`;
+
+export const SET_MODEL_RECORD_PUBLISHED_MUTATION = `
+  mutation SetModelRecordPublished($id: ID!, $published: Boolean!) {
+    record {
+      setPublished(id: $id, published: $published) {
         ${MODEL_RECORD_FRAGMENT}
       }
     }

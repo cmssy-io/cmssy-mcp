@@ -82,6 +82,23 @@ describe("models.bulkUpdateRecords", () => {
     });
   });
 
+  it("forwards a visibility change (CMS-2145)", async () => {
+    const { client, sent } = clientAnswering([
+      resolved,
+      { record: { bulkUpdate: outcome } },
+    ]);
+
+    await createMcpWorkspaceOps(client).models.bulkUpdateRecords(
+      MODEL_ID,
+      { ids: ["r1"] },
+      { published: false },
+    );
+
+    expect(sent[1]!.variables).toEqual({
+      input: { modelId: MODEL_ID, ids: ["r1"], published: false },
+    });
+  });
+
   it("answers null for a model the workspace does not have, writing nothing", async () => {
     const { client, sent } = clientAnswering([{ model: { list: [] } }]);
 

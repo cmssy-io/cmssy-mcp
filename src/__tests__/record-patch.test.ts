@@ -106,3 +106,76 @@ describe("models.updateRecord (CMS-1840)", () => {
     expect(sent.some((s) => s.document.includes("patch("))).toBe(false);
   });
 });
+
+describe("record visibility (CMS-2145)", () => {
+  it("sends a visibility-only update to setPublished and nothing else", async () => {
+    const { client, sent } = clientAnswering([
+      storedRecord,
+      model,
+      { record: { setPublished: { id: RECORD_ID } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    const result = await ops.models.updateRecord(RECORD_ID, {
+      published: false,
+    });
+
+    expect(sent).toHaveLength(3);
+    expect(sent[2]!.document).toContain(
+      "setPublished(id: $id, published: $published)",
+    );
+    expect(
+      sent[2]!.variables,
+      "update_record { published: false } must reach the backend, or the agent reports a hidden product that is still live.",
+    ).toEqual({ id: RECORD_ID, published: false });
+    expect(result?.id).toBe(RECORD_ID);
+  });
+
+  it("answers null when setPublished matched no record", async () => {
+    const { client } = clientAnswering([
+      storedRecord,
+      model,
+      { record: { setPublished: null } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(
+      await ops.models.updateRecord(RECORD_ID, { published: true }),
+    ).toBeNull();
+  });
+
+  it("creates a record hidden only when asked", async () => {
+    const { client, sent } = clientAnswering([
+      model,
+      { record: { create: { id: RECORD_ID } } },
+      model,
+      { record: { create: { id: RECORD_ID } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.models.createRecord(MODEL_ID, { sku: "X" }, false);
+    await ops.models.createRecord(MODEL_ID, { sku: "Y" });
+
+    const creates = sent.filter((s) => s.document.includes("create(input"));
+    expect(creates[0]!.variables).toEqual({
+      input: { modelId: MODEL_ID, data: { sku: "X" }, published: false },
+    });
+    expect(
+      creates[1]!.variables,
+      "Leaving published out keeps the server default (live), so an older caller's create is unchanged.",
+    ).toEqual({ input: { modelId: MODEL_ID, data: { sku: "Y" } } });
+  });
+
+  it("reads published back on a single record", async () => {
+    const { client } = clientAnswering([
+      {
+        record: {
+          get: { id: RECORD_ID, modelId: MODEL_ID, published: false, data: {} },
+        },
+      },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect((await ops.models.getRecord(RECORD_ID))?.published).toBe(false);
+  });
+});
