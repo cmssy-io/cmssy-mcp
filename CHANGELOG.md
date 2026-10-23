@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.122.0
+
+- Record visibility (CMS-2145): `create_record`, `update_record` and
+  `bulk_update_records` take `published`; `list_records` and `get_record`
+  return it. An unpublished record stays off every public read until
+  published again. Needs the API that serves `ModelRecord.published`.
+- Vendored `schema.graphql` re-synced with the backend.
+- `@cmssy/ai-tools` 0.96.0.
+
 ## 0.121.0
 
 - Retired per-record currency (CMS-2138): model reads no longer select

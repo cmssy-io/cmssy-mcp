@@ -1080,7 +1080,7 @@ export const MODEL_RECORDS_QUERY = `
         sort: $sort
         populate: $populate
       ) {
-        items { ${MODEL_RECORD_FRAGMENT} }
+        items { ${MODEL_RECORD_FRAGMENT} published }
         total
         hasMore
       }
@@ -1111,6 +1111,7 @@ export const MODEL_RECORD_BY_ID_QUERY = `
     record {
       get(id: $id) {
         ${MODEL_RECORD_FRAGMENT}
+        published
         ${COMPANY_VAT_FRAGMENT}
         ${PRODUCT_CURRENCY_PRICES_FRAGMENT}
       }
@@ -1183,6 +1184,16 @@ export const UPDATE_MODEL_RECORD_STATUS_MUTATION = `
     record {
       setStatus(input: $input) {
         ${MODEL_RECORD_FRAGMENT}
+      }
+    }
+  }
+`;
+
+export const SET_MODEL_RECORD_PUBLISHED_MUTATION = `
+  mutation SetModelRecordPublished($id: ID!, $published: Boolean!) {
+    record {
+      setPublished(id: $id, published: $published) {
+        id
       }
     }
   }

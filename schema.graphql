@@ -29,11 +29,6 @@ type AccountQueries {
   """
   catalogPrices(
     channel: String
-
-    """
-    Keep only products priced in this currency. Required when the listing mixes currencies, which it then refuses without.
-    """
-    currency: String
     filter: JSON
     limit: Int = 20
     locale: String
@@ -623,6 +618,9 @@ input BulkUpdateModelRecordsInput {
   """Explicit record ids, at most 200."""
   ids: [ID!]
   modelId: ID!
+
+  """Publish (true) or unpublish (false) every selected record."""
+  published: Boolean
   status: String
 }
 
@@ -659,7 +657,7 @@ type BuyerPrice {
   basePrice: Int!
   basePriceAmount: TaxedAmount!
 
-  """Channel's currency, else the product's."""
+  """Channel's currency, else the default."""
   currency: String!
   displayMode: PriceDisplayMode!
 
@@ -1056,6 +1054,9 @@ type CatalogItem {
   id: String!
   onHand: Int
 
+  """Whether the delivery API serves this product."""
+  published: Boolean!
+
   """
   Order quantities must be a multiple of this; 1 when the product has no step. Variants inherit it.
   """
@@ -1234,6 +1235,9 @@ input CreateModelDefinitionInput {
 input CreateModelRecordInput {
   data: JSON!
   modelId: ID!
+
+  """False keeps the record off the delivery API until it is published."""
+  published: Boolean = true
 }
 
 input CreateOrganizationInput {
@@ -2600,7 +2604,6 @@ type ModelMutations {
 Commerce capability of a model. The *Field values are what is stored (null = no override); `roles` is what the cart actually reads.
 """
 type ModelProductConfig {
-  currencyField: String
   enabled: Boolean!
   imageField: String
   inventoryField: String!
@@ -2613,13 +2616,9 @@ type ModelProductConfig {
 }
 
 """
-Commerce capability PATCH: omitted keys keep their stored values. nameField/currencyField/imageField/taxRateField are overrides - null clears one so the resolved default applies again; skuField/priceField/inventoryField always hold a key. Every role is graded against the key it RESOLVES to, cleared or not: that field must exist and must be of a type the role can read - a number for priceField/inventoryField, a string-valued type for nameField/currencyField/skuField/taxRateField (and currencyField/skuField/taxRateField may not name a translatable field: something reads each of those three without resolving a locale), media, a list of media, text or url for imageField. A role resolving to nothing is refused only where the reader cannot do without it: nameField always, priceField while variantAxes is empty.
+Commerce capability PATCH: omitted keys keep their stored values. nameField/imageField/taxRateField are overrides - null clears one so the resolved default applies again; skuField/priceField/inventoryField always hold a key. Every role is graded against the key it RESOLVES to, cleared or not: that field must exist and must be of a type the role can read - a number for priceField/inventoryField, a string-valued type for nameField/skuField/taxRateField (and skuField/taxRateField may not name a translatable field: something reads each of those two without resolving a locale), media, a list of media, text or url for imageField. A role resolving to nothing is refused only where the reader cannot do without it: nameField always, priceField while variantAxes is empty.
 """
 input ModelProductConfigInput {
-  """
-  Retired (CMS-2140): only null is accepted, which clears a stored value. Set prices per currency instead.
-  """
-  currencyField: String
   enabled: Boolean
   imageField: String
   inventoryField: String
@@ -2661,6 +2660,11 @@ type ModelRecord {
   Record-level volume breaks. Price a product without variants, and any variant that defines no tiers of its own.
   """
   priceTiers: [PriceTier!]!
+
+  """
+  Whether the delivery API serves this record. An unpublished record is served only with the workspace draft secret.
+  """
+  published: Boolean!
 
   """
   Order quantities must be a multiple of this; 1 when the product has no step. Variants inherit it.
@@ -4347,6 +4351,11 @@ input ProductBulkPatchInput {
   adjustStock: Int
 
   """
+  Publish (true) or unpublish (false) the selection. An unpublished product is left out of every delivery read.
+  """
+  published: Boolean
+
+  """
   Major units of the default currency; prices per currency are left as they are.
   """
   setPrice: Float
@@ -4385,7 +4394,6 @@ type ProductCatalogList {
 Which record fields carry the roles the cart reads, resolved server-side: an unset role falls back to the model's displayField (name) or the conventional key.
 """
 type ProductFieldRoles {
-  currency: String!
   image: String!
   name: String!
   price: String!
@@ -4729,6 +4737,11 @@ type PublicModelQueries {
     populate: [String!]
 
     """
+    The workspace draft secret. With it, unpublished records are served too - for previewing a record before it goes live.
+    """
+    previewSecret: String
+
+    """
     Filter a product model to the records whose own SKU, or one of whose variants' SKUs, equals this. The record's own SKU is matched only when the delivery API serves its SKU field.
     """
     sku: String
@@ -4751,6 +4764,11 @@ type PublicModelQueries {
     Language for translatable fields. Their values come back as plain strings, resolved for this language, falling back to the workspace's default language when a translation is missing.
     """
     locale: String
+
+    """
+    The workspace draft secret. With it, unpublished records are served too - for previewing a record before it goes live.
+    """
+    previewSecret: String
     workspaceId: String!
   ): [PublicModelRecord!]!
 }
@@ -4769,6 +4787,11 @@ type PublicModelRecord {
   Record-level volume breaks. Price a product without variants, and any variant that defines no tiers of its own.
   """
   priceTiers: [PriceTier!]!
+
+  """
+  False only on a record served for preview with the workspace draft secret.
+  """
+  published: Boolean!
 
   """
   Order quantities must be a multiple of this; 1 when the product has no step. Variants inherit it.
@@ -5035,7 +5058,7 @@ type PublicPriceRange {
 }
 
 type PublicPriceResult {
-  """Null when none or mixed."""
+  """The channel currency, else the default."""
   currency: String
   displayMode: PriceDisplayMode!
   items: [PublicPricedRecord!]!
@@ -5050,7 +5073,7 @@ type PublicPricedRecord {
 }
 
 type PublicPricedRecordPage {
-  """Null when none or mixed."""
+  """The channel currency, else the default."""
   currency: String
   displayMode: PriceDisplayMode!
   hasMore: Boolean!
@@ -5061,8 +5084,36 @@ type PublicPricedRecordPage {
 }
 
 type PublicPricingQueries {
-  catalogPrices(channel: String!, currency: String, filter: JSON, limit: Int = 20, locale: String, modelSlug: String!, offset: Int = 0, priceMax: Int, priceMin: Int, sku: String, sort: BuyerCatalogSort = PRICE_ASC, stockState: String, workspaceId: String!): PublicPricedRecordPage!
-  prices(channel: String!, items: [PriceQueryItem!]!, locale: String, workspaceId: String!): PublicPriceResult!
+  catalogPrices(
+    channel: String!
+    filter: JSON
+    limit: Int = 20
+    locale: String
+    modelSlug: String!
+    offset: Int = 0
+
+    """
+    The workspace draft secret. With it, unpublished records are served too - for previewing a record before it goes live.
+    """
+    previewSecret: String
+    priceMax: Int
+    priceMin: Int
+    sku: String
+    sort: BuyerCatalogSort = PRICE_ASC
+    stockState: String
+    workspaceId: String!
+  ): PublicPricedRecordPage!
+  prices(
+    channel: String!
+    items: [PriceQueryItem!]!
+    locale: String
+
+    """
+    The workspace draft secret. With it, unpublished records are served too - for previewing a record before it goes live.
+    """
+    previewSecret: String
+    workspaceId: String!
+  ): PublicPriceResult!
 }
 
 type PublicQueries {
@@ -5185,7 +5236,7 @@ input ReceiveReturnInput {
 
 type RecordMutations {
   """
-  Apply one data and/or status change to up to 200 records of a model per call.
+  Apply one data, status and/or visibility change to up to 200 records of a model per call.
   """
   bulkUpdate(input: BulkUpdateModelRecordsInput!): BulkUpdateModelRecordsResult!
   create(input: CreateModelRecordInput!): ModelRecord!
@@ -5202,6 +5253,11 @@ type RecordMutations {
   Assign a price list to a record of a Company model, or to a customer without a company; null unassigns. Refused for a customer whose company is live - their company's list prices them.
   """
   setPriceList(id: ID!, priceListId: ID): ModelRecord!
+
+  """
+  Publish or unpublish a record. An unpublished record is left out of every delivery read and cannot be added to a cart.
+  """
+  setPublished(id: ID!, published: Boolean!): ModelRecord
   setStatus(input: UpdateModelRecordStatusInput!): ModelRecord
 
   """
