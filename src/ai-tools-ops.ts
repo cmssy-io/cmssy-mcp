@@ -34,6 +34,10 @@ import type {
   TaxRoundingMethod,
   TaxBreakdown,
   PriceListChannel,
+  PriceListCurrencyCount,
+  CurrencyAmount,
+  CurrencyPrice,
+  VariantCurrencyPrices,
   PriceListSource,
   SalesChannelPriceList,
   SalesChannelSummary,
@@ -156,6 +160,7 @@ import {
   BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
   BULK_DELETE_PRODUCT_RECORDS_MUTATION,
   SET_PRODUCT_TIERS_MUTATION,
+  SET_PRODUCT_CURRENCY_PRICES_MUTATION,
   SET_PRODUCT_VARIANTS_MUTATION,
   UPDATE_CART_CONFIG_MUTATION,
   CLEAR_CART_CONFIG_MUTATION,
@@ -536,6 +541,7 @@ interface RawPriceList {
   endsAt: string | null;
   active: boolean;
   overrideCount: number;
+  overrideCountByCurrency?: PriceListCurrencyCount[] | null;
   assignedCount: number;
   channels?: PriceListChannel[] | null;
   createdAt: string | null;
@@ -551,6 +557,7 @@ function toPriceListSummary(p: RawPriceList): PriceListSummary {
     endsAt: p.endsAt ?? null,
     active: p.active,
     overrideCount: p.overrideCount,
+    overrideCountByCurrency: p.overrideCountByCurrency ?? [],
     assignedCount: p.assignedCount,
     channels: p.channels ?? [],
     createdAt: p.createdAt ?? null,
@@ -582,6 +589,7 @@ interface RawSalesChannel {
   id: string;
   key: string;
   name: string;
+  currency: string;
   displayMode: PriceDisplayMode;
   priceAccess: ChannelPriceAccess;
   activeCartCount: number;
@@ -597,6 +605,7 @@ function toSalesChannelSummary(c: RawSalesChannel): SalesChannelSummary {
     id: c.id,
     key: c.key,
     name: c.name,
+    currency: c.currency,
     displayMode: c.displayMode,
     priceAccess: c.priceAccess,
     activeCartCount: c.activeCartCount,
@@ -980,6 +989,8 @@ export function createMcpWorkspaceOps(
               modelId: string;
               status?: string | null;
               data?: Record<string, unknown> | null;
+              currencyPrices?: CurrencyPrice[] | null;
+              variantCurrencyPrices?: VariantCurrencyPrices[] | null;
               createdAt?: string | null;
               updatedAt?: string | null;
             }) | null;
@@ -993,6 +1004,8 @@ export function createMcpWorkspaceOps(
           status: r.status ?? null,
           data: r.data ?? {},
           ...toCompanyVat(r),
+          currencyPrices: r.currencyPrices ?? [],
+          variantCurrencyPrices: r.variantCurrencyPrices ?? [],
           createdAt: r.createdAt ?? null,
           updatedAt: r.updatedAt ?? null,
         };
@@ -2222,11 +2235,17 @@ export function createMcpWorkspaceOps(
         );
         return res.order.pipeline;
       },
-      createManual: async (customerEmail, items, customerId, shippingAddress) => {
+      createManual: async (
+        customerEmail,
+        items,
+        customerId,
+        shippingAddress,
+        currency,
+      ) => {
         const res = await client.query<{
           order: { create: { id: string; orderNumber?: number | null } };
         }>(CREATE_MANUAL_ORDER_MUTATION, {
-          input: { customerEmail, customerId, items, shippingAddress },
+          input: { customerEmail, customerId, items, shippingAddress, currency },
         });
         const o = res.order.create;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
@@ -2476,6 +2495,7 @@ export function createMcpWorkspaceOps(
               enabled: boolean;
               currency?: string | null;
               minSubtotal?: number | null;
+              minSubtotalByCurrency?: CurrencyAmount[] | null;
               maxUses?: number | null;
               currentUses?: number | null;
               startsAt?: string | null;
@@ -2493,6 +2513,7 @@ export function createMcpWorkspaceOps(
           enabled: d.enabled,
           currency: d.currency ?? null,
           minSubtotal: d.minSubtotal ?? null,
+          minSubtotalByCurrency: d.minSubtotalByCurrency ?? [],
           maxUses: d.maxUses ?? null,
           currentUses: d.currentUses ?? null,
           startsAt: d.startsAt ?? null,
@@ -2509,6 +2530,7 @@ export function createMcpWorkspaceOps(
           "value",
           "currency",
           "minSubtotal",
+          "minSubtotalByCurrency",
           "maxUses",
           "startsAt",
           "endsAt",
@@ -2758,6 +2780,14 @@ export function createMcpWorkspaceOps(
         );
         return res.product.setVariants;
       },
+      setCurrencyPrices: async (recordId, prices) => {
+        const res = await client.query<{
+          product: { setCurrencyPrices: unknown };
+        }>(SET_PRODUCT_CURRENCY_PRICES_MUTATION, {
+          input: { recordId, prices },
+        });
+        return res.product.setCurrencyPrices;
+      },
     },
     team: {
       list: async (options) => {
@@ -2930,6 +2960,7 @@ export function createMcpWorkspaceOps(
         }>(PRICE_LIST_ENTRIES_QUERY, {
           priceListId,
           recordId: options?.recordId,
+          currency: options?.currency,
           first: options?.first,
           after: options?.after,
         });

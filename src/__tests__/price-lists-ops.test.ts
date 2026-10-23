@@ -56,6 +56,7 @@ const gold = {
   endsAt: null,
   active: false,
   overrideCount: 2,
+  overrideCountByCurrency: [{ currency: "EUR", count: 1 }],
   assignedCount: 3,
   channels: [
     { id: "ch-1", key: "horeca", name: "HoReCa", priceAccess: "MEMBERS" },

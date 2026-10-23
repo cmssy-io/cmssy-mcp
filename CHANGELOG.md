@@ -1,5 +1,28 @@
 # @cmssy/mcp-server
 
+## 0.119.0
+
+- Multi-currency (CMS-2143): new `set_product_currency_prices` (confirm-gated)
+  replaces a product's prices and volume breaks in the workspace's additional
+  currencies; `set_product_variants` takes `currencyPrices` per variant, and
+  `get_record` plus every product price write read back `currencyPrices` and
+  `variantCurrencyPrices`.
+- `update_cart_config` takes `additionalCurrencies` and a shipping method's
+  `currencyPrices`; the cart config reads both back.
+- `create_sales_channel` / `update_sales_channel` take `currency` (null resets
+  to the default currency); channel reads return it.
+- `set_price_list_entry`, `set_price_list_entries` and
+  `remove_price_list_entries` take a row `currency`; `get_price_list` pages one
+  currency's rows (`currency`) and returns `overrideCountByCurrency`.
+- `create_discount` / `update_discount` take `minSubtotalByCurrency`;
+  `get_discount` returns it. `update_discount` takes `minSubtotal: null` to
+  clear it; a discount currency must be an uppercase ISO code.
+- `update_model` takes `product.currencyField` only as `null` (clears a stored
+  override).
+- `create_manual_order` takes `currency`.
+- Vendored SDL synced from production.
+- `@cmssy/ai-tools` 0.93.0, `@cmssy/types` 0.70.0.
+
 ## 0.118.0
 
 - Exports (CMS-2125): a seller outside the EU zero-rates orders shipped to

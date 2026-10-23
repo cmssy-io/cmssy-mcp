@@ -144,6 +144,7 @@ export const PAGE_REGION_SETTINGS_QUERY = `
 
 const CART_CONFIG_FRAGMENT = `
   defaultCurrency
+  additionalCurrencies
   pricesIncludeTax
   defaultTaxRateId
   lowStockThreshold
@@ -172,6 +173,7 @@ const CART_CONFIG_FRAGMENT = `
     minSubtotal
     maxSubtotal
     freeAbove
+    currencyPrices { currency price minSubtotal maxSubtotal freeAbove }
   }
   orderFields {
     key
@@ -1095,12 +1097,23 @@ const COMPANY_VAT_FRAGMENT = `
   taxExemptReason
 `;
 
+const CURRENCY_PRICE_FRAGMENT = `currency price tiers { minQty price } enabled`;
+
+const PRODUCT_CURRENCY_PRICES_FRAGMENT = `
+  currencyPrices { ${CURRENCY_PRICE_FRAGMENT} }
+  variantCurrencyPrices {
+    variantKey
+    currencyPrices { ${CURRENCY_PRICE_FRAGMENT} }
+  }
+`;
+
 export const MODEL_RECORD_BY_ID_QUERY = `
   query ModelRecord($id: ID!) {
     record {
       get(id: $id) {
         ${MODEL_RECORD_FRAGMENT}
         ${COMPANY_VAT_FRAGMENT}
+        ${PRODUCT_CURRENCY_PRICES_FRAGMENT}
       }
     }
   }
@@ -1642,7 +1655,12 @@ export const DISCOUNTS_QUERY = `
 
 export const DISCOUNT_BY_ID_QUERY = `
   query Discount($id: ID!) {
-    discount { get(id: $id) { ${DISCOUNT_FRAGMENT} } }
+    discount {
+      get(id: $id) {
+        ${DISCOUNT_FRAGMENT}
+        minSubtotalByCurrency { currency amount }
+      }
+    }
   }
 `;
 
@@ -1822,6 +1840,7 @@ export const SET_PRODUCT_TIERS_MUTATION = `
         priceTiers { minQty price }
         quantityIncrement
         variants { id sku price tiers { minQty price } }
+        ${PRODUCT_CURRENCY_PRICES_FRAGMENT}
       }
     }
   }
@@ -1840,6 +1859,19 @@ export const SET_PRODUCT_VARIANTS_MUTATION = `
           tiers { minQty price }
           selectedOptions { name value }
         }
+        ${PRODUCT_CURRENCY_PRICES_FRAGMENT}
+      }
+    }
+  }
+`;
+
+export const SET_PRODUCT_CURRENCY_PRICES_MUTATION = `
+  mutation SetProductCurrencyPrices($input: SetProductCurrencyPricesInput!) {
+    product {
+      setCurrencyPrices(input: $input) {
+        id
+        priceTiers { minQty price }
+        ${PRODUCT_CURRENCY_PRICES_FRAGMENT}
       }
     }
   }
@@ -2027,6 +2059,7 @@ const PRICE_LIST_FRAGMENT = `
   endsAt
   active
   overrideCount
+  overrideCountByCurrency { currency count }
   assignedCount
   channels { id key name priceAccess }
   createdAt
@@ -2059,9 +2092,9 @@ export const PRICE_LIST_BY_ID_QUERY = `
 `;
 
 export const PRICE_LIST_ENTRIES_QUERY = `
-  query PriceListEntries($priceListId: ID!, $recordId: ID, $first: Int, $after: String) {
+  query PriceListEntries($priceListId: ID!, $recordId: ID, $currency: String, $first: Int, $after: String) {
     priceList {
-      entries(priceListId: $priceListId, recordId: $recordId, first: $first, after: $after) {
+      entries(priceListId: $priceListId, recordId: $recordId, currency: $currency, first: $first, after: $after) {
         items { ${PRICE_LIST_ENTRY_FRAGMENT} }
         nextCursor
       }
@@ -2164,6 +2197,7 @@ const SALES_CHANNEL_FRAGMENT = `
   id
   key
   name
+  currency
   displayMode
   priceAccess
   activeCartCount

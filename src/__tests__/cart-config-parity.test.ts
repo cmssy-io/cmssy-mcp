@@ -73,6 +73,15 @@ describe("update_cart_config mirrors CartConfigInput (CMS-1908)", () => {
     );
   });
 
+  it("describes a shipping price per currency with the backend's own fields", () => {
+    const shipping = unwrapArrayItem(toolShape.shippingMethods!);
+    const perCurrency = unwrapArrayItem(shipping.shape.currencyPrices!);
+
+    expect(shapeKeys(perCurrency.shape)).toEqual(
+      inputFields("ShippingMethodCurrencyPriceInput"),
+    );
+  });
+
   it("describes a tax rate with the backend's own fields", () => {
     const tax = unwrapArrayItem(toolShape.taxRates!);
 
@@ -112,6 +121,15 @@ describe("get_site_config reads back everything update_cart_config can set", () 
   it("selects every field of a stored shipping method", () => {
     const selected = selectedUnder("shippingMethods");
     const missing = outputFields("ShippingMethodConfig").filter(
+      (f) => !selected.has(f),
+    );
+
+    expect(missing).toEqual([]);
+  });
+
+  it("selects every field of a shipping price per currency", () => {
+    const selected = selectedUnder("currencyPrices");
+    const missing = outputFields("ShippingMethodCurrencyPrice").filter(
       (f) => !selected.has(f),
     );
 
