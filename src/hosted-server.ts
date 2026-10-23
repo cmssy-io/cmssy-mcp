@@ -8,7 +8,6 @@ import {
   toolTitle,
   type HostedTarget,
 } from "./ai-tools-binder.js";
-import type { ConfirmStore } from "./confirm-gate.js";
 import type { CmssyApi } from "./graphql-client.js";
 import type { FetchUrl, UploadSourcePolicy } from "./media-upload.js";
 import { PACKAGE_VERSION } from "./package-version.js";
@@ -24,7 +23,6 @@ export interface HostedWorkspace {
 
 export interface HostedWorkspaceAccess {
   client: CmssyApi;
-  confirm: ConfirmStore;
 }
 
 export interface HostedServerOptions {
@@ -85,11 +83,10 @@ export function createHostedServer(options: HostedServerOptions): McpServer {
       server,
       template,
       async (workspace, tool): Promise<HostedTarget> => {
-        const { client, confirm } = await options.resolveWorkspace(workspace);
+        const { client } = await options.resolveWorkspace(workspace);
         return {
           tool: toolForClient(tool, client),
           ops: createMcpWorkspaceOps(client, uploadPolicy),
-          confirm,
         };
       },
     );

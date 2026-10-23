@@ -215,7 +215,7 @@ model on every write.
 | `update_record`       | Update a record's data and/or transition its status                           |
 | `delete_record`       | Delete a record                                                               |
 | `import_records`      | Bulk import up to 1000 records; returns `{ importedCount, errors }`           |
-| `bulk_update_records` | Set data and/or status on up to 200 ids or every filter match (confirm-gated) |
+| `bulk_update_records` | Set data and/or status on up to 200 ids or every filter match |
 
 Requires workspace permissions `MODELS_VIEW` (read) / `MODELS_CREATE` /
 `MODELS_EDIT` / `MODELS_DELETE` depending on the operation.
@@ -242,10 +242,10 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `reopen_order`             | Reopen a closed order                                              |
 | `create_return`            | Open a return: lines, quantities, reasons, return-parcel tracking  |
 | `approve_return`           | Approve a return the customer requested                            |
-| `reject_return`            | Reject a requested return (asks for confirmation)                  |
-| `cancel_return`            | Cancel a return not yet refunded (asks for confirmation)           |
+| `reject_return`            | Reject a requested return                  |
+| `cancel_return`            | Cancel a return not yet refunded           |
 | `receive_return`           | Record received units per line and how many go back to stock       |
-| `refund_return`            | Record a refund for a return (asks for confirmation)               |
+| `refund_return`            | Record a refund for a return               |
 | `complete_return`          | Close a received return without a refund                           |
 | `update_return_tracking`   | Set the carrier and tracking number of the return parcel           |
 | `create_shipment`          | Add a parcel (carrier, tracking number, link, status) to an order  |
@@ -253,7 +253,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `set_order_pipeline_stage` | Move an order to a pipeline stage                                  |
 | `record_order_invoice`     | Attach an invoice (number, url, provider) to an order              |
 | `list_carts`               | List shopping carts (admin view, optional status filter) with their sales channel |
-| `delete_carts`             | Permanently delete 1-100 carts, all or nothing (confirm-gated)     |
+| `delete_carts`             | Permanently delete 1-100 carts, all or nothing     |
 | `list_discounts`           | List discount codes (filter by enabled/type/code)                  |
 | `get_discount`             | Get a discount by id                                               |
 | `create_discount`          | Create a discount (`percentage` / `fixed` / `free_shipping`)       |
@@ -263,8 +263,8 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `bulk_update_products`     | Bulk set/adjust status, stock, or price on selected products       |
 | `bulk_delete_products`     | Bulk-delete selected product records                               |
 | `set_product_tiers`        | Set a product's record-level volume price breaks                   |
-| `set_product_variants`     | Replace a product's whole variant set (confirm-gated)              |
-| `set_product_currency_prices` | Replace a product's prices and breaks in additional currencies, and variants' per-currency prices without touching stock (confirm-gated) |
+| `set_product_variants`     | Replace a product's whole variant set              |
+| `set_product_currency_prices` | Replace a product's prices and breaks in additional currencies, and variants' per-currency prices without touching stock |
 
 Products are records of a Custom Data Model; these tools add product-aware
 stock/variant reads and bulk writes on top of the generic record tools. The
@@ -308,16 +308,16 @@ their own.
 | `get_price_list`            | One list with a page of its fixed prices (filter by product, cursor-paginated)       |
 | `create_price_list`         | Create a list with a name, an optional percent off and the channels it is published to |
 | `update_price_list`         | Rename a list, change its percentOff, window or channels (`[]` unpublishes)          |
-| `delete_price_list`         | Delete a list and unassign it everywhere (confirm-gated)                             |
+| `delete_price_list`         | Delete a list and unassign it everywhere                             |
 | `set_price_list_entry`      | Set the fixed price for one product or variant, with optional volume breaks          |
-| `set_price_list_entries`    | Upsert up to 1000 fixed prices at once, all or nothing (confirm-gated)               |
-| `remove_price_list_entries` | Remove up to 1000 fixed prices by product / variant (confirm-gated)                  |
+| `set_price_list_entries`    | Upsert up to 1000 fixed prices at once, all or nothing               |
+| `remove_price_list_entries` | Remove up to 1000 fixed prices by product / variant                  |
 | `set_company_price_list`    | Assign a price list to a company record; every member pays it; `null` unassigns      |
 | `set_company_price_display_mode` | Set whether a company's buyers read net or gross prices; `null` = default (net) |
 | `set_company_tax_rounding`  | Set a company's VAT rounding, per_line or per_rate; `null` = workspace setting      |
 | `set_company_vat_id`        | Set or clear a company's EU VAT id; a changed id is no longer verified              |
-| `set_company_vat_verified`  | Attest or withdraw a company's checked VAT id; drives reverse charge (confirm-gated) |
-| `set_company_tax_exemption` | Exempt a company's orders from VAT with a legal reason; `null` clears (confirm-gated) |
+| `set_company_vat_verified`  | Attest or withdraw a company's checked VAT id; drives reverse charge |
+| `set_company_tax_exemption` | Exempt a company's orders from VAT with a legal reason; `null` clears |
 
 ### Sales Channel Tools
 
@@ -333,7 +333,7 @@ catalogue. Lists are published with `create_price_list` / `update_price_list`
 | `get_sales_channel`    | One channel with its published lists, nextChangeAt and activeCartCount              |
 | `create_sales_channel` | Create a channel (key fixed once created), at most 20 per workspace                 |
 | `update_sales_channel` | Rename a channel or change its displayMode or priceAccess                           |
-| `delete_sales_channel` | Delete a channel, unpublish its lists, abandon its open carts (confirm-gated)       |
+| `delete_sales_channel` | Delete a channel, unpublish its lists, abandon its open carts       |
 
 ### Webhook Tools
 
@@ -378,7 +378,6 @@ Requires workspace permissions `WEBHOOKS_VIEW` (read) / `WEBHOOKS_MANAGE`
 
 - **`resolveWorkspace(workspace)` is the authorization.** Check, on every call, that the caller is still a member of that workspace and that the connection was granted it. Throw the same message for "does not exist" and "not yours", so a refusal does not reveal which workspaces exist.
 - **The executor is the scope.** The `CmssyApi` it returns (`createCmssyApi(execute, workspaceId)`) runs every document as that user in that workspace; the package sends nothing that would scope it.
-- **`ConfirmStore.consume` is single-use and atomic.** Check and delete a ref in one step, or two concurrent calls with the same ref both run. Refs expire after 600 seconds. Hashes already cover the workspace, so one store per connection is safe.
 - **`fetchUrl` is the SSRF boundary.** Refuse private, loopback and link-local addresses and re-check every redirect. The package caps the body at 50MB while reading.
 
 ## Development
