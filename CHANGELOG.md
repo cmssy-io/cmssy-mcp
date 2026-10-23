@@ -1,5 +1,20 @@
 # @cmssy/mcp-server
 
+## 0.120.0
+
+- Variant prices per currency (CMS-2143): `set_product_currency_prices` takes
+  `variants` (`[{ variantKey, prices }]`, the key from `list_products`
+  `variants[].key`) and writes each variant's prices in additional currencies
+  without touching its default-currency price, SKU or stock. A variant left
+  out keeps its prices, `prices: []` clears them, omitted `variants` leaves
+  every variant untouched. Prefer it over `set_product_variants`
+  `currencyPrices` for price-only edits.
+- `list_orders` takes `currency` (ISO 4217). Paging is `skip` + `limit`
+  (there is no `offset`); `skip` must be >= 0 and `limit` 1-100, the API's
+  cap, instead of being clamped silently.
+- Vendored SDL synced from production.
+- `@cmssy/ai-tools` 0.94.0.
+
 ## 0.119.0
 
 - Multi-currency (CMS-2143): new `set_product_currency_prices` (confirm-gated)

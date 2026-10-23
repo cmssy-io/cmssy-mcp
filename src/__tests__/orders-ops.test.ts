@@ -1,5 +1,6 @@
 import { parse, visit, type FieldNode } from "graphql";
 import { describe, expect, it, vi } from "vitest";
+import { listOrdersTool } from "@cmssy/ai-tools";
 
 import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import type { CmssyClient } from "../graphql-client.js";
@@ -19,6 +20,7 @@ import {
   REOPEN_ORDER_MUTATION,
   UPDATE_SHIPMENT_MUTATION,
 } from "../queries.js";
+import { callBound, connectBound, validationRefusal } from "./mcp-harness.js";
 
 interface Sent {
   document: string;
@@ -656,5 +658,59 @@ describe("order shipments ops", () => {
       },
     ]);
     expect(result).toEqual(ack);
+  });
+});
+
+describe("list_orders currency filter and paging (CMS-2143)", () => {
+  const emptyPage = {
+    order: { list: { items: [], total: 0, hasMore: false } },
+  };
+
+  it("declares the currency variable and forwards it as the API's String", async () => {
+    const { client, sent } = clientAnswering([emptyPage]);
+
+    await createMcpWorkspaceOps(client).orders.list({ currency: "EUR" });
+
+    expect(ORDERS_QUERY).toMatch(/\$currency: String\b/);
+    expect(ORDERS_QUERY).toMatch(/currency: \$currency/);
+    expect(sent[0]!.variables).toMatchObject({ currency: "EUR" });
+  });
+
+  it("pages end to end: the bound tool's skip and limit reach the API's skip and limit", async () => {
+    const { client, sent } = clientAnswering([emptyPage]);
+    const mcp = await connectBound(
+      [listOrdersTool],
+      createMcpWorkspaceOps(client),
+    );
+
+    const result = await callBound(mcp, "list_orders", {
+      skip: 40,
+      limit: 20,
+      currency: "SEK",
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.variables).toMatchObject({
+      skip: 40,
+      limit: 20,
+      currency: "SEK",
+    });
+  });
+
+  it("refuses offset, a page over the API's cap and a lowercase currency before calling the API", async () => {
+    const { client, sent } = clientAnswering([]);
+    const mcp = await connectBound(
+      [listOrdersTool],
+      createMcpWorkspaceOps(client),
+    );
+
+    for (const args of [{ offset: 20 }, { limit: 101 }, { currency: "eur" }]) {
+      expect(
+        validationRefusal(await callBound(mcp, "list_orders", args)),
+        JSON.stringify(args),
+      ).not.toBeNull();
+    }
+    expect(sent).toEqual([]);
   });
 });

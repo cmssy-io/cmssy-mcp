@@ -228,7 +228,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 
 | Tool                       | Description                                                        |
 | -------------------------- | ------------------------------------------------------------------ |
-| `list_orders`              | List orders by payment/fulfillment/delivery/state, warehouse queue, customer, dates |
+| `list_orders`              | List orders by payment/fulfillment/delivery/state, warehouse queue, customer, currency, dates; pages with `skip`/`limit` |
 | `get_order`                | Get an order with items, payments, parcels, tax summary and treatment, sales channel and the price lists that priced it |
 | `get_order_pipeline`       | Get the workspace's configurable order pipeline stages             |
 | `create_manual_order`      | Create an admin-entered order, with an optional shipping address   |
@@ -264,7 +264,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `bulk_delete_products`     | Bulk-delete selected product records                               |
 | `set_product_tiers`        | Set a product's record-level volume price breaks                   |
 | `set_product_variants`     | Replace a product's whole variant set (confirm-gated)              |
-| `set_product_currency_prices` | Replace a product's prices and breaks in additional currencies (confirm-gated) |
+| `set_product_currency_prices` | Replace a product's prices and breaks in additional currencies, and variants' per-currency prices without touching stock (confirm-gated) |
 
 Products are records of a Custom Data Model; these tools add product-aware
 stock/variant reads and bulk writes on top of the generic record tools. The

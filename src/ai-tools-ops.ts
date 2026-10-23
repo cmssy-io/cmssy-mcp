@@ -2101,6 +2101,7 @@ export function createMcpWorkspaceOps(
           search: options?.search,
           pipelineStageId: options?.pipelineStageId,
           queue: options?.queue,
+          currency: options?.currency,
           dateFrom: options?.dateFrom,
           dateTo: options?.dateTo,
           skip: options?.skip,
@@ -2780,11 +2781,15 @@ export function createMcpWorkspaceOps(
         );
         return res.product.setVariants;
       },
-      setCurrencyPrices: async (recordId, prices) => {
+      setCurrencyPrices: async (recordId, prices, variants) => {
         const res = await client.query<{
           product: { setCurrencyPrices: unknown };
         }>(SET_PRODUCT_CURRENCY_PRICES_MUTATION, {
-          input: { recordId, prices },
+          input: {
+            recordId,
+            prices,
+            ...(variants === undefined ? {} : { variants }),
+          },
         });
         return res.product.setCurrencyPrices;
       },

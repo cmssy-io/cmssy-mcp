@@ -802,6 +802,10 @@ type CartAnalytics {
   funnel: CartFunnel!
   series: [CartSeriesPoint!]!
   to: DateTime!
+
+  """
+  Grouped by currency, the default currency first, and ranked within each currency; `limit` applies per currency. Values are never added across currencies.
+  """
   topAbandonedProducts(limit: Int): [AbandonedProduct!]!
 }
 
@@ -1042,6 +1046,11 @@ type CartTaxSummaryLine {
 type CatalogItem {
   available: Int
   createdAt: DateTime!
+
+  """
+  Record-level prices in additional currencies. The price is read only while the product has no variants; tiers also price variants without their own.
+  """
+  currencyPrices: [CurrencyPrice!]!
   data: JSON!
   hasVariants: Boolean!
   id: String!
@@ -1067,6 +1076,11 @@ type CatalogVariantSelection {
 
 type CatalogVariantStock {
   available: Int
+
+  """
+  The variant's prices in additional currencies; disabled currencies come back with enabled false.
+  """
+  currencyPrices: [CurrencyPrice!]!
   key: String!
   onHand: Int
   price: Int!
@@ -3354,9 +3368,32 @@ type OrderPricingChain {
 }
 
 type OrderQueries {
+  """
+  Every currency the workspace's orders carry, including ones no longer enabled - for filtering orders by currency (CMS-2142).
+  """
+  currencies: [String!]!
   editPreview(input: EditOrderInput!): OrderEditPreview!
   get(id: ID!): Order
-  list(companyId: ID, customerId: ID, dateFrom: DateTime, dateTo: DateTime, deliveryStatus: OrderDeliveryStatus, fulfillmentStatus: String, limit: Int, paymentStatus: String, pipelineStageId: String, queue: OrderQueue, search: String, skip: Int, state: OrderState): OrderListResult!
+  list(
+    companyId: ID
+
+    """
+    Only orders placed in this currency (ISO 4217). Order amounts are never added across currencies.
+    """
+    currency: String
+    customerId: ID
+    dateFrom: DateTime
+    dateTo: DateTime
+    deliveryStatus: OrderDeliveryStatus
+    fulfillmentStatus: String
+    limit: Int
+    paymentStatus: String
+    pipelineStageId: String
+    queue: OrderQueue
+    search: String
+    skip: Int
+    state: OrderState
+  ): OrderListResult!
 
   """
   The number the workspace's next order will get. Order numbers only ever go up.
@@ -4370,7 +4407,7 @@ type ProductMutations {
   ): Int!
 
   """
-  Replace a product's record-level prices in additional currencies (CMS-2140).
+  Replace a product's prices in additional currencies - the record's and, optionally, its variants' - in one write (CMS-2140, CMS-2142).
   """
   setCurrencyPrices(input: SetProductCurrencyPricesInput!): ModelRecord!
 
@@ -5558,6 +5595,11 @@ input SetProductCurrencyPricesInput {
   """
   prices: [CurrencyPriceInput!]!
   recordId: ID!
+
+  """
+  Variant prices per currency, written in the same update as the record's. Variants left out keep theirs; never touches price, sku or stock.
+  """
+  variants: [VariantCurrencyPricesInput!]
 }
 
 input SetProductTiersInput {
@@ -5763,6 +5805,7 @@ type SiteConfig {
   branding: SiteBranding
   canUseCart: Boolean!
   cart: CartConfig
+  currencies: WorkspaceCurrencies!
   defaultLanguage: String!
   enabledFeatures: [String!]!
   enabledLanguages: [String!]!
@@ -6452,6 +6495,12 @@ type VariantCurrencyPrices {
   variantKey: String!
 }
 
+input VariantCurrencyPricesInput {
+  """Replaces this variant's list; [] clears it."""
+  prices: [VariantCurrencyPriceInput!]!
+  variantKey: String!
+}
+
 type ViewerMutations {
   authorizeAvatarUpload(mimeType: String!, size: Int!): AuthorizeAvatarUploadPayload!
   beginMfa: MfaEnrolment!
@@ -6631,6 +6680,14 @@ type WorkspaceBranding {
   logoDarkUrl: String
   logoUrl: String
   ogImageUrl: String
+}
+
+"""
+The currencies the workspace prices in, resolved the way pricing resolves them - set even when the workspace never saved a cart config.
+"""
+type WorkspaceCurrencies {
+  additionalCurrencies: [String!]!
+  defaultCurrency: String!
 }
 
 type WorkspaceMemberType {
