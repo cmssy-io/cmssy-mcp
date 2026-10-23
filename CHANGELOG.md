@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.123.0
+
+- `get_page` returns the page `version`, the value `patch_block_content`
+  takes as `expectedVersion`. Before, a caller had no way to read it.
+- `@cmssy/ai-tools` 0.97.0.
+
 ## 0.122.0
 
 - Record visibility (CMS-2145): `create_record`, `update_record` and
