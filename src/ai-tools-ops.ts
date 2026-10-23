@@ -1142,6 +1142,7 @@ export function createMcpWorkspaceOps(
           seoTitle: page.seoTitle ?? null,
           seoDescription: page.seoDescription ?? null,
           seoKeywords: page.seoKeywords ?? null,
+          version: page.version ?? 0,
           regionSettings: page.layoutRegionSettings ?? [],
           resolvedRegions: regions,
           createdAt: page.createdAt ?? null,

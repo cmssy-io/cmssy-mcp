@@ -402,6 +402,7 @@ describe("get_page region settings (CMS-1710)", () => {
             id: "p1",
             name: "Page",
             slug: "/page",
+            version: 21,
             layoutRegionSettings: [
               { region: "header", values: { variant: "dark" } },
             ],
@@ -427,6 +428,19 @@ describe("get_page region settings (CMS-1710)", () => {
       { region: "header", values: { variant: "dark" } },
     ]);
     expect(page.resolvedRegions).toEqual(resolved);
+  });
+
+  it("returns the version patch_block_content takes as expectedVersion", async () => {
+    const { client, sent } = pageClient();
+    const ops = createMcpWorkspaceOps(client);
+
+    const page = await ops.pages.get("p1");
+
+    expect(sent[0].document).toMatch(/\bversion\b/);
+    expect(
+      page?.version,
+      "get_page must hand back the stored page version, or a caller of patch_block_content has no expectedVersion to send",
+    ).toBe(21);
   });
 
   it("resolves a slug to the page id before asking for resolved layouts", async () => {
