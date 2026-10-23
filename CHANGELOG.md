@@ -1,5 +1,10 @@
 # @cmssy/mcp-server
 
+## 0.126.0
+
+- `get_order_pipeline` no longer reads `isTerminal`; the backend drops the
+  field from order pipeline stages.
+
 ## 0.125.0
 
 - `update_model` takes `fieldOrder`, every field key once, to reorder a
