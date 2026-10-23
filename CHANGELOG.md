@@ -2,8 +2,8 @@
 
 ## 0.119.0
 
-- Multi-currency (CMS-2143): new `set_product_currency_prices` sets a
-  product's prices and volume breaks in the workspace's additional
+- Multi-currency (CMS-2143): new `set_product_currency_prices` (confirm-gated)
+  replaces a product's prices and volume breaks in the workspace's additional
   currencies; `set_product_variants` takes `currencyPrices` per variant, and
   `get_record` plus every product price write read back `currencyPrices` and
   `variantCurrencyPrices`.
@@ -15,7 +15,10 @@
   `remove_price_list_entries` take a row `currency`; `get_price_list` pages one
   currency's rows (`currency`) and returns `overrideCountByCurrency`.
 - `create_discount` / `update_discount` take `minSubtotalByCurrency`;
-  `get_discount` returns it.
+  `get_discount` returns it. `update_discount` takes `minSubtotal: null` to
+  clear it; a discount currency must be an uppercase ISO code.
+- `update_model` takes `product.currencyField` only as `null` (clears a stored
+  override).
 - `create_manual_order` takes `currency`.
 - Vendored SDL synced from production.
 - `@cmssy/ai-tools` 0.93.0, `@cmssy/types` 0.70.0.
