@@ -110,6 +110,33 @@ describe("prices per currency (CMS-2143)", () => {
     expect(out).toEqual(answer);
   });
 
+  it("sends variant prices per currency in the same input, and no variants key when omitted", async () => {
+    const answer = { id: "r-1", priceTiers: [], currencyPrices: [] };
+    const { client, sent } = clientAnswering([
+      { product: { setCurrencyPrices: answer } },
+      { product: { setCurrencyPrices: answer } },
+    ]);
+    const ops = createMcpWorkspaceOps(client).products;
+    const variants = [
+      {
+        variantKey: '[["size","M"]]',
+        prices: [{ currency: "EUR", price: 4500 }],
+      },
+      { variantKey: '[["size","L"]]', prices: [] },
+    ];
+
+    await ops.setCurrencyPrices("r-1", [], variants);
+    await ops.setCurrencyPrices("r-1", []);
+
+    expect(sent[0]!.variables).toEqual({
+      input: { recordId: "r-1", prices: [], variants },
+    });
+    expect(Object.keys(sent[1]!.variables.input as object)).toEqual([
+      "recordId",
+      "prices",
+    ]);
+  });
+
   it("get_record maps the prices per currency, [] when the record has none", async () => {
     const record = {
       id: "r-1",

@@ -1405,6 +1405,7 @@ export const ORDERS_QUERY = `
     $search: String
     $pipelineStageId: String
     $queue: OrderQueue
+    $currency: String
     $dateFrom: DateTime
     $dateTo: DateTime
     $skip: Int
@@ -1421,6 +1422,7 @@ export const ORDERS_QUERY = `
         search: $search
         pipelineStageId: $pipelineStageId
         queue: $queue
+        currency: $currency
         dateFrom: $dateFrom
         dateTo: $dateTo
         skip: $skip
