@@ -996,10 +996,9 @@ const MODEL_DEFINITION_FRAGMENT = `
     priceField
     inventoryField
     nameField
-    currencyField
     imageField
     taxRateField
-    roles { name price currency image sku taxRate }
+    roles { name price image sku taxRate }
   }
   auth {
     enabled

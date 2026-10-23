@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.121.0
+
+- Retired per-record currency (CMS-2138): model reads no longer select
+  `product.currencyField` or `product.roles.currency` (deprecated by the API,
+  always `null` / `"currency"`), and `update_model` / `create_model` no longer
+  take `product.currencyField` - a `null` sent by an older caller is dropped
+  instead of forwarded.
+- `@cmssy/ai-tools` 0.95.0, `@cmssy/types` 0.71.0.
+
 ## 0.120.0
 
 - Variant prices per currency (CMS-2143): `set_product_currency_prices` takes
