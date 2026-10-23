@@ -129,7 +129,16 @@ type AdminDiscount {
   endsAt: DateTime
   id: String!
   maxUses: Int
+
+  """
+  Minimum cart subtotal in minor units for carts in the default currency (for a fixed code: in its own currency). On a code with per-currency minimums, null means the code does not apply to default-currency carts and 0 means it applies with no minimum.
+  """
   minSubtotal: Int
+
+  """
+  Minimums for carts in additional currencies (percentage and free-shipping codes). A code with any minimum applies only in the currencies it names; a minimum in a disabled currency keeps the code from applying anywhere else.
+  """
+  minSubtotalByCurrency: [CurrencyAmount!]!
   startsAt: DateTime
   type: String!
   updatedAt: DateTime!
@@ -339,6 +348,7 @@ enum AuditLogAction {
   PAGE_VERSION_RESTORED
   PRODUCT_BULK_DELETED
   PRODUCT_BULK_UPDATED
+  PRODUCT_CURRENCY_PRICES_SET
   PRODUCT_TIERS_SET
   PRODUCT_VARIANTS_SET
   RECORDS_IMPORTED
@@ -648,6 +658,8 @@ type BuyerPrice {
   """
   basePrice: Int!
   basePriceAmount: TaxedAmount!
+
+  """Channel's currency, else the product's."""
   currency: String!
   displayMode: PriceDisplayMode!
 
@@ -700,6 +712,7 @@ type BuyerPrice {
 }
 
 type BuyerPricePage {
+  currency: String
   displayMode: PriceDisplayMode!
   hasMore: Boolean!
   items: [BuyerPrice!]!
@@ -817,6 +830,11 @@ type CartAppliedDiscount {
 
 """Per-workspace cart configuration (admin surface)"""
 type CartConfig {
+  """
+  Other currencies the workspace sells in, through sales channels. The default currency is locked while any exist.
+  """
+  additionalCurrencies: [String!]!
+
   """Close an order by itself once it is paid and fulfilled (default on)."""
   autoCloseOrders: Boolean!
 
@@ -861,6 +879,10 @@ type CartConfig {
 }
 
 input CartConfigInput {
+  """
+  Replaces the list; at most 9. Removing one a sales channel sells in is refused with CONFLICT.
+  """
+  additionalCurrencies: [String!]
   autoCloseOrders: Boolean
   companyTaxRounding: TaxRoundingMethod
   defaultCurrency: String
@@ -914,7 +936,7 @@ type CartItem {
   notes: String
 
   """
-  True when currentPrice differs from unitPrice. Frontend should show a 'price updated' badge.
+  True when currentPrice differs from unitPrice. Cart reads re-price lines, so this stays true only for a line in another currency. Checkout refuses with CART_REPRICED when its own read changed a price.
   """
   priceMismatch: Boolean!
   quantity: Int!
@@ -1075,6 +1097,11 @@ input CheckoutInput {
   """Buyer's message for this order (distinct from admin notes)"""
   customerNote: String
 
+  """
+  The totalGross (minor units) the buyer was shown. If checkout computes another total it fails with CART_REPRICED and writes nothing.
+  """
+  expectedTotal: Int
+
   """Buyer's purchase-order reference, frozen on the order"""
   poNumber: String
   shippingAddress: ShippingAddressInput
@@ -1111,6 +1138,11 @@ input CreateDiscountInput {
   endsAt: DateTime
   maxUses: Int
   minSubtotal: Float
+
+  """
+  Minimums for carts in additional currencies. Not allowed on fixed codes.
+  """
+  minSubtotalByCurrency: [CurrencyAmountInput!]
   startsAt: DateTime
   type: String!
   value: Float!
@@ -1145,6 +1177,10 @@ input CreateFormInput {
 }
 
 input CreateManualOrderInput {
+  """
+  The order's currency: the default currency (when omitted) or one of the workspace's additional currencies. Product lines are priced in it - a product with no price in it is refused with NO_PRICE_IN_CURRENCY - and custom line prices are minor units of it.
+  """
+  currency: String
   customerEmail: String!
   customerId: ID
   items: [ManualOrderItemInput!]!
@@ -1228,6 +1264,10 @@ input CreateReturnInput {
 }
 
 input CreateSalesChannelInput {
+  """
+  The default currency (or null) or one of the workspace's additional currencies.
+  """
+  currency: String
   displayMode: PriceDisplayMode
 
   """
@@ -1280,6 +1320,41 @@ input CreateWorkspaceRoleInput {
   isDefault: Boolean = false
   name: String!
   permissions: [String!]
+}
+
+"""An amount in minor units of the named currency."""
+type CurrencyAmount {
+  amount: Int!
+  currency: String!
+}
+
+input CurrencyAmountInput {
+  amount: Int!
+  currency: String!
+}
+
+"""
+A price stamped with an additional currency, in its minor units. Never converted from another currency.
+"""
+type CurrencyPrice {
+  currency: String!
+
+  """
+  False while the currency is not an additional currency: the amount is kept but prices nothing.
+  """
+  enabled: Boolean!
+
+  """Null on a record-level item that only carries tiers for the variants."""
+  price: Int
+  tiers: [PriceTier!]!
+}
+
+input CurrencyPriceInput {
+  currency: String!
+
+  """Minor units of the currency; null keeps only tiers for the variants."""
+  price: Int
+  tiers: [PriceTierInput!]
 }
 
 """
@@ -2527,6 +2602,9 @@ type ModelProductConfig {
 Commerce capability PATCH: omitted keys keep their stored values. nameField/currencyField/imageField/taxRateField are overrides - null clears one so the resolved default applies again; skuField/priceField/inventoryField always hold a key. Every role is graded against the key it RESOLVES to, cleared or not: that field must exist and must be of a type the role can read - a number for priceField/inventoryField, a string-valued type for nameField/currencyField/skuField/taxRateField (and currencyField/skuField/taxRateField may not name a translatable field: something reads each of those three without resolving a locale), media, a list of media, text or url for imageField. A role resolving to nothing is refused only where the reader cannot do without it: nameField always, priceField while variantAxes is empty.
 """
 input ModelProductConfigInput {
+  """
+  Retired (CMS-2140): only null is accepted, which clears a stored value. Set prices per currency instead.
+  """
   currencyField: String
   enabled: Boolean
   imageField: String
@@ -2546,6 +2624,11 @@ type ModelQueries {
 type ModelRecord {
   createdAt: DateTime!
   createdBy: String
+
+  """
+  Prices in additional currencies. The price is read only while the product has no variants; tiers also price variants without their own.
+  """
+  currencyPrices: [CurrencyPrice!]!
   data: JSON!
   id: String!
   modelId: String!
@@ -2582,6 +2665,11 @@ type ModelRecord {
   taxRoundingMethod: TaxRoundingMethod
   updatedAt: DateTime!
   updatedBy: String
+
+  """
+  Each variant's prices in additional currencies, in stored variant order.
+  """
+  variantCurrencyPrices: [VariantCurrencyPrices!]!
   variants: [ProductVariant!]!
 
   """ISO country of vatId, read from its prefix."""
@@ -2646,7 +2734,6 @@ type Mutation {
   salesChannel: SalesChannelMutations!
   siteConfig: SiteConfigMutations!
   siteMember: SiteMemberMutations!
-  user: UserMutations!
   viewer: ViewerMutations!
   webhook: WebhookMutations!
   workspace: WorkspaceMutations!
@@ -2792,6 +2879,10 @@ type Order {
   Capability token for the public confirmation page, returned ONLY in the response to the checkout that minted it. Every later read gets null - the order stores just the hash.
   """
   accessToken: String
+
+  """
+  Minor units of the order's currency - payments and refunds carry no currency of their own.
+  """
   amountPaid: Int!
 
   """
@@ -2891,6 +2982,10 @@ type Order {
   priceListSource: PriceListSource
   pricesIncludeTax: Boolean!
   pricingChain: OrderPricingChain
+
+  """
+  Minor units of the order's currency - payments and refunds carry no currency of their own.
+  """
   refundedAmount: Int!
 
   """
@@ -3204,6 +3299,9 @@ type OrderMutations {
 }
 
 type OrderPayment {
+  """
+  Minor units of the order's currency - payments and refunds carry no currency of their own.
+  """
   amount: Int!
   at: DateTime!
   provider: String
@@ -3300,6 +3398,10 @@ type OrderReturn {
   number: Int!
   origin: ReturnOrigin!
   receivedAt: DateTime
+
+  """
+  Minor units of the order's currency - payments and refunds carry no currency of their own.
+  """
   refundedAmount: Int!
   refunds: [OrderReturnRefund!]!
   requestedAt: DateTime!
@@ -3337,6 +3439,9 @@ type OrderReturnLine {
 }
 
 type OrderReturnRefund {
+  """
+  Minor units of the order's currency - payments and refunds carry no currency of their own.
+  """
   amount: Int!
   at: DateTime!
   reference: String!
@@ -3957,8 +4062,11 @@ type PriceList {
   id: ID!
   name: String!
 
-  """Fixed prices the list holds."""
+  """Fixed prices the list holds in the default currency."""
   overrideCount: Int!
+
+  """Fixed prices the list holds, per currency."""
+  overrideCountByCurrency: [PriceListCurrencyCount!]!
 
   """
   Percent taken off the catalogue price of every product the list has no fixed price for, -1000 to 99.99. Negative is a markup: -10 charges 10% above the catalogue.
@@ -3999,12 +4107,17 @@ type PriceListAssigneePage {
   nextCursor: String
 }
 
+type PriceListCurrencyCount {
+  count: Int!
+  currency: String!
+}
+
 """
 A fixed price a list sets for one product, or one variant of it, in minor units.
 """
 type PriceListEntry {
   """
-  ISO 4217 code the product is priced in, resolved like a cart line snapshot: the record's currency field, else the cart default currency. Null when the product record was removed.
+  ISO 4217 code of this row. A row in an additional currency names it; a default-currency row resolves like a cart line snapshot: the record's currency field, else the cart default currency, null when the product record was removed.
   """
   currency: String
   id: ID!
@@ -4024,6 +4137,11 @@ type PriceListEntry {
 
 input PriceListEntryInput {
   """
+  An additional currency writes that currency's row; omitted or the default currency writes the default row. Each row keeps its own price, tiers and quantity bounds.
+  """
+  currency: String
+
+  """
   Largest quantity a buyer on this list may order; leave it out for no maximum beyond the cart's per-item cap.
   """
   maxQuantity: Int
@@ -4033,7 +4151,7 @@ input PriceListEntryInput {
   """
   minQuantity: Int
 
-  """Unit price in minor units, above 0."""
+  """Unit price in minor units of the row's currency, above 0."""
   price: Int!
   recordId: ID!
   tiers: [PriceTierInput!]
@@ -4045,6 +4163,10 @@ input PriceListEntryInput {
 }
 
 input PriceListEntryKeyInput {
+  """
+  Omitted removes the row of every currency; given removes that currency's row only.
+  """
+  currency: String
   recordId: ID!
   variantKey: String
 }
@@ -4093,7 +4215,15 @@ type PriceListQueries {
   assignees(after: String, first: Int, priceListId: ID!): PriceListAssigneePage!
 
   """The list's fixed prices, oldest first, at most 200 per page."""
-  entries(after: String, first: Int, priceListId: ID!, recordId: ID): PriceListEntryPage!
+  entries(
+    after: String
+
+    """The currency whose rows to page; omitted pages the default currency's."""
+    currency: String
+    first: Int
+    priceListId: ID!
+    recordId: ID
+  ): PriceListEntryPage!
   get(id: ID!): PriceList
 
   """
@@ -4173,8 +4303,15 @@ enum ProductBulkDeleteSkipReason {
 }
 
 input ProductBulkPatchInput {
+  """
+  Major units of the default currency; prices per currency are left as they are.
+  """
   adjustPrice: Float
   adjustStock: Int
+
+  """
+  Major units of the default currency; prices per currency are left as they are.
+  """
   setPrice: Float
   setStock: Int
   status: String
@@ -4232,6 +4369,11 @@ type ProductMutations {
     selection: ProductBulkSelectionInput!
   ): Int!
 
+  """
+  Replace a product's record-level prices in additional currencies (CMS-2140).
+  """
+  setCurrencyPrices(input: SetProductCurrencyPricesInput!): ModelRecord!
+
   """Replace a product's record-level volume price breaks (CMS-910)."""
   setTiers(input: SetProductTiersInput!): ModelRecord!
   setVariants(input: SetProductVariantsInput!): ModelRecord!
@@ -4276,6 +4418,10 @@ type ProductVariant {
 }
 
 input ProductVariantInput {
+  """
+  Prices in additional currencies. Omit to keep the variant's; send [] to clear them.
+  """
+  currencyPrices: [VariantCurrencyPriceInput!]
   inventory: Int
   price: Int!
   selections: JSON!
@@ -4437,6 +4583,7 @@ type PublicBlockData {
 
 """Per-workspace cart configuration (public surface, no server-side TTLs)"""
 type PublicCartConfig {
+  additionalCurrencies: [String!]!
   defaultCurrency: String!
   defaultTaxRateId: String
   enableQuoteRequests: Boolean!
@@ -4851,6 +4998,8 @@ type PublicPriceRange {
 }
 
 type PublicPriceResult {
+  """Null when none or mixed."""
+  currency: String
   displayMode: PriceDisplayMode!
   items: [PublicPricedRecord!]!
   nextChangeAt: DateTime
@@ -4858,11 +5007,14 @@ type PublicPriceResult {
 }
 
 type PublicPricedRecord {
+  """Null when withheld or not sold in the channel's currency."""
   price: BuyerPrice
   record: PublicModelRecord!
 }
 
 type PublicPricedRecordPage {
+  """Null when none or mixed."""
+  currency: String
   displayMode: PriceDisplayMode!
   hasMore: Boolean!
   items: [PublicPricedRecord!]!
@@ -5295,6 +5447,11 @@ type SalesChannel {
   createdAt: DateTime!
 
   """
+  The currency the channel sells in: the workspace default currency unless the channel names one of its additional currencies.
+  """
+  currency: String!
+
+  """
   Net or gross prices for visitors and customers without a company; a company buyer keeps their company's mode.
   """
   displayMode: PriceDisplayMode!
@@ -5329,7 +5486,7 @@ type SalesChannelMutations {
   delete(id: ID!): Boolean!
 
   """
-  Rename the channel or change its display mode or price access. The key cannot change.
+  Rename the channel or change its display mode, price access or currency. The key cannot change.
   """
   update(id: ID!, input: UpdateSalesChannelInput!): SalesChannel!
 }
@@ -5393,6 +5550,14 @@ enum SeoSuggestionType {
 input SetOrderPipelineStageInput {
   orderId: ID!
   stageId: String!
+}
+
+input SetProductCurrencyPricesInput {
+  """
+  Replaces the record-level list; [] clears it. Each currency must be an additional currency.
+  """
+  prices: [CurrencyPriceInput!]!
+  recordId: ID!
 }
 
 input SetProductTiersInput {
@@ -5503,6 +5668,9 @@ type ShippingMethod {
 type ShippingMethodConfig {
   """ISO 3166-1 alpha-2 codes the method ships to; empty means everywhere."""
   countries: [String!]!
+
+  """Amounts per additional currency."""
+  currencyPrices: [ShippingMethodCurrencyPrice!]!
   enabled: Boolean!
   etaLabel: String
 
@@ -5526,12 +5694,33 @@ type ShippingMethodConfig {
   taxRateId: String
 }
 
+type ShippingMethodCurrencyPrice {
+  currency: String!
+  freeAbove: Int
+  maxSubtotal: Int
+  minSubtotal: Int
+  price: Int!
+}
+
+input ShippingMethodCurrencyPriceInput {
+  currency: String!
+  freeAbove: Int
+  maxSubtotal: Int
+  minSubtotal: Int
+  price: Int!
+}
+
 """
 Shipping option (CMS-912). The full list is replaced wholesale on update. `price` is in minor units; `taxRateId` must reference a configured tax rate, or be null for untaxed shipping.
 """
 input ShippingMethodInput {
   """ISO 3166-1 alpha-2 codes; omit or pass [] to ship everywhere."""
   countries: [String!]
+
+  """
+  Price and bounds per additional currency. Omit to keep the stored ones; send [] to clear them.
+  """
+  currencyPrices: [ShippingMethodCurrencyPriceInput!]
   enabled: Boolean
   etaLabel: String
   freeAbove: Int
@@ -5861,6 +6050,11 @@ input UpdateDiscountInput {
   endsAt: DateTime
   maxUses: Int
   minSubtotal: Float
+
+  """
+  Omitted keeps the stored minimums, a list replaces them, [] clears them. Changing a code to fixed requires [] when it has any.
+  """
+  minSubtotalByCurrency: [CurrencyAmountInput!]
   startsAt: DateTime
   type: String
   value: Float
@@ -6055,6 +6249,10 @@ input UpdateReturnTrackingInput {
 }
 
 input UpdateSalesChannelInput {
+  """
+  Omitted keeps it; null or the default currency sells in the default currency. A change abandons the channel's open carts.
+  """
+  currency: String
   displayMode: PriceDisplayMode
   name: String
   priceAccess: ChannelPriceAccess
@@ -6095,12 +6293,6 @@ input UpdateSiteConfigInput {
   previewUrl: String
   publicSiteUrl: String
   siteName: JSON
-}
-
-input UpdateUserInput {
-  profile: UserProfileInput
-  roleId: String
-  username: String
 }
 
 input UpdateWebhookEndpointInput {
@@ -6221,11 +6413,6 @@ type UserAuthResponse {
   success: Boolean!
 }
 
-type UserMutations {
-  delete(id: ID!): DeletionResult!
-  update(id: ID!, input: UpdateUserInput!): User!
-}
-
 type UserProfile {
   avatarUrl: String
   displayName: String
@@ -6233,13 +6420,6 @@ type UserProfile {
   lastName: String
   phone: String
   preferredLocale: String
-}
-
-input UserProfileInput {
-  displayName: String
-  firstName: String
-  lastName: String
-  phone: String
 }
 
 type UserQueries {
@@ -6255,6 +6435,21 @@ type ValidationRules {
   minValue: Int
   optionsRequired: Boolean!
   pattern: String
+}
+
+input VariantCurrencyPriceInput {
+  currency: String!
+
+  """Minor units of the currency."""
+  price: Int!
+
+  """Empty means the record's tiers in this currency price the variant."""
+  tiers: [PriceTierInput!]
+}
+
+type VariantCurrencyPrices {
+  currencyPrices: [CurrencyPrice!]!
+  variantKey: String!
 }
 
 type ViewerMutations {

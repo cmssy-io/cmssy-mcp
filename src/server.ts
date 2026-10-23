@@ -91,6 +91,7 @@ import {
   bulkDeleteProductsTool,
   setProductTiersTool,
   setProductVariantsTool,
+  setProductCurrencyPricesTool,
   updateCartConfigTool,
   clearCartConfigTool,
   listWebhooksTool,
@@ -294,6 +295,7 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     bulkDeleteProductsTool,
     setProductTiersTool,
     setProductVariantsTool,
+    setProductCurrencyPricesTool,
     updateCartConfigTool,
     clearCartConfigTool,
 
