@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.124.0
+
+- No confirmation step. A destructive tool runs on its first call; the
+  `_confirm` argument and the `needsConfirmation` answer are gone. The
+  MCP client's own tool approval is the check, and every such tool is
+  still annotated `destructiveHint`.
+- Breaking for a host: `ConfirmGate`, `ConfirmStore` and `ConsumeOutcome`
+  are no longer exported, and `resolveWorkspace` returns `{ client }`.
+
 ## 0.123.1
 
 - Optional tool arguments are advertised as optional again on a host

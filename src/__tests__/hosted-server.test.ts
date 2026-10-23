@@ -10,7 +10,6 @@ import {
 import { bindHostedTool } from "../ai-tools-binder.js";
 import { createCmssyApi } from "../graphql-client.js";
 import { createServer } from "../server.js";
-import { ConfirmGate } from "../confirm-gate.js";
 import type { CmssyApi, CmssyClient } from "../graphql-client.js";
 import { connectServer, validationRefusal } from "./mcp-harness.js";
 
@@ -24,19 +23,15 @@ function workspaceClient(label: string): CmssyApi {
   };
 }
 
-function hosted(shared?: ConfirmGate) {
+function hosted() {
   const clients = {
     "acme/shop": workspaceClient("acme/shop"),
     "acme/blog": workspaceClient("acme/blog"),
   } as Record<string, CmssyApi>;
-  const gates = {
-    "acme/shop": shared ?? new ConfirmGate(),
-    "acme/blog": shared ?? new ConfirmGate(),
-  } as Record<string, ConfirmGate>;
   const resolveWorkspace = vi.fn(async (workspace: string) => {
     const client = clients[workspace];
     if (!client) throw new Error(`Workspace ${workspace} is not connected`);
-    return { client, confirm: gates[workspace]! };
+    return { client };
   });
   const listWorkspaces = vi.fn(async () => [
     {
@@ -156,37 +151,20 @@ describe("hosted server (CMS-2095)", () => {
     expect(fetchUrl).toHaveBeenCalledWith("http://169.254.169.254/x");
   });
 
-  it("keeps confirmations per workspace: a ref issued in one workspace does not run the call in another", async () => {
+  it("runs a destructive tool at once, in the workspace the call named", async () => {
     const { server, clients } = hosted();
     const client = await connectServer(server);
-    const args = { pageId: "6abd61e1a51c17ea3525336a" };
 
-    const prompt = JSON.parse(
-      text(
-        await client.callTool({
-          name: "delete_page",
-          arguments: { workspace: "acme/shop", ...args },
-        }),
-      ),
-    ) as { needsConfirmation: boolean; ref: string };
-    expect(prompt.needsConfirmation).toBe(true);
-
-    const replayed = JSON.parse(
-      text(
-        await client.callTool({
-          name: "delete_page",
-          arguments: { workspace: "acme/blog", ...args, _confirm: prompt.ref },
-        }),
-      ),
-    ) as { needsConfirmation: boolean; refusedBecause: string };
-    expect(replayed.refusedBecause).toBe("unknown-ref");
-    expect(clients["acme/blog"]!.query).not.toHaveBeenCalled();
-
-    const approved = await client.callTool({
+    const result = await client.callTool({
       name: "delete_page",
-      arguments: { workspace: "acme/shop", ...args, _confirm: prompt.ref },
+      arguments: { workspace: "acme/shop", pageId: "6abd61e1a51c17ea3525336a" },
     });
-    expect(text(approved)).toContain("queried acme/shop");
+
+    expect(
+      text(result),
+      "delete_page answered without reaching the workspace client - a confirmation step is back in the way",
+    ).toContain("queried acme/shop");
+    expect(clients["acme/blog"]!.query).not.toHaveBeenCalled();
   });
 
   it("binds update_region_settings to the resolved workspace's client", async () => {
@@ -223,33 +201,6 @@ describe("hosted server (CMS-2095)", () => {
     );
   });
 
-  it("binds a confirmation to its workspace even when the host shares one store", async () => {
-    const { server, clients } = hosted(new ConfirmGate());
-    const client = await connectServer(server);
-    const args = { pageId: "6abd61e1a51c17ea3525336a" };
-
-    const prompt = JSON.parse(
-      text(
-        await client.callTool({
-          name: "delete_page",
-          arguments: { workspace: "acme/shop", ...args },
-        }),
-      ),
-    ) as { ref: string; summary: string };
-    expect(prompt.summary).toContain("acme/shop");
-
-    const replayed = JSON.parse(
-      text(
-        await client.callTool({
-          name: "delete_page",
-          arguments: { workspace: "acme/blog", ...args, _confirm: prompt.ref },
-        }),
-      ),
-    ) as { refusedBecause: string };
-    expect(replayed.refusedBecause).toBe("args-changed");
-    expect(clients["acme/blog"]!.query).not.toHaveBeenCalled();
-  });
-
   it("enforces a tool's cross-field rule on the hosted path too", async () => {
     const { server, resolveWorkspace } = hosted();
     const client = await connectServer(server);
@@ -276,12 +227,11 @@ describe("bindHostedTool (CMS-2095)", () => {
     } as AiTool;
   }
 
-  async function connectEcho(tool: AiTool, confirm = new ConfirmGate()) {
+  async function connectEcho(tool: AiTool) {
     const server = new McpServer({ name: "test", version: "0.0.0" });
     bindHostedTool(server, tool, async () => ({
       tool,
       ops: {} as WorkspaceOps,
-      confirm,
     }));
     return connectServer(server);
   }
@@ -297,30 +247,22 @@ describe("bindHostedTool (CMS-2095)", () => {
     expect(JSON.parse(text(result))).toStrictEqual({ value: "x" });
   });
 
-  it("awaits an asynchronous confirmation store", async () => {
-    const gate = new ConfirmGate();
-    const asyncStore = {
-      request: async (tool: string, hash: string) => gate.request(tool, hash),
-      consume: async (ref: string, tool: string, hash: string) =>
-        gate.consume(ref, tool, hash),
-    };
-    const client = await connectEcho(echoTool(true), asyncStore as never);
+  it("runs a destructive tool on its first call and advertises no confirmation argument", async () => {
+    const client = await connectEcho(echoTool(true));
 
-    const prompt = JSON.parse(
-      text(
-        await client.callTool({
-          name: "echo_input",
-          arguments: { workspace: "acme/shop", value: "x" },
-        }),
-      ),
-    ) as { ref: string };
-    expect(prompt.ref).toMatch(/^[0-9a-f]{8}$/);
+    const listed = (await client.listTools()).tools.find(
+      (t) => t.name === "echo_input",
+    )!;
+    expect(Object.keys(listed.inputSchema.properties ?? {}).sort()).toEqual([
+      "value",
+      "workspace",
+    ]);
 
-    const approved = await client.callTool({
+    const result = await client.callTool({
       name: "echo_input",
-      arguments: { workspace: "acme/shop", value: "x", _confirm: prompt.ref },
+      arguments: { workspace: "acme/shop", value: "x" },
     });
-    expect(JSON.parse(text(approved))).toStrictEqual({ value: "x" });
+    expect(JSON.parse(text(result))).toStrictEqual({ value: "x" });
   });
 });
 

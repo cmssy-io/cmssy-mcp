@@ -12,10 +12,5 @@ export {
   type CmssyApi,
   type GraphqlExecute,
 } from "./graphql-client.js";
-export {
-  ConfirmGate,
-  type ConfirmStore,
-  type ConsumeOutcome,
-} from "./confirm-gate.js";
 export { WORKSPACE_ARG } from "./ai-tools-binder.js";
 export type { FetchUrl } from "./media-upload.js";
