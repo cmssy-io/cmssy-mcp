@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@cmssy/ai-tools':
-        specifier: 0.94.0
-        version: 0.94.0(zod@4.4.3)
+        specifier: 0.95.0
+        version: 0.95.0(zod@4.4.3)
       '@cmssy/types':
-        specifier: 0.70.0
-        version: 0.70.0
+        specifier: 0.71.0
+        version: 0.71.0
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
@@ -39,13 +39,13 @@ importers:
 
 packages:
 
-  '@cmssy/ai-tools@0.94.0':
-    resolution: {integrity: sha512-7TAzQGx+7hn3acIqUg+w790B3wQQKoLBgnlqII9t8hAGNRAqRweK/NtqtbgtWY8u4Ls1OAEUa9EjRll7lD1lBg==}
+  '@cmssy/ai-tools@0.95.0':
+    resolution: {integrity: sha512-B6UkLeFpd5k1cNbQtS5F/SyJukfk+tTa8N5dT67MshMRnn45LnqMDCHVucJYf6IEJrvMYy3RkmxyTB/K7GUHxQ==}
     peerDependencies:
       zod: ^4
 
-  '@cmssy/types@0.70.0':
-    resolution: {integrity: sha512-AaGNePszGpl07zfpqMu8cvqda+ywjrQAaQgrG3Z4FZq8+dEPMdrU+e5xihTxMHqY0Bvkkw9M3mbVQR/YTyTNLw==}
+  '@cmssy/types@0.71.0':
+    resolution: {integrity: sha512-vkW+mxUl86pC0kSrc2Ve+Mx6ti1rLefswFdDPka5BtvGu3hHsF2IWhCea8zAIfO/RjZFpfKfPEY5Ku2jRtY3sA==}
 
   '@esbuild/aix-ppc64@0.27.3':
     resolution: {integrity: sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg==}
@@ -978,12 +978,12 @@ packages:
 
 snapshots:
 
-  '@cmssy/ai-tools@0.94.0(zod@4.4.3)':
+  '@cmssy/ai-tools@0.95.0(zod@4.4.3)':
     dependencies:
-      '@cmssy/types': 0.70.0
+      '@cmssy/types': 0.71.0
       zod: 4.4.3
 
-  '@cmssy/types@0.70.0': {}
+  '@cmssy/types@0.71.0': {}
 
   '@esbuild/aix-ppc64@0.27.3':
     optional: true

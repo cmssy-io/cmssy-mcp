@@ -57,13 +57,11 @@ const product = {
   priceField: "price",
   inventoryField: "inventory",
   nameField: "title",
-  currencyField: null,
   imageField: null,
   taxRateField: null,
   roles: {
     name: "title",
     price: "price",
-    currency: "currency",
     image: "image",
     sku: "sku",
     taxRate: "taxRate",
@@ -118,11 +116,12 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
       ],
     );
     const productFields = selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "product");
-    for (const f of ["nameField", "currencyField", "imageField", "taxRateField", "roles"]) {
+    for (const f of ["nameField", "imageField", "taxRateField", "roles"]) {
       expect(productFields.has(f), f).toBe(true);
     }
+    expect(productFields.has("currencyField")).toBe(false);
     expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "roles")].sort()).toEqual(
-      ["currency", "image", "name", "price", "sku", "taxRate"],
+      ["image", "name", "price", "sku", "taxRate"],
     );
   });
 
