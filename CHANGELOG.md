@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.123.1
+
+- Optional tool arguments are advertised as optional again on a host
+  that resolves zod 4.3.x. Each argument's JSON coercion now sits inside
+  its `optional`/`default` wrapper instead of around it, so its
+  optionality no longer depends on how the zod version reads a pipe. On
+  zod 4.3.6 the hosted server listed every argument as required, and
+  `update_model` could not be called without removing a field.
+
 ## 0.123.0
 
 - `get_page` returns the page `version`, the value `patch_block_content`

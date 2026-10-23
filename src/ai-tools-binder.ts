@@ -85,8 +85,16 @@ export function boundDeclarations(server: McpServer): Map<string, AiTool> {
 }
 
 function coerceJson(schema: z.ZodTypeAny): z.ZodTypeAny {
-  const wrapped = z.preprocess(jsonPreprocess, schema);
-  return schema.safeParse(undefined).success ? wrapped : wrapped.nonoptional();
+  const meta = z.globalRegistry.get(schema);
+  const coerced =
+    schema instanceof z.ZodDefault
+      ? coerceJson(schema.unwrap() as z.ZodTypeAny).default(
+          schema.def.defaultValue,
+        )
+      : schema instanceof z.ZodOptional
+        ? coerceJson(schema.unwrap() as z.ZodTypeAny).optional()
+        : z.preprocess(jsonPreprocess, schema).nonoptional();
+  return meta ? coerced.meta(meta) : coerced;
 }
 
 export function toolInputSchema(
