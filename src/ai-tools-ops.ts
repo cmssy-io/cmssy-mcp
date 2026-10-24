@@ -845,6 +845,8 @@ export function createMcpWorkspaceOps(
           mutationInput.uniqueFields = input.uniqueFields;
         if (input.deliveryAccess !== undefined)
           mutationInput.deliveryAccess = input.deliveryAccess;
+        if (input.urlPattern !== undefined)
+          mutationInput.urlPattern = input.urlPattern;
         const res = await client.query<{
           model: {
             create: {
@@ -882,6 +884,7 @@ export function createMcpWorkspaceOps(
           "company",
           "uniqueFields",
           "deliveryAccess",
+          "urlPattern",
         ] as const) {
           if (patch[key] !== undefined) input[key] = patch[key];
         }
