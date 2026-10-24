@@ -1,5 +1,12 @@
 # @cmssy/mcp-server
 
+## 0.127.0
+
+- `get_order` returns `refundedAmount`, `refundedAt` and `refundReferences`,
+  so an agent can tell how much of an order was refunded and how much is
+  left (`amountPaid - refundedAmount`). `balanceDue` is unchanged
+  (@cmssy/ai-tools 0.99.0).
+
 ## 0.126.0
 
 - `get_order_pipeline` no longer reads `isTerminal`; the backend drops the

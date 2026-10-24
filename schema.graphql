@@ -3016,9 +3016,17 @@ type Order {
   pricingChain: OrderPricingChain
 
   """
+  The refund references recorded on the order, oldest first. A refund sent with one of them changes nothing.
+  """
+  refundReferences: [String!]!
+
+  """
   Minor units of the order's currency - payments and refunds carry no currency of their own.
   """
   refundedAmount: Int!
+
+  """When the latest refund was recorded; null when none."""
+  refundedAt: DateTime
 
   """
   VAT taken out of gross-stored prices for a zero-rated (reverse_charge, exempt or export) order, in minor units; 0 otherwise. total = subtotal - discount + shippingTotal - removedTax.

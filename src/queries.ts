@@ -1289,6 +1289,8 @@ const ORDER_FRAGMENT = `
   amountPaid
   balanceDue
   refundedAmount
+  refundedAt
+  refundReferences
   paymentProvider
   paymentReference
   paidAt
