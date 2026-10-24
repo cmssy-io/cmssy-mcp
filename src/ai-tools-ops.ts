@@ -2192,6 +2192,9 @@ export function createMcpWorkspaceOps(
               shippingAddress?: unknown;
               amountPaid?: number | null;
               balanceDue?: number | null;
+              refundedAmount?: number | null;
+              refundedAt?: string | null;
+              refundReferences?: string[] | null;
               items?: unknown;
               payments?: unknown;
               shipments?: OrderShipment[] | null;
@@ -2240,6 +2243,9 @@ export function createMcpWorkspaceOps(
           shippingAddress: o.shippingAddress ?? null,
           amountPaid: o.amountPaid ?? null,
           balanceDue: o.balanceDue ?? null,
+          refundedAmount: o.refundedAmount ?? null,
+          refundedAt: o.refundedAt ?? null,
+          refundReferences: o.refundReferences ?? [],
           items: o.items ?? null,
           payments: o.payments ?? null,
           shipments: o.shipments ?? [],

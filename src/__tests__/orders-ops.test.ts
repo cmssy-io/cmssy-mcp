@@ -169,6 +169,44 @@ describe("order price list (CMS-2111)", () => {
   });
 });
 
+describe("order refunds", () => {
+  it("get selects and maps how much was refunded, when and under which references", async () => {
+    const fields = selectedUnder(ORDER_BY_ID_QUERY, "get");
+    for (const field of ["refundedAmount", "refundedAt", "refundReferences"]) {
+      expect(fields.has(field), `get_order does not select ${field}`).toBe(true);
+    }
+    const { client } = clientAnswering([
+      {
+        order: {
+          get: {
+            ...rawSummary,
+            amountPaid: 602700,
+            balanceDue: 0,
+            refundedAmount: 602700,
+            refundedAt: "2026-10-24T12:13:14.000Z",
+            refundReferences: ["rf-1", "rf-2"],
+          },
+        },
+      },
+      { order: { get: { ...rawSummary } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.orders.get("o-1")).toMatchObject({
+      amountPaid: 602700,
+      balanceDue: 0,
+      refundedAmount: 602700,
+      refundedAt: "2026-10-24T12:13:14.000Z",
+      refundReferences: ["rf-1", "rf-2"],
+    });
+    expect(await ops.orders.get("o-1")).toMatchObject({
+      refundedAmount: null,
+      refundedAt: null,
+      refundReferences: [],
+    });
+  });
+});
+
 describe("order sales channel and pricing chain (CMS-2123)", () => {
   const REF = ["deleted", "id", "name"];
 
