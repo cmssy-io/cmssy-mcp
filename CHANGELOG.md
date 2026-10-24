@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.128.0
+
+- `create_model` and `update_model` take `urlPattern` - where the model's
+  records live on the storefront, e.g. `/p/{slug}` (null clears it). Record
+  tool descriptions tell the agent to link with a record's `url` and never
+  build a storefront URL itself (@cmssy/ai-tools 0.100.0). The `url` itself
+  and `get_model`'s `urlPattern` follow in the next release, once the
+  backend serving them is in production.
+
 ## 0.127.1
 
 - Tool descriptions for `update_cart_config`, `get_order` and

@@ -79,3 +79,41 @@ describe("models.update deliveryAccess (CMS-1768)", () => {
     expect(input.deliveryAccess).toBe("public");
   });
 });
+
+describe("models urlPattern", () => {
+  it("forwards urlPattern to the create mutation", async () => {
+    const { client, sent } = clientAnswering([
+      {
+        model: {
+          create: { id: "m1", name: "Post", slug: "post", fields: [{}] },
+        },
+      },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.models.create({ name: "Post", fields, urlPattern: "/p/{title}" });
+
+    const input = sent[0]!.variables.input as Record<string, unknown>;
+    expect(input.urlPattern).toBe("/p/{title}");
+  });
+
+  it("forwards a cleared urlPattern to the update mutation as null", async () => {
+    const { client, sent } = clientAnswering([
+      { model: { get: { id: MODEL_ID, name: "Post", fields: [] } } },
+      {
+        model: {
+          update: { id: MODEL_ID, name: "Post", slug: "post", fields: [{}] },
+        },
+      },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.models.update(MODEL_ID, { urlPattern: null });
+
+    const input = sent[sent.length - 1]!.variables.input as Record<
+      string,
+      unknown
+    >;
+    expect(input).toHaveProperty("urlPattern", null);
+  });
+});
