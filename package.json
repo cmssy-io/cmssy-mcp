@@ -38,7 +38,7 @@
   "packageManager": "pnpm@11.1.2",
   "license": "MIT",
   "dependencies": {
-    "@cmssy/ai-tools": "0.100.0",
+    "@cmssy/ai-tools": "0.100.1",
     "@cmssy/types": "0.71.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.3.6"
