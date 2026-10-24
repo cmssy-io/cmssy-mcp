@@ -456,6 +456,7 @@ async function resolveModel(
 
 interface RawModelDefinition {
   id: string;
+  urlPattern?: string | null;
   name: string;
   slug: string;
   description: string | null;
@@ -753,6 +754,7 @@ function toModelDetail(m: RawModelDefinition): ModelDetail {
     auth: m.auth ?? null,
     company: m.company ?? null,
     uniqueFields: m.uniqueFields ?? [],
+    urlPattern: m.urlPattern ?? null,
     fields: toProposedFields(m.fields ?? []),
     updatedAt: m.updatedAt ?? null,
   };
@@ -791,6 +793,7 @@ export function createMcpWorkspaceOps(
                 modelId: string;
                 status?: string | null;
                 published: boolean;
+                publicUrl?: string | null;
                 data?: Record<string, unknown> | null;
                 createdAt?: string | null;
                 updatedAt?: string | null;
@@ -806,6 +809,7 @@ export function createMcpWorkspaceOps(
           limit: options?.limit,
           offset: options?.offset,
           populate: options?.populate,
+          locale: options?.locale,
         });
         return {
           modelId: model.id,
@@ -815,6 +819,7 @@ export function createMcpWorkspaceOps(
             status: r.status ?? null,
             published: r.published,
             data: r.data ?? {},
+            url: r.publicUrl ?? null,
             createdAt: r.createdAt ?? null,
             updatedAt: r.updatedAt ?? null,
           })),
@@ -920,6 +925,7 @@ export function createMcpWorkspaceOps(
               id: string;
               modelId: string;
               data?: Record<string, unknown> | null;
+              publicUrl?: string | null;
             } | null;
           };
         }>(MODEL_RECORD_BY_ID_QUERY, { id: recordId });
@@ -927,12 +933,14 @@ export function createMcpWorkspaceOps(
         const rec = recRes.record.get;
         const model = await resolveModel(client, rec.modelId);
         let currentData: Record<string, unknown> = rec.data ?? {};
+        let currentUrl: string | null = rec.publicUrl ?? null;
         if (status !== undefined) {
           const res = await client.query<{
             record: {
               setStatus: {
                 id: string;
                 data?: Record<string, unknown> | null;
+                publicUrl?: string | null;
               } | null;
             };
           }>(UPDATE_MODEL_RECORD_STATUS_MUTATION, {
@@ -940,6 +948,7 @@ export function createMcpWorkspaceOps(
           });
           if (!res.record.setStatus) return null;
           currentData = res.record.setStatus.data ?? currentData;
+          currentUrl = res.record.setStatus.publicUrl ?? null;
         }
         if (data !== undefined) {
           const res = await client.query<{
@@ -947,6 +956,7 @@ export function createMcpWorkspaceOps(
               patch: {
                 id: string;
                 data?: Record<string, unknown> | null;
+                publicUrl?: string | null;
               } | null;
             };
           }>(PATCH_MODEL_RECORD_MUTATION, {
@@ -954,12 +964,16 @@ export function createMcpWorkspaceOps(
           });
           if (!res.record.patch) return null;
           currentData = res.record.patch.data ?? currentData;
+          currentUrl = res.record.patch.publicUrl ?? null;
         }
         if (published !== undefined) {
           const res = await client.query<{
-            record: { setPublished: { id: string } | null };
+            record: {
+              setPublished: { id: string; publicUrl?: string | null } | null;
+            };
           }>(SET_MODEL_RECORD_PUBLISHED_MUTATION, { id: recordId, published });
           if (!res.record.setPublished) return null;
+          currentUrl = res.record.setPublished.publicUrl ?? null;
         }
         const display = model?.displayField;
         const label =
@@ -971,13 +985,14 @@ export function createMcpWorkspaceOps(
           label,
           modelName: model?.name ?? "Record",
           modelId: rec.modelId,
+          url: currentUrl,
         };
       },
       createRecord: async (modelIdOrSlug, data, published) => {
         const model = await resolveModel(client, modelIdOrSlug);
         if (!model) return null;
         const res = await client.query<{
-          record: { create: { id: string } };
+          record: { create: { id: string; publicUrl?: string | null } };
         }>(CREATE_MODEL_RECORD_MUTATION, {
           input: {
             modelId: model.id,
@@ -995,6 +1010,7 @@ export function createMcpWorkspaceOps(
           label,
           modelName: model.name,
           modelId: model.id,
+          url: res.record.create.publicUrl ?? null,
         };
       },
       getRecord: async (recordId) => {
@@ -1005,6 +1021,7 @@ export function createMcpWorkspaceOps(
               modelId: string;
               status?: string | null;
               published: boolean;
+              publicUrl?: string | null;
               data?: Record<string, unknown> | null;
               currencyPrices?: CurrencyPrice[] | null;
               variantCurrencyPrices?: VariantCurrencyPrices[] | null;
@@ -1024,6 +1041,7 @@ export function createMcpWorkspaceOps(
           ...toCompanyVat(r),
           currencyPrices: r.currencyPrices ?? [],
           variantCurrencyPrices: r.variantCurrencyPrices ?? [],
+          url: r.publicUrl ?? null,
           createdAt: r.createdAt ?? null,
           updatedAt: r.updatedAt ?? null,
         };
@@ -2770,11 +2788,23 @@ export function createMcpWorkspaceOps(
     },
     products: {
       list: async (modelId, filter, limit, offset, sort) => {
-        const res = await client.query<{ product: { list: unknown } }>(
-          PRODUCT_CATALOG_QUERY,
-          { modelId, filter, limit, offset, sort },
-        );
-        return res.product.list;
+        const res = await client.query<{
+          product: {
+            list: Record<string, unknown> & {
+              items: Array<
+                Record<string, unknown> & { publicUrl?: string | null }
+              >;
+            };
+          };
+        }>(PRODUCT_CATALOG_QUERY, { modelId, filter, limit, offset, sort });
+        const list = res.product.list;
+        return {
+          ...list,
+          items: list.items.map(({ publicUrl, ...item }) => ({
+            ...item,
+            url: publicUrl ?? null,
+          })),
+        };
       },
       bulkUpdate: async (modelId, selection, patch) => {
         const res = await client.query<{ product: { bulkUpdate: number } }>(

@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.129.0
+
+- `get_record`, `list_records`, `list_products`, `create_record` and
+  `update_record` return `url`, the record's live storefront link built by
+  the server from the model's `urlPattern` and the site's public site URL
+  (null when there is none). `list_records` now sends its `locale` to the
+  server, for the data and for `url`. `get_model` returns `urlPattern`.
+- `@cmssy/ai-tools` 0.100.1: the record tools also name an undelivered
+  model (`deliveryAccess: none`, or the login model) as a reason `url` is null.
+
 ## 0.128.0
 
 - `create_model` and `update_model` take `urlPattern` - where the model's
