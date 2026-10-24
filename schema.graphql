@@ -35,6 +35,11 @@ type AccountQueries {
     modelSlug: String!
     offset: Int = 0
 
+    """
+    The workspace draft secret. With it, unpublished records are priced too - for previewing a record before it goes live.
+    """
+    previewSecret: String
+
     """Highest price to include, in minor units of the listing's currency."""
     priceMax: Int
 
@@ -55,7 +60,16 @@ type AccountQueries {
   """
   The signed-in member's prices for up to 100 products, one row per item asked; an unknown or hidden product is left out. Read it after the cached, anonymous catalogue has rendered, and never cache the response for another visitor.
   """
-  prices(channel: String, items: [PriceQueryItem!]!, workspaceId: ID!): [BuyerPrice!]!
+  prices(
+    channel: String
+    items: [PriceQueryItem!]!
+
+    """
+    The workspace draft secret. With it, unpublished records are priced too - for previewing a record before it goes live.
+    """
+    previewSecret: String
+    workspaceId: ID!
+  ): [BuyerPrice!]!
 
   """The signed-in member's own account record."""
   profile(workspaceId: ID!): MemberProfile!
@@ -929,7 +943,7 @@ type CartItem {
   addedAt: DateTime!
 
   """
-  Live price from the catalogue AT THIS QUANTITY (tiers applied), or null when the source record was deleted.
+  Live price from the catalogue AT THIS QUANTITY (tiers applied), or null when the source record was deleted or unpublished. An unpublished line cannot change quantity and blocks checkout with extensions.reason PRODUCT_NOT_SOLD and its itemId; remove it.
   """
   currentPrice: Int
   id: String!
@@ -3244,7 +3258,7 @@ type OrderMutations {
   createReturn(input: CreateReturnInput!): Order!
 
   """
-  Add a parcel carrying some or all of the order's items. fulfillmentStatus, deliveryStatus and state are recomputed in the same write.
+  Add a parcel carrying some or all of the order's items. fulfillmentStatus, deliveryStatus and state are recomputed in the same write. A new parcel cannot start canceled or returned_to_sender.
   """
   createShipment(input: CreateShipmentInput!): Order!
 
@@ -3310,7 +3324,7 @@ type OrderMutations {
   updateReturnTracking(input: UpdateReturnTrackingInput!): Order!
 
   """
-  Change a parcel's status or tracking. Sending what is already stored changes nothing and sends no webhook.
+  Change a parcel's status or tracking. Sending what is already stored changes nothing and sends no webhook. A parcel the carrier has (in_transit, out_for_delivery, delivered, exception) only moves between those or to returned_to_sender. returned_to_sender puts the parcel's units back on sale, once; moving it out takes them off sale again and fails when they are no longer available (sold or reserved meanwhile). A returned parcel cannot be canceled.
   """
   updateShipment(input: UpdateShipmentInput!): Order!
   upsertPipeline(input: UpsertOrderPipelineInput!): OrderPipeline!
@@ -5308,6 +5322,9 @@ type RecordQueries {
     offset: Int
     populate: [String!]
     sort: String
+
+    """Only published or only unpublished records. All when omitted."""
+    visibility: RecordVisibility
   ): ModelRecordList!
 
   """
@@ -5341,6 +5358,14 @@ type RecordUsage {
   pageSlug: String!
   position: String!
   version: String!
+}
+
+"""
+Whether a record is served by the delivery API. `unpublished` records are hidden from every public read until published again.
+"""
+enum RecordVisibility {
+  published
+  unpublished
 }
 
 input RefundOrderInput {
