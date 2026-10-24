@@ -1,6 +1,6 @@
 {
   "name": "@cmssy/mcp-server",
-  "version": "0.127.0",
+  "version": "0.127.1",
   "description": "MCP server for Cmssy - hosted headless CMS with native commerce, run by your AI agent",
   "mcpName": "io.github.cmssy-io/cmssy-mcp",
   "homepage": "https://cmssy.com",
@@ -38,7 +38,7 @@
   "packageManager": "pnpm@11.1.2",
   "license": "MIT",
   "dependencies": {
-    "@cmssy/ai-tools": "0.99.0",
+    "@cmssy/ai-tools": "0.99.1",
     "@cmssy/types": "0.71.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.3.6"
