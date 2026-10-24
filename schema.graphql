@@ -547,7 +547,7 @@ type BlockManifestImpact {
 type BlockManifestMutations {
   activate(hash: String!): BlockManifest!
   rollback: BlockManifest!
-  save(allowLossy: Boolean, blocks: JSON!, expectedHash: String, onlyIfAbsent: Boolean, regions: JSON): BlockManifest!
+  save(allowLossy: Boolean, allowRemovals: Boolean, blocks: JSON!, expectedHash: String, onlyIfAbsent: Boolean, regions: JSON): BlockManifest!
 }
 
 type BlockManifestProposal {
@@ -864,7 +864,7 @@ type CartConfig {
   enableSavedCarts: Boolean!
 
   """
-  Legal note frozen on export orders (a seller outside the EU shipping to another country); null uses the default wording.
+  Legal note frozen on export orders (goods shipped out of the EU VAT area, or from a seller outside the EU to another country); null uses the default wording.
   """
   exportNote: String
   loggedInTTLDays: Int!
@@ -886,7 +886,7 @@ type CartConfig {
   reverseChargeNote: String
 
   """
-  ISO country the workspace sells from. Needed for reverse charge: a verified EU VAT id of another member state zero-rates the order. A country outside the EU zero-rates every order shipped to another country as an export.
+  ISO country the workspace sells from. Needed for reverse charge: a verified EU VAT id of another member state zero-rates the order. Goods shipped out of the EU VAT area, or from a country outside the EU to any other country, are zero-rated as an export.
   """
   sellerCountry: String
   sessionTTLDays: Int!
@@ -1068,6 +1068,11 @@ type CatalogItem {
   id: String!
   onHand: Int
 
+  """
+  The record's absolute storefront link: the site's publicSiteUrl plus the model's urlPattern, filled from this record in the given locale (default language when omitted or not enabled). Null when the model has no urlPattern or is not delivered, the site has no publicSiteUrl, the record (or a record it links to) is unpublished, or a token is empty.
+  """
+  publicUrl(locale: String): String
+
   """Whether the delivery API serves this product."""
   published: Boolean!
 
@@ -1244,6 +1249,11 @@ input CreateModelDefinitionInput {
   Keys of top-level text, email, url, phone or number fields whose value must be unique within the model. Replaces the whole list.
   """
   uniqueFields: [String!]
+
+  """
+  Where this model's records live on the storefront, appended to the site's publicSiteUrl, e.g. /p/{slug} or /{locale}/shop/{category.slug}/{slug}. Must start with /. Tokens: {fieldKey} (a visible text, number, date, select or radio field of this model), {relationField.fieldKey} (that field of the record a single relation links to) and {locale}. Null when the model has no storefront page.
+  """
+  urlPattern: String
 }
 
 input CreateModelRecordInput {
@@ -2591,6 +2601,11 @@ type ModelDefinition {
   """
   uniqueFields: [String!]!
   updatedAt: DateTime!
+
+  """
+  Where this model's records live on the storefront, appended to the site's publicSiteUrl, e.g. /p/{slug} or /{locale}/shop/{category.slug}/{slug}. Must start with /. Tokens: {fieldKey} (a visible text, number, date, select or radio field of this model), {relationField.fieldKey} (that field of the record a single relation links to) and {locale}. Null when the model has no storefront page.
+  """
+  urlPattern: String
   workspaceId: String!
 }
 
@@ -2674,6 +2689,11 @@ type ModelRecord {
   Record-level volume breaks. Price a product without variants, and any variant that defines no tiers of its own.
   """
   priceTiers: [PriceTier!]!
+
+  """
+  The record's absolute storefront link: the site's publicSiteUrl plus the model's urlPattern, filled from this record in the given locale (default language when omitted or not enabled). Null when the model has no urlPattern or is not delivered, the site has no publicSiteUrl, the record (or a record it links to) is unpublished, or a token is empty.
+  """
+  publicUrl(locale: String): String
 
   """
   Whether the delivery API serves this record. An unpublished record is served only with the workspace draft secret.
@@ -6265,6 +6285,11 @@ input UpdateModelDefinitionInput {
   Keys of top-level text, email, url, phone or number fields whose value must be unique within the model. Replaces the whole list.
   """
   uniqueFields: [String!]
+
+  """
+  Where this model's records live on the storefront, appended to the site's publicSiteUrl, e.g. /p/{slug} or /{locale}/shop/{category.slug}/{slug}. Must start with /. Tokens: {fieldKey} (a visible text, number, date, select or radio field of this model), {relationField.fieldKey} (that field of the record a single relation links to) and {locale}. Null when the model has no storefront page.
+  """
+  urlPattern: String
 }
 
 input UpdateModelRecordInput {

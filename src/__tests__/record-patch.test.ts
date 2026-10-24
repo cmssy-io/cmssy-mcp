@@ -72,6 +72,7 @@ describe("models.updateRecord (CMS-1840)", () => {
       label: "BRG-2",
       modelName: "Part",
       modelId: MODEL_ID,
+      url: null,
     });
   });
 

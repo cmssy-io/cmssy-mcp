@@ -1010,6 +1010,7 @@ const MODEL_DEFINITION_FRAGMENT = `
   }
   company { enabled }
   uniqueFields
+  urlPattern
   createdAt
   updatedAt
   createdBy
@@ -1070,6 +1071,7 @@ export const MODEL_RECORDS_QUERY = `
     $offset: Int
     $sort: String
     $populate: [String!]
+    $locale: String
   ) {
     record {
       list(
@@ -1079,8 +1081,9 @@ export const MODEL_RECORDS_QUERY = `
         offset: $offset
         sort: $sort
         populate: $populate
+        locale: $locale
       ) {
-        items { ${MODEL_RECORD_FRAGMENT} published }
+        items { ${MODEL_RECORD_FRAGMENT} published publicUrl(locale: $locale) }
         total
         hasMore
       }
@@ -1112,6 +1115,7 @@ export const MODEL_RECORD_BY_ID_QUERY = `
       get(id: $id) {
         ${MODEL_RECORD_FRAGMENT}
         published
+        publicUrl
         ${COMPANY_VAT_FRAGMENT}
         ${PRODUCT_CURRENCY_PRICES_FRAGMENT}
       }
@@ -1164,6 +1168,7 @@ export const CREATE_MODEL_RECORD_MUTATION = `
     record {
       create(input: $input) {
         ${MODEL_RECORD_FRAGMENT}
+        publicUrl
       }
     }
   }
@@ -1174,6 +1179,7 @@ export const PATCH_MODEL_RECORD_MUTATION = `
     record {
       patch(input: $input) {
         ${MODEL_RECORD_FRAGMENT}
+        publicUrl
       }
     }
   }
@@ -1184,6 +1190,7 @@ export const UPDATE_MODEL_RECORD_STATUS_MUTATION = `
     record {
       setStatus(input: $input) {
         ${MODEL_RECORD_FRAGMENT}
+        publicUrl
       }
     }
   }
@@ -1194,6 +1201,7 @@ export const SET_MODEL_RECORD_PUBLISHED_MUTATION = `
     record {
       setPublished(id: $id, published: $published) {
         id
+        publicUrl
       }
     }
   }
@@ -1823,6 +1831,7 @@ export const PRODUCT_CATALOG_QUERY = `
           reserved
           available
           hasVariants
+          publicUrl
           quantityIncrement
           tiers { minQty price }
           variants {
