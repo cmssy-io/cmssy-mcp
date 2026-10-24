@@ -1,5 +1,12 @@
 # @cmssy/mcp-server
 
+## 0.127.1
+
+- Tool descriptions for `update_cart_config`, `get_order` and
+  `set_company_vat_verified` say that goods shipped out of the EU VAT area
+  are zero-rated as an export for an EU seller too, not only for a seller
+  outside the EU (@cmssy/ai-tools 0.99.1).
+
 ## 0.127.0
 
 - `get_order` returns `refundedAmount`, `refundedAt` and `refundReferences`,
