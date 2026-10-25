@@ -37,5 +37,11 @@
         }
       ]
     }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://api.cmssy.io/mcp"
+    }
   ]
 }
