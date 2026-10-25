@@ -1,5 +1,10 @@
 # @cmssy/mcp-server
 
+## 0.129.1
+
+- The MCP registry entry lists the hosted endpoint `https://api.cmssy.io/mcp`
+  (streamable HTTP, browser sign-in) next to the npm package.
+
 ## 0.129.0
 
 - `get_record`, `list_records`, `list_products`, `create_record` and
