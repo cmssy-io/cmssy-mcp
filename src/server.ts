@@ -29,6 +29,8 @@ import {
   takeOverPageLockTool,
   revertToPublishedTool,
   deletePageTool,
+  listTrashedPagesTool,
+  restorePageTool,
   updatePageLayoutTool,
   addBlockToPageTool,
   updateBlockContentTool,
@@ -209,6 +211,8 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     takeOverPageLockTool,
     revertToPublishedTool,
     deletePageTool,
+    listTrashedPagesTool,
+    restorePageTool,
 
     // ─── Layout Tools ──────────────────────────────────────────
 

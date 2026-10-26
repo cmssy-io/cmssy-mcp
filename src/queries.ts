@@ -807,6 +807,33 @@ export const REMOVE_PAGE_MUTATION = `
   }
 `;
 
+export const PAGE_TRASH_QUERY = `
+  query PageTrash {
+    page { trash {
+      id
+      name
+      slug
+      deletedAt
+      deletedById
+      deletedByName
+      descendantCount
+      expiresAt
+    } }
+  }
+`;
+
+export const RESTORE_PAGE_MUTATION = `
+  mutation RestorePage($id: ID!) {
+    page { restore(id: $id) {
+      id
+      name
+      slug
+      parentId
+      published
+    } }
+  }
+`;
+
 export const UPDATE_PAGE_LAYOUT_MUTATION = `
   mutation UpdatePageLayout($input: UpdatePageLayoutInput!) {
     page { updateLayout(input: $input) {

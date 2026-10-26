@@ -19,6 +19,8 @@ import type {
   RecordBulkUpdateResult,
   ModelSummary,
   ProductBulkDeleteResult,
+  PageRestored,
+  TrashedPageSummary,
   ProposedField,
   ProposedFieldOption,
   FieldText,
@@ -111,6 +113,8 @@ import {
   REVERT_CONTENT_TO_PUBLISHED_MUTATION,
   REVERT_LAYOUT_TO_PUBLISHED_MUTATION,
   REMOVE_PAGE_MUTATION,
+  PAGE_TRASH_QUERY,
+  RESTORE_PAGE_MUTATION,
   PATCH_BLOCK_CONTENT_MUTATION,
   SITE_CONFIG_QUERY,
   SITE_DEFAULT_LANGUAGE_QUERY,
@@ -1444,6 +1448,18 @@ export function createMcpWorkspaceOps(
           page: { delete: { deleted: boolean } };
         }>(REMOVE_PAGE_MUTATION, { id: pageId });
         return { deleted: Boolean(res.page.delete.deleted) };
+      },
+      listTrash: async () => {
+        const res = await client.query<{
+          page: { trash: TrashedPageSummary[] };
+        }>(PAGE_TRASH_QUERY);
+        return res.page.trash;
+      },
+      restore: async (trashId) => {
+        const res = await client.query<{
+          page: { restore: PageRestored };
+        }>(RESTORE_PAGE_MUTATION, { id: trashId });
+        return res.page.restore;
       },
       updateLayout: async (pageId, layout) => {
         // Need the version for the guard either way; only pull the full page
