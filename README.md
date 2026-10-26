@@ -123,6 +123,7 @@ already returned a compact ack and don't take `response`.
 | `get_site_config`    | Languages, navigation, site name                                                                                                                  |
 | `get_workspace_info` | Workspace name, plan, limits                                                                                                                      |
 | `list_media`         | Media library listing                                                                                                                             |
+| `list_trashed_pages` | Page trash: deleted groups with who deleted them, subtree size and when each is purged (30 days after deletion)                                  |
 
 ### Write Tools
 
@@ -133,7 +134,8 @@ already returned a compact ack and don't take `response`.
 | `update_page_settings` | Update page metadata and SEO       |
 | `publish_page`         | Publish a page                     |
 | `unpublish_page`       | Unpublish a page                   |
-| `delete_page`          | Delete a page                      |
+| `delete_page`          | Move a page and its subtree to the trash, restorable for 30 days |
+| `restore_page`         | Restore a trashed page group as unpublished drafts |
 | `revert_to_published`  | Discard draft, revert to published |
 
 ### Block Helper Tools

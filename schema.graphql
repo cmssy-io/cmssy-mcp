@@ -264,6 +264,67 @@ type AiStatus {
   isConfigured: Boolean!
 }
 
+type Announcement {
+  body: String!
+  createdAt: DateTime!
+  expiresAt: DateTime
+  id: ID!
+  kind: AnnouncementKind!
+  linkUrl: String
+  publishedAt: DateTime!
+  scope: AnnouncementScope!
+  title: String!
+  updatedAt: DateTime!
+}
+
+type AnnouncementFeed {
+  items: [AnnouncementFeedEntry!]!
+  unreadCount: Int!
+}
+
+type AnnouncementFeedEntry {
+  announcement: Announcement!
+  read: Boolean!
+}
+
+enum AnnouncementKind {
+  info
+  maintenance
+  update
+}
+
+type AnnouncementManagement {
+  canManageOrganization: Boolean!
+  canManageWorkspace: Boolean!
+  items: [Announcement!]!
+  nextCursor: ID
+}
+
+type AnnouncementMutations {
+  create(input: CreateAnnouncementInput!): Announcement!
+  delete(id: ID!): Boolean!
+  expire(id: ID!): Announcement!
+  markAllRead: Int!
+  markRead(id: ID!): AnnouncementFeedEntry!
+  update(id: ID!, input: UpdateAnnouncementInput!): Announcement!
+}
+
+type AnnouncementQueries {
+  feed(limit: Int = 20): AnnouncementFeed!
+  managed(after: ID, limit: Int = 50): AnnouncementManagement!
+}
+
+enum AnnouncementScope {
+  organization
+  platform
+  workspace
+}
+
+enum AnnouncementWriteScope {
+  organization
+  workspace
+}
+
 type ApiToken {
   createdAt: DateTime!
   expiresAt: DateTime
@@ -351,6 +412,8 @@ enum AuditLogAction {
   PAGE_LAYOUT_PUBLISHED
   PAGE_LOCK_TAKEN_OVER
   PAGE_PUBLISHED
+  PAGE_PURGED
+  PAGE_RESTORED
   PAGE_SETTINGS_UPDATED
   PAGE_STAGE_CHANGED
   PAGE_UNPUBLISHED
@@ -1162,6 +1225,16 @@ A company role a customer can hold, and the permissions it grants on the deliver
 type CompanyRoleDefinition {
   key: String!
   permissions: [String!]!
+}
+
+input CreateAnnouncementInput {
+  body: String!
+  expiresAt: DateTime
+  kind: AnnouncementKind!
+  linkUrl: String
+  notifyByEmail: Boolean
+  scope: AnnouncementWriteScope!
+  title: String!
 }
 
 input CreateApiTokenInput {
@@ -2765,6 +2838,7 @@ input MovePageInput {
 type Mutation {
   adminCart: AdminCartMutations!
   ai: AiMutations!
+  announcement: AnnouncementMutations!
   apiToken: ApiTokenMutations!
   assetToken: AssetTokenMutations!
   auth: AuthMutations!
@@ -3960,6 +4034,7 @@ type PageLock {
 type PageMutations {
   delete(id: ID!): DeletionResult!
   discardDevDraft(pageId: String!): Boolean!
+  emptyTrash(ids: [ID!]!): Int!
   heartbeatPresence(pageId: ID!): PagePresenceState!
   move(input: MovePageInput!): Page
   patchBlockContent(input: PatchBlockContentInput!): Page
@@ -3967,6 +4042,8 @@ type PageMutations {
   publish(expectedVersion: Int, id: ID!): Page
   publishContent(id: ID!): Page
   publishLayout(id: ID!): Page
+  purgeTrash(id: ID!): DeletionResult!
+  restore(id: ID!): Page!
   restoreVersion(expectedVersion: Int!, pageId: ID!, version: Int!): Page
   revertContentToPublished(id: ID!): Page
   revertLayoutToPublished(id: ID!): Page
@@ -4006,6 +4083,7 @@ type PageQueries {
   locks: [PageLock!]!
   presence(pageId: ID!): PagePresenceState!
   resolvedLayouts(pageId: ID!, usePublished: Boolean): [ResolvedLayout!]!
+  trash: [TrashedPage!]!
 }
 
 input PageSelectorFilterInput {
@@ -5267,6 +5345,7 @@ type Query {
   account: AccountQueries!
   adminCart: AdminCartQueries!
   ai: AiQueries!
+  announcement: AnnouncementQueries!
   apiToken: ApiTokenQueries!
   assetToken: AssetTokenQueries!
   auditLog: AuditLogQueries!
@@ -6202,6 +6281,17 @@ enum Tone {
   PROFESSIONAL
 }
 
+type TrashedPage {
+  deletedAt: DateTime!
+  deletedById: ID!
+  deletedByName: String
+  descendantCount: Int!
+  expiresAt: DateTime!
+  id: ID!
+  name: String!
+  slug: String!
+}
+
 input UpdateAiProviderInput {
   activeProvider: AiProviderType
   anthropicApiKey: String
@@ -6216,6 +6306,14 @@ input UpdateAiProviderInput {
   openaiApiKey: String
   openaiModel: String
   openaiWebSearch: Boolean
+}
+
+input UpdateAnnouncementInput {
+  body: String
+  expiresAt: DateTime
+  kind: AnnouncementKind
+  linkUrl: String
+  title: String
 }
 
 input UpdateApiTokenInput {

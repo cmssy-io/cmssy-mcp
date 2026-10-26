@@ -1,5 +1,19 @@
 # @cmssy/mcp-server
 
+## 0.131.0
+
+- `delete_page` moves the page and its subtree to the trash instead of
+  deleting it; the group stays restorable for 30 days.
+- New `list_trashed_pages` tool: the page trash, newest first - each deleted
+  group's root with `deletedAt`, who deleted it, `descendantCount` and
+  `expiresAt`, when it is deleted permanently.
+- New `restore_page` tool: brings a trashed group back as unpublished
+  drafts. Refused, restoring nothing, when a live page holds one of its slugs
+  or the plan's page limit would be exceeded. There is no permanent-delete
+  tool; purging the trash stays in the admin.
+- `@cmssy/ai-tools` 0.103.0, which also carries 0.102.0: `create_form`,
+  `update_form`, `create_webhook` and `update_webhook` ask for confirmation.
+
 ## 0.130.0
 
 - `get_order` returns `invoices`: every invoice recorded for the order,
