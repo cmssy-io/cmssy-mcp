@@ -178,13 +178,14 @@ describe("no operation selects more than its readers can read (CMS-2056)", () =>
     expect(unpinned).toEqual([]);
   });
 
-  it("holds the ten order mutations at nothing unread", () => {
+  it("holds the eleven order mutations at nothing unread", () => {
     const mutations = [
       "CANCEL_ORDER_MUTATION",
       "CREATE_MANUAL_ORDER_MUTATION",
       "EDIT_ORDER_MUTATION",
       "MARK_ORDER_PAID_MUTATION",
       "RECORD_ORDER_INVOICE_MUTATION",
+      "RECORD_ORDER_INVOICE_CORRECTION_MUTATION",
       "RECORD_ORDER_PAYMENT_MUTATION",
       "REFUND_ORDER_MUTATION",
       "SET_ORDER_PIPELINE_STAGE_MUTATION",

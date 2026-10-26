@@ -17,6 +17,8 @@ import {
   UPDATE_RETURN_TRACKING_MUTATION,
   ORDER_BY_ID_QUERY,
   ORDERS_QUERY,
+  RECORD_ORDER_INVOICE_CORRECTION_MUTATION,
+  RECORD_ORDER_INVOICE_MUTATION,
   REOPEN_ORDER_MUTATION,
   UPDATE_SHIPMENT_MUTATION,
 } from "../queries.js";
@@ -204,6 +206,98 @@ describe("order refunds", () => {
       refundedAt: null,
       refundReferences: [],
     });
+  });
+});
+
+describe("order invoices", () => {
+  it("get selects and maps every invoice and correction, keeping the legacy invoice fields", async () => {
+    const fields = selectedUnder(ORDER_BY_ID_QUERY, "get");
+    for (const field of [
+      "invoices",
+      "invoiceNumber",
+      "invoiceUrl",
+      "invoiceProvider",
+      "invoicedAt",
+    ]) {
+      expect(fields.has(field), `get_order does not select ${field}`).toBe(
+        true,
+      );
+    }
+    expect([...selectedUnder(ORDER_BY_ID_QUERY, "invoices")].sort()).toEqual([
+      "issuedAt",
+      "kind",
+      "number",
+      "provider",
+      "url",
+    ]);
+    const invoices = [
+      {
+        kind: "invoice",
+        number: "FV/1/2026",
+        url: "https://invoices.example.com/fv-1",
+        provider: "fakturownia",
+        issuedAt: "2026-10-26T10:00:00.000Z",
+      },
+      {
+        kind: "correction",
+        number: "FK/1/2026",
+        url: null,
+        provider: null,
+        issuedAt: "2026-10-27T10:00:00.000Z",
+      },
+    ];
+    const { client } = clientAnswering([
+      { order: { get: { ...rawSummary, invoices } } },
+      { order: { get: { ...rawSummary } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(await ops.orders.get("o-1")).toMatchObject({ invoices });
+    expect(await ops.orders.get("o-1")).toMatchObject({ invoices: [] });
+  });
+
+  it("records a correction through recordInvoiceCorrection and the invoice through recordInvoice", async () => {
+    const { client, sent } = clientAnswering([
+      { order: { recordInvoiceCorrection: { id: "o-1", orderNumber: 11 } } },
+      { order: { recordInvoice: { id: "o-1", orderNumber: 11 } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    expect(
+      await ops.orders.recordInvoiceCorrection("o-1", {
+        number: "FK/1/2026",
+        url: "https://invoices.example.com/fk-1",
+        provider: "fakturownia",
+      }),
+    ).toEqual({ id: "o-1", orderNumber: 11 });
+    expect(
+      await ops.orders.recordInvoice("o-1", { number: "FV/1/2026" }),
+    ).toEqual({ id: "o-1", orderNumber: 11 });
+
+    expect(sent).toEqual([
+      {
+        document: RECORD_ORDER_INVOICE_CORRECTION_MUTATION,
+        variables: {
+          input: {
+            orderId: "o-1",
+            number: "FK/1/2026",
+            url: "https://invoices.example.com/fk-1",
+            provider: "fakturownia",
+          },
+        },
+      },
+      {
+        document: RECORD_ORDER_INVOICE_MUTATION,
+        variables: {
+          input: {
+            orderId: "o-1",
+            number: "FV/1/2026",
+            url: undefined,
+            provider: undefined,
+          },
+        },
+      },
+    ]);
   });
 });
 

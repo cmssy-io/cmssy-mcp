@@ -27,6 +27,7 @@ import type {
   CustomerAccountRequestResult,
   OrderShipment,
   OrderReturn,
+  OrderInvoice,
   PriceListSummary,
   PriceListEntry,
   CompanyTaxPreferences,
@@ -145,6 +146,7 @@ import {
   UPDATE_SHIPMENT_MUTATION,
   SET_ORDER_PIPELINE_STAGE_MUTATION,
   RECORD_ORDER_INVOICE_MUTATION,
+  RECORD_ORDER_INVOICE_CORRECTION_MUTATION,
   DISCOUNT_BY_ID_QUERY,
   UPDATE_DISCOUNT_MUTATION,
   SET_DISCOUNT_ENABLED_MUTATION,
@@ -2216,6 +2218,7 @@ export function createMcpWorkspaceOps(
               refundedAmount?: number | null;
               refundedAt?: string | null;
               refundReferences?: string[] | null;
+              invoices?: OrderInvoice[] | null;
               items?: unknown;
               payments?: unknown;
               shipments?: OrderShipment[] | null;
@@ -2267,6 +2270,7 @@ export function createMcpWorkspaceOps(
           refundedAmount: o.refundedAmount ?? null,
           refundedAt: o.refundedAt ?? null,
           refundReferences: o.refundReferences ?? [],
+          invoices: o.invoices ?? [],
           items: o.items ?? null,
           payments: o.payments ?? null,
           shipments: o.shipments ?? [],
@@ -2480,6 +2484,25 @@ export function createMcpWorkspaceOps(
           },
         });
         const o = res.order.recordInvoice;
+        return { id: o.id, orderNumber: o.orderNumber ?? null };
+      },
+      recordInvoiceCorrection: async (orderId, invoice) => {
+        const res = await client.query<{
+          order: {
+            recordInvoiceCorrection: {
+              id: string;
+              orderNumber?: number | null;
+            };
+          };
+        }>(RECORD_ORDER_INVOICE_CORRECTION_MUTATION, {
+          input: {
+            orderId,
+            number: invoice.number,
+            url: invoice.url,
+            provider: invoice.provider,
+          },
+        });
+        const o = res.order.recordInvoiceCorrection;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
     },

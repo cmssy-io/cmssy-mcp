@@ -661,6 +661,14 @@ enum BuyerCatalogSort {
   PRICE_DESC
 }
 
+"""An invoice or a correction issued for the order."""
+type BuyerOrderInvoice {
+  issuedAt: DateTime!
+  kind: OrderInvoiceKind!
+  number: String!
+  url: String
+}
+
 """
 What a buyer pays for one product or variant, in minor units: their list, else the channel's, else the catalogue price.
 """
@@ -2998,10 +3006,17 @@ type Order {
   """
   fulfillmentStatus: String!
   id: String!
+
+  """Number of the order's invoice (not of a correction)."""
   invoiceNumber: String
   invoiceProvider: String
   invoiceUrl: String
   invoicedAt: DateTime
+
+  """
+  Every invoice recorded for the order, oldest first: at most one of kind invoice, then its corrections.
+  """
+  invoices: [OrderInvoice!]!
   items: [OrderItem!]!
   notes: String
   orderNumber: Int
@@ -3192,6 +3207,22 @@ enum OrderFieldType {
   url
 }
 
+"""
+An invoice an external invoicing system issued for the order: the invoice itself, or a correction issued after it.
+"""
+type OrderInvoice {
+  issuedAt: DateTime!
+  kind: OrderInvoiceKind!
+  number: String!
+  provider: String
+  url: String
+}
+
+enum OrderInvoiceKind {
+  correction
+  invoice
+}
+
 type OrderItem {
   currency: String!
 
@@ -3309,7 +3340,16 @@ type OrderMutations {
   Record the goods as arrived. Stock goes up by the restocked units of the returned lines only, in the same write.
   """
   receiveReturn(input: ReceiveReturnInput!): Order!
+
+  """
+  Record the invoice an external invoicing system issued for the order. Re-recording the same number is a no-op; a different number is refused.
+  """
   recordInvoice(input: RecordOrderInvoiceInput!): Order!
+
+  """
+  Record a correction invoice (credit note) issued after the order's invoice, e.g. after a refund. Allowed on canceled and refunded orders; the number must be new to the order.
+  """
+  recordInvoiceCorrection(input: RecordOrderInvoiceInput!): Order!
 
   """
   Privileged server-only mutation. Records a (partial) payment up to the order balance; it does NOT process or verify a payment. Your backend MUST verify the payment-provider webhook signature before calling this, and must never expose it to a browser/site-member context. Requires ORDERS_MANAGE.
@@ -4922,6 +4962,9 @@ type PublicOrder {
   id: String!
   invoiceNumber: String
   invoiceUrl: String
+
+  """The invoice, then its corrections, oldest first."""
+  invoices: [BuyerOrderInvoice!]!
   items: [PublicOrderItem!]!
   orderNumber: Int
   paidAt: DateTime

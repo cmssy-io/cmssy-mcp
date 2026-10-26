@@ -79,6 +79,7 @@ import {
   updateShipmentTool,
   setOrderPipelineStageTool,
   recordOrderInvoiceTool,
+  recordOrderInvoiceCorrectionTool,
   listCartsTool,
   deleteCartsTool,
   listDiscountsTool,
@@ -274,6 +275,7 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     updateReturnTrackingTool,
     setOrderPipelineStageTool,
     recordOrderInvoiceTool,
+    recordOrderInvoiceCorrectionTool,
 
     // ─── Commerce: Carts ─────────────────────────────────────────
 

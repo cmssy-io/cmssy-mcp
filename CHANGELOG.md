@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.130.0
+
+- `get_order` returns `invoices`: every invoice recorded for the order,
+  oldest first - at most one of kind `invoice`, then its `correction`s -
+  each with `number`, `url`, `provider` and `issuedAt`.
+- New `record_order_invoice_correction` tool: attach a correction invoice
+  (credit note) to an order that already has its invoice, e.g. after a
+  refund. Same input as `record_order_invoice` (@cmssy/ai-tools 0.101.0).
+
 ## 0.129.1
 
 - The MCP registry entry lists the hosted endpoint `https://api.cmssy.io/mcp`
