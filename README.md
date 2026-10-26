@@ -104,7 +104,8 @@ Tools that accept `response`: `create_page`, `update_page_blocks`,
 `create_return`, `approve_return`, `reject_return`, `cancel_return`,
 `receive_return`, `refund_return`, `complete_return`, `update_return_tracking`,
 `create_shipment`, `update_shipment`,
-`set_order_pipeline_stage`, `record_order_invoice`, `create_discount`,
+`set_order_pipeline_stage`, `record_order_invoice`,
+`record_order_invoice_correction`, `create_discount`,
 `update_discount`, `set_discount_enabled`.
 
 `patch_block_content` and the various `delete_*` / status-only tools
@@ -229,7 +230,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 | Tool                       | Description                                                        |
 | -------------------------- | ------------------------------------------------------------------ |
 | `list_orders`              | List orders by payment/fulfillment/delivery/state, warehouse queue, customer, currency, dates; pages with `skip`/`limit` |
-| `get_order`                | Get an order with items, payments, parcels, tax summary and treatment, sales channel and the price lists that priced it |
+| `get_order`                | Get an order with items, payments, parcels, invoices and corrections, tax summary and treatment, sales channel and the price lists that priced it |
 | `get_order_pipeline`       | Get the workspace's configurable order pipeline stages             |
 | `create_manual_order`      | Create an admin-entered order, with an optional shipping address   |
 | `edit_order`               | Replace an order's line items (recomputes totals)                  |
@@ -252,6 +253,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `update_shipment`          | Change a parcel's status or tracking, with a note for its history  |
 | `set_order_pipeline_stage` | Move an order to a pipeline stage                                  |
 | `record_order_invoice`     | Attach an invoice (number, url, provider) to an order              |
+| `record_order_invoice_correction` | Attach a correction invoice (credit note) to an invoiced order |
 | `list_carts`               | List shopping carts (admin view, optional status filter) with their sales channel |
 | `delete_carts`             | Permanently delete 1-100 carts, all or nothing     |
 | `list_discounts`           | List discount codes (filter by enabled/type/code)                  |

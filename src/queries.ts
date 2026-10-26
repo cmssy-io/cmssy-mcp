@@ -1342,6 +1342,7 @@ const ORDER_FRAGMENT = `
   invoiceUrl
   invoiceProvider
   invoicedAt
+  invoices { kind number url provider issuedAt }
   canceledAt
   pipelineStageId
   poNumber
@@ -1600,6 +1601,12 @@ export const SET_ORDER_PIPELINE_STAGE_MUTATION = `
 export const RECORD_ORDER_INVOICE_MUTATION = `
   mutation RecordOrderInvoice($input: RecordOrderInvoiceInput!) {
     order { recordInvoice(input: $input) { ${ORDER_ACK_FRAGMENT} } }
+  }
+`;
+
+export const RECORD_ORDER_INVOICE_CORRECTION_MUTATION = `
+  mutation RecordOrderInvoiceCorrection($input: RecordOrderInvoiceInput!) {
+    order { recordInvoiceCorrection(input: $input) { ${ORDER_ACK_FRAGMENT} } }
   }
 `;
 
