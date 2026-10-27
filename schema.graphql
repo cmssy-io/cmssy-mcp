@@ -293,35 +293,18 @@ enum AnnouncementKind {
   update
 }
 
-type AnnouncementManagement {
-  canManageOrganization: Boolean!
-  canManageWorkspace: Boolean!
-  items: [Announcement!]!
-  nextCursor: ID
-}
-
 type AnnouncementMutations {
-  create(input: CreateAnnouncementInput!): Announcement!
-  delete(id: ID!): Boolean!
-  expire(id: ID!): Announcement!
   markAllRead: Int!
   markRead(id: ID!): AnnouncementFeedEntry!
-  update(id: ID!, input: UpdateAnnouncementInput!): Announcement!
 }
 
 type AnnouncementQueries {
   feed(limit: Int = 20): AnnouncementFeed!
-  managed(after: ID, limit: Int = 50): AnnouncementManagement!
 }
 
 enum AnnouncementScope {
   organization
   platform
-  workspace
-}
-
-enum AnnouncementWriteScope {
-  organization
   workspace
 }
 
@@ -1225,16 +1208,6 @@ A company role a customer can hold, and the permissions it grants on the deliver
 type CompanyRoleDefinition {
   key: String!
   permissions: [String!]!
-}
-
-input CreateAnnouncementInput {
-  body: String!
-  expiresAt: DateTime
-  kind: AnnouncementKind!
-  linkUrl: String
-  notifyByEmail: Boolean
-  scope: AnnouncementWriteScope!
-  title: String!
 }
 
 input CreateApiTokenInput {
@@ -3497,7 +3470,7 @@ type OrderPipelineStage {
   color: String!
   id: String!
   isDefault: Boolean!
-  label: String!
+  label: JSON!
   position: Int!
 }
 
@@ -3505,7 +3478,7 @@ input OrderPipelineStageInput {
   color: String!
   id: String!
   isDefault: Boolean
-  label: String!
+  label: JSON!
   position: Int!
 }
 
@@ -6357,14 +6330,6 @@ input UpdateAiProviderInput {
   openaiApiKey: String
   openaiModel: String
   openaiWebSearch: Boolean
-}
-
-input UpdateAnnouncementInput {
-  body: String
-  expiresAt: DateTime
-  kind: AnnouncementKind
-  linkUrl: String
-  title: String
 }
 
 input UpdateApiTokenInput {
