@@ -98,3 +98,40 @@ describe("addBlock translation statuses (CMS-1869)", () => {
     });
   });
 });
+
+describe("addBlock tab buckets", () => {
+  const block = {
+    type: "contact",
+    content: { en: { title: "Write to us" } },
+    settings: { probe: "settings" },
+    style: { probe: "style" },
+    advanced: { form: "form-1" },
+  };
+  const buckets = {
+    settings: block.settings,
+    style: block.style,
+    advanced: block.advanced,
+  };
+
+  it("sends every bucket of a page body block", async () => {
+    const { client, sent } = multilingualClient();
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.pages.addBlock("p1", block);
+
+    expect(writtenBlock(sent, "mutation SavePage", "blocks")).toMatchObject(
+      buckets,
+    );
+  });
+
+  it("sends every bucket of a layout block", async () => {
+    const { client, sent } = multilingualClient();
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.pages.addBlock("p1", block, "footer");
+
+    expect(writtenBlock(sent, "updateLayout", "layoutBlocks")).toMatchObject(
+      buckets,
+    );
+  });
+});

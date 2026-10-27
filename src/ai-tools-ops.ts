@@ -1532,6 +1532,12 @@ export function createMcpWorkspaceOps(
           };
         }
         const newBlockId = crypto.randomUUID();
+        const newBlock = {
+          ...block,
+          id: newBlockId,
+          translations,
+          defaultLanguage,
+        };
         if (layoutRegion) {
           const existingLayout = page.layoutBlocks ?? [];
           const maxOrder = existingLayout
@@ -1541,16 +1547,10 @@ export function createMcpWorkspaceOps(
               -1,
             );
           const newLayoutBlock = {
-            id: newBlockId,
-            type: block.type,
+            ...newBlock,
             region: layoutRegion,
             order: maxOrder + 1,
             isActive: true,
-            content: block.content,
-            settings: block.settings,
-            style: block.style,
-            translations,
-            defaultLanguage,
           };
           const res = await client.query<{
             page: { updateLayout: ({ id: string } & WarnedWrite) | null };
@@ -1567,15 +1567,6 @@ export function createMcpWorkspaceOps(
             res.page.updateLayout.blockWarnings,
           );
         }
-        const newBlock = {
-          id: newBlockId,
-          type: block.type,
-          content: block.content,
-          settings: block.settings,
-          style: block.style,
-          translations,
-          defaultLanguage,
-        };
         const blocks = [...(page.blocks ?? [])];
         if (
           position !== undefined &&

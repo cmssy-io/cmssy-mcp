@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.131.1
+
+- `add_block_to_page` stores the block's `advanced` bucket. It was dropped
+  on both the page body and the layout region path, so a value set on the
+  advanced tab (e.g. a contact block's form) never reached the page.
+
 ## 0.131.0
 
 - `delete_page` moves the page and its subtree to the trash instead of
