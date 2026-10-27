@@ -2433,6 +2433,7 @@ type MediaPageUsage {
   blockId: String!
   blockType: String!
   fieldPath: String!
+  inTrash: Boolean!
   pageId: String!
   pageName: String!
   pageSlug: String!
@@ -3789,6 +3790,28 @@ type Organization {
   workspaces: [OrganizationWorkspace!]!
 }
 
+type OrganizationAddonOffer {
+  maxQuantity: Int!
+  prices: [OrganizationAddonPrice!]!
+}
+
+type OrganizationAddonPrice {
+  addon: String!
+  currency: String!
+  interval: String!
+  unitAmount: Int!
+}
+
+type OrganizationAddons {
+  seats: Int!
+  workspaces: Int!
+}
+
+input OrganizationAddonsInput {
+  seats: Int!
+  workspaces: Int!
+}
+
 type OrganizationAuditLog {
   action: OrgAuditLogAction!
   actorKind: AuditLogActorKind!
@@ -3817,6 +3840,8 @@ type OrganizationAuditLogQueries {
 }
 
 type OrganizationBilling {
+  addonOffer: OrganizationAddonOffer
+  addons: OrganizationAddons!
   billingCycle: String
   cancelAtPeriodEnd: Boolean!
   currency: String
@@ -3824,6 +3849,7 @@ type OrganizationBilling {
   interval: String
   isTrial: Boolean!
   paymentMethod: PaymentMethod
+  pendingCycleChange: PendingBillingCycleChange
   priceAmount: Int
   renewsAt: DateTime
   seatsIncluded: Int
@@ -3854,13 +3880,28 @@ type OrganizationMember {
 type OrganizationMutations {
   acceptInvitation(organizationId: ID!): Organization!
   acceptInvitationByToken(token: String!): AcceptOrganizationInvitationResult!
+
+  """
+  Cancel a billing cycle change scheduled for the end of the paid period, releasing its Stripe subscription schedule. The pending change clears when Stripe's webhook confirms the release.
+  """
+  cancelBillingCycleChange(organizationId: ID!): Organization!
   cancelInvitation(email: String!, organizationId: ID!): Organization!
   create(input: CreateOrganizationInput!): Organization!
   delete(id: ID!): DeletionResult!
   inviteMember(input: InviteOrganizationMemberInput!, organizationId: ID!): InviteMemberResult!
   moveWorkspace(organizationId: ID!, workspaceId: ID!): Organization!
   removeMember(organizationId: ID!, userId: ID!): Organization!
+
+  """
+  Set the Pro add-on quantities on the organization's Stripe subscription, charging the prorated difference now. The stored quantities change only when Stripe confirms the subscription through its webhook.
+  """
+  setAddons(input: OrganizationAddonsInput!, organizationId: ID!): Organization!
   sso: OrganizationSsoMutations!
+
+  """
+  Move a Pro subscription that carries add-ons, plan and add-ons together, to the other billing cycle. The Stripe customer portal cannot change a subscription with several products, so this is the path while add-ons are held. Moving to annual is immediate and charges the prorated difference now; moving to monthly is scheduled for the end of the paid annual period and charges nothing now.
+  """
+  switchBillingCycle(cycle: String!, organizationId: ID!): Organization!
 
   """
   Hand the organization - and with it the permission bypass over every workspace it owns - to another active member. Owner-only.
@@ -4009,6 +4050,11 @@ input PageCustomFieldFilterInput {
 input PageCustomFieldInput {
   fieldKey: String!
   value: JSON
+}
+
+input PageCustomFieldSortInput {
+  direction: SortDirection = desc
+  fieldKey: String!
 }
 
 type PageDevDraft {
@@ -4202,6 +4248,11 @@ type PaymentMethod {
   expMonth: Int
   expYear: Int
   last4: String
+}
+
+type PendingBillingCycleChange {
+  at: DateTime!
+  to: String!
 }
 
 """A category of permissions"""
@@ -5200,7 +5251,7 @@ type PublicPageItem {
 }
 
 type PublicPageQueries {
-  byType(customFieldFilters: [PageCustomFieldFilterInput!], includeDrafts: Boolean = false, limit: Int = 9, offset: Int = 0, pageType: String, parentSlug: String, previewSecret: String, search: String, sortBy: PageSortBy = publishedAt_desc, workspaceId: String!): PublicPagesListResult!
+  byType(customFieldFilters: [PageCustomFieldFilterInput!], customFieldSort: PageCustomFieldSortInput, includeDrafts: Boolean = false, limit: Int = 9, offset: Int = 0, pageType: String, parentSlug: String, previewSecret: String, search: String, sortBy: PageSortBy = publishedAt_desc, workspaceId: String!): PublicPagesListResult!
   get(devPreview: Boolean, previewSecret: String, slug: String!, workspaceSlug: String!): PublicPage
   getById(pageId: ID!, workspaceSlug: String!): PublicPage
   layouts(pageSlug: String!, previewSecret: String, workspaceSlug: String!): [PublicResolvedLayout!]!
