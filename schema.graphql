@@ -4205,11 +4205,13 @@ input PatchModelRecordInput {
 enum PatchOp {
   insert_after
   insert_before
+  replace_all
   replace_section
 }
 
 input PatchOperationInput {
   endMarker: String
+  expected: String
   html: String!
   marker: String
   op: PatchOp!
