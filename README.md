@@ -190,14 +190,16 @@ and catches marker mistakes before anything writes to the DB.
 }
 ```
 
-Three ops: `insert_before`, `insert_after`, `replace_section`. Every
-marker must match **exactly once** - 0 or 2+ matches error out with the
+Four ops: `insert_before`, `insert_after`, `replace_section`, `replace_all`.
+Every marker must match **exactly once** - 0 or 2+ matches error out with the
 actual count (no silent half-applied state). For `replace_section`,
-`startMarker` is inclusive and `endMarker` is exclusive.
+`startMarker` is inclusive and `endMarker` is exclusive. `replace_all` sets the
+whole string and takes `expected`, the current value - refused if it moved.
 
 Requires `@cmssy/cli`-registered workspace with `PAGES_EDIT` permission.
 Default `fieldPath` is `"content"` (the HTML body on docs-article); override
-if patching a different string field.
+if patching a different string field. Dot segments reach a nested string, e.g.
+`tabs.0.label` for the first tab's label.
 
 ### Model Tools (Custom Data Models)
 

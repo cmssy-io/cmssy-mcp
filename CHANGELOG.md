@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.132.0
+
+- `patch_block_content` reaches a string nested in a list or object
+  (`fieldPath: "tabs.0.label"`) and gains `replace_all`, which sets the whole
+  string given `expected`, its current value - refused if it moved.
+- A write's unknown-field / unknown-type warning says when the workspace block
+  manifest was last synced: a field newer than the manifest is fine, sync it
+  rather than change the content.
+
 ## 0.131.1
 
 - `add_block_to_page` stores the block's `advanced` bucket. It was dropped
