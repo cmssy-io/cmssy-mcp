@@ -294,8 +294,6 @@ export const CURRENT_WORKSPACE_QUERY = `
             maxStorageMb
             maxApiRequestsMonth
             maxBandwidthGbMonth
-            canRemoveBranding
-            canUseCart
           }
         }
       }

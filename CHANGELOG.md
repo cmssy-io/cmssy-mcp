@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.132.1
+
+- The workspace info and `cmssy://workspace` resource stop reading the
+  `canRemoveBranding` and `canUseCart` plan flags. Brand assets and the cart
+  are on every plan, and the API drops both fields.
+
 ## 0.132.0
 
 - `patch_block_content` reaches a string nested in a list or object
