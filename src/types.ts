@@ -93,11 +93,14 @@ export interface SiteConfig {
 
 export type OrganizationLimits = {
   maxPages: number | null;
-  maxMembers: number | null;
-  maxWorkspaces: number | null;
-  maxStorageMb: number | null;
-  maxApiRequestsMonth: number | null;
-  maxBandwidthGbMonth: number | null;
+  maxMembers: number;
+  maxWorkspaces: number;
+  maxStorageMb: number;
+  maxUploadMb: number;
+  maxApiRequestsMonth: number;
+  maxBandwidthGbMonth: number;
+  maxOrdersMonth: number | null;
+  canUseSso: boolean;
 };
 
 export interface WorkspaceOrganization {

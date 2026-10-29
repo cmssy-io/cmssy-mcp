@@ -292,8 +292,11 @@ export const CURRENT_WORKSPACE_QUERY = `
             maxMembers
             maxWorkspaces
             maxStorageMb
+            maxUploadMb
             maxApiRequestsMonth
             maxBandwidthGbMonth
+            maxOrdersMonth
+            canUseSso
           }
         }
       }

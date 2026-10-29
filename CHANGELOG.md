@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.133.0
+
+- The workspace info and `cmssy://workspace` resource report every plan
+  limit the API serves: the upload size (`maxUploadMb`), orders per month
+  (`maxOrdersMonth`) and whether single sign-on is included (`canUseSso`).
+  Only pages and orders can be unlimited (`null`); every other limit is a
+  number.
+- Vendored SDL synced with production.
+
 ## 0.132.1
 
 - The workspace info and `cmssy://workspace` resource stop reading the
