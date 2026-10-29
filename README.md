@@ -1,6 +1,6 @@
 # @cmssy/mcp-server
 
-MCP server for [Cmssy CMS](https://cmssy.com) — enables AI-driven page creation and management with i18n support.
+MCP server for [Cmssy](https://cmssy.com), a hosted headless CMS with built-in commerce. Lets an AI agent work with pages, records, media, forms, products, orders, refunds and discounts in a Cmssy workspace.
 
 ## Setup
 
