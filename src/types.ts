@@ -98,8 +98,6 @@ export type OrganizationLimits = {
   maxStorageMb: number | null;
   maxApiRequestsMonth: number | null;
   maxBandwidthGbMonth: number | null;
-  canRemoveBranding: boolean;
-  canUseCart: boolean;
 };
 
 export interface WorkspaceOrganization {
