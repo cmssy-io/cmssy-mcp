@@ -290,6 +290,7 @@ type AnnouncementFeedEntry {
 enum AnnouncementKind {
   info
   maintenance
+  newsletter
   update
 }
 
@@ -2276,6 +2277,14 @@ input LayoutRegionSettingsInput {
   values: JSON!
 }
 
+"""
+The Free plan limit an organization is closest to: 75 from three quarters used, 100 once it is reached.
+"""
+type LimitNudge {
+  level: Int!
+  metric: String!
+}
+
 input LoginInput {
   email: String!
   locale: String
@@ -2939,6 +2948,7 @@ input OAuthLoginInput {
   attribution: SignupAttributionInput
   idToken: String!
   locale: String
+  marketingConsent: Boolean
   name: String
   provider: String!
 }
@@ -3726,6 +3736,7 @@ enum OrgAuditLogAction {
   ORGANIZATION_CREATED
   ORGANIZATION_DELETED
   ORGANIZATION_OWNERSHIP_TRANSFERRED
+  ORGANIZATION_PLAN_CHANGED
   ORGANIZATION_SETTINGS_UPDATED
   ORGANIZATION_UPDATED
   SSO_CONFIGURED
@@ -3734,6 +3745,7 @@ enum OrgAuditLogAction {
   SSO_DOMAIN_REMOVED
   SSO_DOMAIN_VERIFIED
   SSO_ENFORCEMENT_CHANGED
+  WORKSPACE_DELETED
   WORKSPACE_MOVED
 }
 
@@ -3763,6 +3775,11 @@ type Organization {
   workspaces: [OrganizationWorkspace!]!
 }
 
+type OrganizationAddonHeldItem {
+  quantity: Int!
+  unitAmount: Int!
+}
+
 type OrganizationAddonOffer {
   maxQuantity: Int!
   prices: [OrganizationAddonPrice!]!
@@ -3771,6 +3788,7 @@ type OrganizationAddonOffer {
 type OrganizationAddonPrice {
   addon: String!
   currency: String!
+  held: [OrganizationAddonHeldItem!]!
   interval: String!
   unitAmount: Int!
 }
@@ -3827,6 +3845,11 @@ type OrganizationBilling {
   renewsAt: DateTime
   seatsIncluded: Int
   subscriptionStatus: String
+
+  """
+  Whether this organization can start the 14-day Pro trial: it is on Free with no subscription and its owner has not used a trial yet.
+  """
+  trialAvailable: Boolean!
   trialEndsAt: DateTime
 }
 
@@ -3870,6 +3893,11 @@ type OrganizationMutations {
   """
   setAddons(input: OrganizationAddonsInput!, organizationId: ID!): Organization!
   sso: OrganizationSsoMutations!
+
+  """
+  Start the 14-day Pro trial on a Free organization, with no card. One trial per owner; when it ends without a subscription the organization goes back to Free.
+  """
+  startProTrial(organizationId: ID!): Organization!
 
   """
   Move a Pro subscription that carries add-ons, plan and add-ons together, to the other billing cycle. The Stripe customer portal cannot change a subscription with several products, so this is the path while add-ons are held. Moving to annual is immediate and charges the prorated difference now; moving to monthly is scheduled for the end of the paid annual period and charges nothing now.
@@ -6042,6 +6070,7 @@ input SignupInput {
   attribution: SignupAttributionInput
   email: String!
   locale: String
+  marketingConsent: Boolean
   password: String!
   username: String
   website: String
@@ -6705,6 +6734,11 @@ type User {
   isVerified: Boolean!
   joinedAt: DateTime
   lastLoginAt: DateTime
+
+  """
+  Whether the account agreed to receive the cmssy newsletter. Only on the signed-in account itself; null for anyone else.
+  """
+  marketingConsent: Boolean
   membershipStatus: String
 
   """
@@ -6799,6 +6833,7 @@ type ViewerMutations {
   """
   requestEmailChange(currentPassword: String, mfaCode: String, newEmail: String!): UserAuthResponse!
   resendVerificationEmail: UserAuthResponse!
+  setMarketingConsent(granted: Boolean!): User!
 
   """End every session of this account, on every device."""
   signOutEverywhere: Boolean!
@@ -7001,6 +7036,11 @@ type WorkspaceOnboarding {
 type WorkspaceOrganization {
   billing: OrganizationBilling!
   id: ID!
+
+  """
+  Set only on the Free plan, and only for its owner and admins: the page, storage, API request or bandwidth limit closest to being hit, from 75% used. Seats and workspaces are left out - Free fills them on day one.
+  """
+  limitNudge: LimitNudge
   limits: OrganizationLimits!
   memberCount: Int!
   name: String!
