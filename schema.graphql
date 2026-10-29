@@ -3842,6 +3842,11 @@ type OrganizationBilling {
   paymentMethod: PaymentMethod
   pendingCycleChange: PendingBillingCycleChange
   priceAmount: Int
+
+  """
+  Whether a paid subscription backs this organization. Only then does delivery keep serving past the Content API request and transfer limits.
+  """
+  provisioned: Boolean!
   renewsAt: DateTime
   seatsIncluded: Int
   subscriptionStatus: String
@@ -3854,15 +3859,27 @@ type OrganizationBilling {
 }
 
 type OrganizationLimits {
-  canRemoveBranding: Boolean!
-  canUseCart: Boolean!
   canUseSso: Boolean!
-  maxApiRequestsMonth: Int
-  maxBandwidthGbMonth: Int
-  maxMembers: Int
+  maxApiRequestsMonth: Int!
+
+  """
+  Content API transfer per usage period, in GB: GraphQL response bytes. Media served from the CDN is not counted.
+  """
+  maxBandwidthGbMonth: Int!
+  maxMembers: Int!
+
+  """
+  Orders the organization may take per usage period, pooled across its workspaces. Null is unlimited.
+  """
+  maxOrdersMonth: Int
+
+  """Null is unlimited."""
   maxPages: Int
-  maxStorageMb: Int
-  maxWorkspaces: Int
+  maxStorageMb: Int!
+
+  """The largest single file the organization may upload, in MB."""
+  maxUploadMb: Int!
+  maxWorkspaces: Int!
 }
 
 type OrganizationMember {
@@ -3952,6 +3969,11 @@ type OrganizationWorkspaceUsage {
   bandwidthBytes: Float!
   mediaSignings: Int!
   membersCount: Int!
+
+  """
+  Orders this workspace created in the organization's current usage period and did not cancel.
+  """
+  ordersCount: Int!
   pagesCount: Int!
   storageBytes: Float!
 }
@@ -4276,6 +4298,11 @@ type PooledUsage {
   bandwidthBytes: Float!
   mediaSignings: Int!
   membersCount: Int!
+
+  """
+  Orders created since the organization's usage period started and not cancelled, pooled across its workspaces.
+  """
+  ordersCount: Int!
   pagesCount: Int!
   storageBytes: Float!
 }
@@ -5375,7 +5402,6 @@ type PublicResolvedLayoutBlock {
 
 type PublicSiteConfig {
   branding: SiteBranding
-  canUseCart: Boolean!
   defaultLanguage: String!
   enabledFeatures: [String!]!
   enabledLanguages: [String!]!
@@ -6087,7 +6113,6 @@ type SiteBranding {
 type SiteConfig {
   apiToken: String
   branding: SiteBranding
-  canUseCart: Boolean!
   cart: CartConfig
   currencies: WorkspaceCurrencies!
   defaultLanguage: String!
@@ -7038,7 +7063,7 @@ type WorkspaceOrganization {
   id: ID!
 
   """
-  Set only on the Free plan, and only for its owner and admins: the page, storage, API request or bandwidth limit closest to being hit, from 75% used. Seats and workspaces are left out - Free fills them on day one.
+  Set only on the Free plan, and only for its owner and admins: the page, storage, API request, bandwidth or order limit closest to being hit, from 75% used. Seats and workspaces are left out - Free fills them on day one.
   """
   limitNudge: LimitNudge
   limits: OrganizationLimits!
