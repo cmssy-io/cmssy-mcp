@@ -2,6 +2,17 @@
 
 MCP server for [Cmssy](https://cmssy.com), a hosted headless CMS with built-in commerce. Lets an AI agent work with pages, records, media, forms, products, orders, refunds and discounts in a Cmssy workspace.
 
+## Hosted server (no install)
+
+`https://api.cmssy.io/mcp` serves the same tools over HTTP. Claude (web, desktop, Code) and Codex connect by signing in to cmssy. A client that asks for a server URL and an API key - v0, Lovable, Bolt or your own - sends a `cs_` token instead:
+
+```
+URL:    https://api.cmssy.io/mcp
+Header: Authorization: Bearer cs_YOUR_TOKEN
+```
+
+A token scoped to one workspace reaches only that workspace; an unscoped token reaches every workspace you belong to. Every tool takes a `workspace` (`<orgSlug>/<workspaceSlug>`), and `list_workspaces` names the ones the token may use. It reads and writes with your role in each workspace. Changing your password does not revoke it - delete it under Dashboard > API Tokens. Details: [cmssy.com/docs/api/mcp](https://www.cmssy.com/docs/api/mcp).
+
 ## Setup
 
 ### Prerequisites
