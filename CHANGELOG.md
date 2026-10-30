@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.133.1
+
+- The README documents the hosted endpoint `https://api.cmssy.io/mcp`:
+  sign-in for Claude and Codex, or `Authorization: Bearer cs_...` for a
+  client with an API key field.
+- The MCPB bundle manifest is gone: no directory takes MCPB any more, and
+  Claude Desktop connects to the hosted endpoint.
+- Vendored SDL synced with production.
+
 ## 0.133.0
 
 - The workspace info and `cmssy://workspace` resource report every plan

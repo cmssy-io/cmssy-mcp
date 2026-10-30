@@ -11,7 +11,9 @@ function readJson(path: string): Record<string, unknown> {
 }
 
 describe("listing manifests ship the published version", () => {
-  it("bundles the same version in the MCPB manifest", () => {
-    expect(readJson("mcpb/manifest.json").version).toBe(PACKAGE_VERSION);
+  it("declares the same version in the Claude plugin manifest", () => {
+    expect(readJson("claude-plugin/.claude-plugin/plugin.json").version).toBe(
+      PACKAGE_VERSION,
+    );
   });
 });
