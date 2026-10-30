@@ -11,5 +11,3 @@ package-lock.json
 .claude/.prepush-ok
 .claude/worktrees/
 prod-schema.graphql
-build/
-*.mcpb
