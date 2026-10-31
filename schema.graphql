@@ -7142,7 +7142,7 @@ type WorkspaceOrganization {
 }
 
 type WorkspaceQueries {
-  canAccess(slug: String!): Boolean!
+  canAccess(id: ID!): Boolean!
   current: Workspace
   draftSecret: String!
   get(id: ID, organizationSlug: String, slug: String): Workspace
