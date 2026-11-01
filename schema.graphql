@@ -1712,6 +1712,11 @@ type DeliveryLimits {
   perWorkspacePerMinute: Int!
 }
 
+type DeliveryMaintenance {
+  endsAt: DateTime!
+  startsAt: DateTime!
+}
+
 type DiscountMutations {
   """
   Create a new discount. Code is canonicalized to upper-case. Duplicate code (per workspace) → BAD_USER_INPUT. Cross-field invariants (percentage <= 100, fixed has currency, etc.) enforced by the Zod schema in DiscountRepository.create.
@@ -2301,6 +2306,22 @@ input LoginInput {
   mfaCode: String
   password: String!
   website: String
+}
+
+"""
+What a maintenance window refuses while it is underway: nothing (NOTICE), admin writes (READ_ONLY), or every write, delivery and background jobs included (FROZEN).
+"""
+enum MaintenanceMode {
+  FROZEN
+  NOTICE
+  READ_ONLY
+}
+
+"""A scheduled maintenance window that has not ended yet."""
+type MaintenanceWindow {
+  endsAt: DateTime!
+  mode: MaintenanceMode!
+  startsAt: DateTime!
 }
 
 input ManualOrderItemInput {
@@ -4872,7 +4893,7 @@ type PropertyQueries {
   fieldTypes: [PropertyFieldTypeDefinition!]!
 
   """
-  Pickable rows for a relation field pointed at one of the relation target collections. Each target is gated by its own view permission; pages narrow to the caller's scoped grants the way page reads do.
+  Pickable rows for a relation field pointed at one of the relation target collections, or at one model's records as `model:<slug>`. Each target is gated by its own view permission; pages narrow to the caller's scoped grants the way page reads do.
   """
   relationOptions(ids: [ID!], limit: Int, query: String, target: String!): RelationOptionList!
 }
@@ -5388,6 +5409,11 @@ type PublicPricingQueries {
 type PublicQueries {
   draftSecretValid(secret: String!, workspaceSlug: String!): Boolean!
   form: PublicFormQueries!
+
+  """
+  Next cmssy maintenance during which this site takes no changes (carts, checkout, sign-ins, forms); null when none.
+  """
+  maintenance: DeliveryMaintenance
   model: PublicModelQueries!
   order: PublicOrderQueries!
   page: PublicPageQueries!
@@ -5465,6 +5491,7 @@ type Query {
   fieldType: FieldTypeQueries!
   form: FormQueries!
   health: String!
+  maintenanceWindow: MaintenanceWindow
   media: MediaQueries!
   model: ModelQueries!
   notification: NotificationQueries!
