@@ -1,6 +1,6 @@
 {
   "name": "@cmssy/mcp-server",
-  "version": "0.133.1",
+  "version": "0.134.0",
   "description": "MCP server for Cmssy - hosted headless CMS with native commerce, run by your AI agent",
   "mcpName": "io.github.cmssy-io/cmssy-mcp",
   "homepage": "https://cmssy.com",
@@ -26,7 +26,9 @@
     "catalogue:check": "pnpm build && node scripts/publish-tool-catalogue.mjs --check",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "init-assets": "node scripts/bundle-init-assets.mjs",
+    "init-assets:check": "node scripts/bundle-init-assets.mjs --check"
   },
   "keywords": [
     "mcp",
@@ -44,6 +46,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@cmssy/cli": "19.27.0",
     "@types/node": "^22.0.0",
     "graphql": "^16.10.0",
     "tsx": "^4.19.4",

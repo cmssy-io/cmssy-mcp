@@ -1,5 +1,18 @@
 # @cmssy/mcp-server
 
+## 0.134.0
+
+- The server sends instructions on connect: an agent asked to build a site
+  on cmssy starts from `get_site_setup` and follows the order deploy,
+  preview URL, editor handshake, pages with header and footer in their
+  layout regions, publish.
+- `get_site_setup` returns the files `cmssy init` writes for Next.js
+  (bundled from `@cmssy/cli`), the SDK packages, the workspace's env vars
+  filled in, and the steps - including the `content.changed` webhook that
+  revalidates the site on publish, and accepting a proposed block manifest.
+- `set_preview_url` stores the deployed app's origin as the address the
+  editor frames.
+
 ## 0.133.1
 
 - The README documents the hosted endpoint `https://api.cmssy.io/mcp`:
