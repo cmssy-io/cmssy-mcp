@@ -2295,3 +2295,32 @@ export const DELETE_SALES_CHANNEL_MUTATION = `
     salesChannel { delete(id: $id) }
   }
 `;
+
+export const SITE_SETUP_QUERY = `
+  query SiteSetup {
+    workspace {
+      current {
+        slug
+        organization {
+          slug
+        }
+      }
+      draftSecret
+    }
+    siteConfig {
+      get {
+        previewUrl
+      }
+    }
+  }
+`;
+
+export const UPDATE_PREVIEW_URL_MUTATION = `
+  mutation UpdatePreviewUrl($input: UpdateSiteConfigInput!) {
+    siteConfig {
+      update(input: $input) {
+        previewUrl
+      }
+    }
+  }
+`;

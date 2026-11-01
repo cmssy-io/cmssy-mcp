@@ -141,6 +141,11 @@ import { createMcpWorkspaceOps } from "./ai-tools-ops.js";
 import { bindSharedTool } from "./ai-tools-binder.js";
 import { createUpdateRegionSettingsTool } from "./region-settings.js";
 import {
+  createGetSiteSetupTool,
+  createSetPreviewUrlTool,
+  SITE_SETUP_INSTRUCTIONS,
+} from "./site-setup.js";
+import {
   PAGES_QUERY,
   SITE_CONFIG_QUERY,
   CURRENT_WORKSPACE_QUERY,
@@ -151,9 +156,11 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
   return [
     // ─── Read Tools ──────────────────────────────────────────────
 
+    createGetSiteSetupTool(client),
     listPagesTool,
     getPageTool,
     getSiteConfigTool,
+    createSetPreviewUrlTool(client),
     listBlockTypesTool,
     listBlockUsageTool,
     getWorkspaceInfoTool,
@@ -319,10 +326,10 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
 }
 
 export function createServer(client: CmssyApi) {
-  const server = new McpServer({
-    name: "cmssy",
-    version: PACKAGE_VERSION,
-  });
+  const server = new McpServer(
+    { name: "cmssy", version: PACKAGE_VERSION },
+    { instructions: SITE_SETUP_INSTRUCTIONS },
+  );
 
   const sharedOps = createMcpWorkspaceOps(client);
   for (const tool of toolCatalogue(client, uploadMediaTool)) {

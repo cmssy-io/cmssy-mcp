@@ -12,6 +12,11 @@ import type { CmssyApi } from "./graphql-client.js";
 import type { FetchUrl, UploadSourcePolicy } from "./media-upload.js";
 import { PACKAGE_VERSION } from "./package-version.js";
 import { createUpdateRegionSettingsTool } from "./region-settings.js";
+import {
+  createGetSiteSetupTool,
+  createSetPreviewUrlTool,
+  SITE_SETUP_INSTRUCTIONS,
+} from "./site-setup.js";
 import { toolCatalogue } from "./server.js";
 
 export interface HostedWorkspace {
@@ -43,14 +48,22 @@ export function hostedUploadPolicy(fetchUrl: FetchUrl): UploadSourcePolicy {
   return { allowFilePath: false, fetchUrl };
 }
 
+const CLIENT_BOUND_TOOLS: Record<string, (client: CmssyApi) => AiTool> = {
+  update_region_settings: (client) =>
+    createUpdateRegionSettingsTool(client) as AiTool,
+  get_site_setup: (client) => createGetSiteSetupTool(client) as AiTool,
+  set_preview_url: (client) => createSetPreviewUrlTool(client) as AiTool,
+};
+
 function toolForClient(template: AiTool, client: CmssyApi): AiTool {
-  return template.name === "update_region_settings"
-    ? (createUpdateRegionSettingsTool(client) as AiTool)
-    : template;
+  return CLIENT_BOUND_TOOLS[template.name]?.(client) ?? template;
 }
 
 export function createHostedServer(options: HostedServerOptions): McpServer {
-  const server = new McpServer({ name: "cmssy", version: PACKAGE_VERSION });
+  const server = new McpServer(
+    { name: "cmssy", version: PACKAGE_VERSION },
+    { instructions: SITE_SETUP_INSTRUCTIONS },
+  );
   const uploadPolicy = hostedUploadPolicy(options.fetchUrl);
 
   server.registerTool(

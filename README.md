@@ -123,12 +123,17 @@ Tools that accept `response`: `create_page`, `update_page_blocks`,
 (`update_form_submission_status`, `import_records`)
 already returned a compact ack and don't take `response`.
 
+## Building a site
+
+On connect the server sends instructions that send an agent (v0, Lovable, Bolt, Claude) to `get_site_setup` first. It returns the files `cmssy init` writes for Next.js - catch-all page, editor route, proxy, config, block registry, header/footer regions - with the workspace's env vars filled in. The agent then deploys, calls `set_preview_url`, creates the `content.changed` webhook for `/api/revalidate`, has the user open the editor once so the block types register, creates the pages with header and footer in their layout regions, and publishes them.
+
 ## Available Tools
 
 ### Read Tools
 
 | Tool                 | Description                                                                                                                                       |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_site_setup`     | Everything to build a site on the workspace: the files to write, packages, env vars filled in, steps                                             |
 | `list_pages`         | Page tree with hierarchy (optional `search` filter)                                                                                               |
 | `get_page`           | Full page with blocks, i18n content and region settings (own `regionSettings` + resolved `resolvedRegions` with inheritance source) by slug or id |
 | `get_site_config`    | Languages, navigation, site name                                                                                                                  |
@@ -144,6 +149,7 @@ already returned a compact ack and don't take `response`.
 | `update_page_blocks`   | Set full blocks array on a page    |
 | `update_page_settings` | Update page metadata and SEO       |
 | `publish_page`         | Publish a page                     |
+| `set_preview_url`      | Point the editor at the deployed app (stores the URL's origin) |
 | `unpublish_page`       | Unpublish a page                   |
 | `delete_page`          | Move a page and its subtree to the trash, restorable for 30 days |
 | `restore_page`         | Restore a trashed page group as unpublished drafts |
