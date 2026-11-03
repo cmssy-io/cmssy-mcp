@@ -568,7 +568,6 @@ type BlockFieldRemoval {
 
 type BlockManifest {
   blocks: JSON!
-  canRollback: Boolean!
   hash: String!
   pending: BlockManifestProposal
   regions: JSON!
@@ -581,7 +580,15 @@ type BlockManifestDiff {
   changedRegions: [String!]!
   changedTypes: [String!]!
   movesStoredContent: Boolean!
+
+  """Pages that place a layout block in each removed region."""
+  removedRegionUsage: [BlockRegionRemoval!]!
   removedRegions: [String!]!
+
+  """
+  Pages that store a block of each removed type, so the change says what stops resolving before it is applied.
+  """
+  removedTypeUsage: [BlockTypeRemoval!]!
   removedTypes: [String!]!
 }
 
@@ -603,7 +610,6 @@ type BlockManifestImpact {
 
 type BlockManifestMutations {
   activate(hash: String!): BlockManifest!
-  rollback: BlockManifest!
   save(allowLossy: Boolean, allowRemovals: Boolean, blocks: JSON!, expectedHash: String, onlyIfAbsent: Boolean, regions: JSON): BlockManifest!
 }
 
@@ -625,6 +631,12 @@ type BlockMetadata {
   createdBy: String!
   updatedAt: DateTime!
   version: Int!
+}
+
+type BlockRegionRemoval {
+  pages: Int!
+  publishedPages: Int!
+  region: String!
 }
 
 type BlockTranslation {
