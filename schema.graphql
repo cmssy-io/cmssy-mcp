@@ -4092,6 +4092,49 @@ type PageAccessControl {
   requireAuth: Boolean!
 }
 
+"""
+Outcome of a bulk page action (CMS-2192). `done` lists the selected ids that reached the requested state, `skipped` names every id that did not and why, `affected` counts every page that changed, subtrees included.
+"""
+type PageBulkResult {
+  affected: Int!
+  done: [ID!]!
+  skipped: [PageBulkSkipped!]!
+}
+
+input PageBulkSelectionInput {
+  ids: [ID!]!
+
+  """
+  Publish and unpublish only: also act on every page below each selected one. Trash and move always take the subtree.
+  """
+  includeDescendants: Boolean
+}
+
+"""
+Why a page the selection named was left as it was (CMS-2192). The screen maps each value to copy; LOCKED carries the holder's id.
+"""
+enum PageBulkSkipReason {
+  CONFLICT
+  CYCLE
+  FORBIDDEN
+  HOME_PAGE
+  LOCKED
+  MOVES_WITH_PARENT
+  NOT_FOUND
+  NO_CHANGE
+  STAGE_BLOCKS_PUBLISH
+  TARGET_NOT_FOUND
+  TARGET_NO_CHILDREN
+  TOO_DEEP
+}
+
+type PageBulkSkipped {
+  id: ID!
+  lockHolderId: ID
+  name: String!
+  reason: PageBulkSkipReason!
+}
+
 type PageComment {
   author: CommentUser!
   blockId: String
@@ -4156,6 +4199,14 @@ type PageLock {
 }
 
 type PageMutations {
+  bulkMove(
+    """The new parent; omit for the top level."""
+    parentId: ID
+    selection: PageBulkSelectionInput!
+  ): PageBulkResult!
+  bulkPublish(selection: PageBulkSelectionInput!): PageBulkResult!
+  bulkTrash(selection: PageBulkSelectionInput!): PageBulkResult!
+  bulkUnpublish(selection: PageBulkSelectionInput!): PageBulkResult!
   delete(id: ID!): DeletionResult!
   discardDevDraft(pageId: String!): Boolean!
   emptyTrash(ids: [ID!]!): Int!
