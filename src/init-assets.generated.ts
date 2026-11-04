@@ -1,9 +1,9 @@
-export const INIT_ASSETS_VERSION = "19.27.0";
+export const INIT_ASSETS_VERSION = "19.28.1";
 
 export const NEXT_INIT_FILES: ReadonlyArray<{ path: string; content: string }> = [
   {
     "path": ".env.example",
-    "content": "# `npx @cmssy/cli link --token cs_...` writes all three into .env.local for you.\n# Your organization slug (Settings -> Headless in the cmssy dashboard)\nCMSSY_ORG_SLUG=\n# Your workspace slug (Settings -> Headless in the cmssy dashboard)\nCMSSY_WORKSPACE_SLUG=\n# Draft/preview secret, generated per workspace (Settings -> Headless)\nCMSSY_DRAFT_SECRET=\n# Signing secret of the content.changed webhook pointed at /api/revalidate (Settings -> Webhooks)\nCMSSY_WEBHOOK_SECRET=\n"
+    "content": "# `npx @cmssy/cli@latest link --token cs_...` writes all three into .env.local for you.\n# Your organization slug (Settings -> Headless in the cmssy dashboard)\nCMSSY_ORG_SLUG=\n# Your workspace slug (Settings -> Headless in the cmssy dashboard)\nCMSSY_WORKSPACE_SLUG=\n# Draft/preview secret, generated per workspace (Settings -> Headless)\nCMSSY_DRAFT_SECRET=\n# Signing secret of the content.changed webhook pointed at /api/revalidate (Settings -> Webhooks)\nCMSSY_WEBHOOK_SECRET=\n"
   },
   {
     "path": "app/[[...path]]/layout.tsx",

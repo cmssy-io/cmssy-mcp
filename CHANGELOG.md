@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.134.1
+
+- `get_site_setup` bundles the `cmssy init` files from `@cmssy/cli` 19.28.1:
+  the `.env.example` it hands over now says `npx @cmssy/cli@latest link`, so a
+  stale npx cache cannot run an old CLI.
+
 ## 0.134.0
 
 - The server sends instructions on connect: an agent asked to build a site

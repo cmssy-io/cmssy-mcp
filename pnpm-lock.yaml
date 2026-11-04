@@ -22,8 +22,8 @@ importers:
         version: 4.4.3
     devDependencies:
       '@cmssy/cli':
-        specifier: 19.27.0
-        version: 19.27.0
+        specifier: 19.28.1
+        version: 19.28.1
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.13
@@ -47,12 +47,12 @@ packages:
     peerDependencies:
       zod: ^4
 
-  '@cmssy/cli@19.27.0':
-    resolution: {integrity: sha512-JZyIxhq4G0XBhKxHE/yvapZajMQGWLnGRuoLKamO7kyt9jAlAIz9XLRLsJ6u5gUMrZKnjw8QYp2SRKLNamol0A==}
+  '@cmssy/cli@19.28.1':
+    resolution: {integrity: sha512-0YFgjLWkqfgFjj1ZICgRWlX1i3nfDYmANZim06WRC+ORjH+n3uBzVRCiiQzWJnU2DSpjZ2JdBXa+grN53yGpjA==}
     hasBin: true
 
-  '@cmssy/core@19.27.0':
-    resolution: {integrity: sha512-wjTba2zVEH5RpTJe6ydKyzIwwnw1ZQsau/9o0Y330Dl9R8qi3C+5LQBkZzTXrnG96fux/Fw6rfxpZqeohzgY/A==}
+  '@cmssy/core@19.28.1':
+    resolution: {integrity: sha512-yH8gv3VFj4v/JhiR9LMbzvtOR+ezcKYBLoVvK0aLBXOsiLNEYHm/4ZC4kazk6xZs1eyPp/vR3qzNxJ891syV5Q==}
 
   '@cmssy/types@0.71.0':
     resolution: {integrity: sha512-vkW+mxUl86pC0kSrc2Ve+Mx6ti1rLefswFdDPka5BtvGu3hHsF2IWhCea8zAIfO/RjZFpfKfPEY5Ku2jRtY3sA==}
@@ -1160,12 +1160,12 @@ snapshots:
       '@cmssy/types': 0.71.0
       zod: 4.4.3
 
-  '@cmssy/cli@19.27.0':
+  '@cmssy/cli@19.28.1':
     dependencies:
-      '@cmssy/core': 19.27.0
+      '@cmssy/core': 19.28.1
       esbuild: 0.27.7
 
-  '@cmssy/core@19.27.0':
+  '@cmssy/core@19.28.1':
     dependencies:
       '@cmssy/types': 0.72.0
       jose: 6.2.14
