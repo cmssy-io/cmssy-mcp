@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.134.2
+
+- `list_records` and `list_products` take `sort` as `<fieldKey>_asc` or
+  `<fieldKey>_desc` (`@cmssy/ai-tools` 0.104.2). The records API rejects any
+  other form, such as `createdAt` or `-updatedAt` (CMS-2199).
+
 ## 0.134.1
 
 - `get_site_setup` bundles the `cmssy init` files from `@cmssy/cli` 19.28.1:
