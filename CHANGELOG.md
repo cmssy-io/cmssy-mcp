@@ -1,5 +1,17 @@
 # @cmssy/mcp-server
 
+## 0.134.3
+
+- Page writes take a page's slug as well as its id, as `get_page` does:
+  `publish_page`, `update_page_blocks`, `update_block_content` and the other
+  `pageId` tools, plus `parentId` on `create_page` and `update_page_settings`
+  (`@cmssy/ai-tools` 0.105.0). A slug used to reach the id-only write path and
+  fail with "Page not found". A slug without its leading `/` resolves too.
+- `update_form` and `create_form` take the `null`s `get_form` returns
+  (`redirectUrl`, `emailConfigurationId`, `description`, `defaultValue`,
+  validation limits, `showWhen`/`requiredWhen`), so a form read back and
+  sent again no longer fails with "expected string, received null".
+
 ## 0.134.2
 
 - `list_records` and `list_products` take `sort` as `<fieldKey>_asc` or

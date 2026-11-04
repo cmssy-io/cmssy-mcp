@@ -1151,6 +1151,14 @@ export function createMcpWorkspaceOps(
           res.page.save.blockWarnings,
         );
       },
+      resolveId: async (idOrSlug) => {
+        const page =
+          (await loadPageVersion(client, idOrSlug)) ??
+          (idOrSlug.startsWith("/")
+            ? null
+            : await loadPageVersion(client, `/${idOrSlug}`));
+        return page?.id ?? null;
+      },
       get: async (idOrSlug) => {
         const page = await loadPage(client, idOrSlug);
         if (!page) return null;
