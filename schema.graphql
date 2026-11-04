@@ -160,6 +160,16 @@ type AdminDiscountListResult {
   total: Int!
 }
 
+"""
+An organization AI provider config granted to this workspace; carries no key data
+"""
+type AiAvailableConfig {
+  defaultModel: String!
+  id: ID!
+  name: String!
+  provider: AiProviderType!
+}
+
 """AI generation history entry"""
 type AiGenerationHistory {
   createdAt: DateTime!
@@ -180,41 +190,36 @@ type AiGenerationResult {
 type AiMutations {
   clearBrandContext: Boolean!
 
-  """Clear an AI provider API key"""
-  clearProviderKey(provider: AiProviderType!): Boolean!
-
   """Generate alt text for an image"""
   generateAltText(input: GenerateAltTextInput!): AiGenerationResult!
 
   """
-  Models the provider currently serves: to the key given, else to the key stored for the workspace
+  Models the provider currently serves to the key of an organization config granted to this workspace
   """
-  providerModels(apiKey: String, provider: AiProviderType!): [AiProviderModel!]!
+  providerModels(configId: ID!): [AiProviderModel!]!
 
   """Execute an AI action on rich text content"""
   richText(input: RichTextAiInput!): RichTextResult!
-
-  """Validate an AI provider API key with a tiny probe, no save"""
-  testProviderConnection(apiKey: String!, model: String, provider: AiProviderType!): AiProviderTestResult!
 
   """Update AI provider configuration"""
   updateProvider(input: UpdateAiProviderInput!): AiProvider!
 }
 
-"""AI provider configuration for a workspace"""
+"""AI provider selection for a workspace"""
 type AiProvider {
-  activeProvider: AiProviderType
-  anthropicModel: String!
+  """
+  The granted organization config this workspace runs AI on; null when none is selected or the selected one is no longer granted
+  """
+  activeConfigId: ID
+  availableConfigs: [AiAvailableConfig!]!
   brandContextEnabled: Boolean!
   brandContextLastAnalyzed: DateTime
   brandKeywords: [String!]!
   brandSummary: String
   brandTone: String
-  configuredProviders: [AiProviderType!]!
-  googleModel: String!
-  groqModel: String!
-  mistralModel: String!
-  openaiModel: String!
+
+  """Model used instead of the config's default model"""
+  modelOverride: String
 
   """
   Whether Spotlight may use OpenAI's own web search. OpenAI can open any page while searching, outside the confirmation Spotlight asks for before a change, so it is off until an admin turns it on.
@@ -254,14 +259,112 @@ type AiQueries {
 
   """Get AI status for the current workspace"""
   status: AiStatus!
+
+  """
+  What this workspace spent on its organization's AI provider keys in the period, broken down by model, surface, operation and user. Requires ai:configure.
+  """
+  usage(range: UsageHistoryRange = LAST_30_DAYS): AiUsageReport!
 }
 
 """AI status for a workspace"""
 type AiStatus {
+  """Name of the organization config the workspace runs on, when AI can run"""
+  activeConfigName: String
   activeProvider: AiProviderType
   brandContextEnabled: Boolean!
   canUseAi: Boolean!
   isConfigured: Boolean!
+}
+
+type AiUsageByModel {
+  model: String!
+  provider: AiProviderType!
+  totals: AiUsageTotals!
+}
+
+type AiUsageByOperation {
+  operation: AiUsageOperation!
+  totals: AiUsageTotals!
+}
+
+type AiUsageBySurface {
+  surface: AiUsageSurface!
+  totals: AiUsageTotals!
+}
+
+type AiUsageByUser {
+  email: String
+
+  """
+  Null when the account no longer exists or has no display, first or last name.
+  """
+  name: String
+  totals: AiUsageTotals!
+  userId: ID!
+}
+
+enum AiUsageOperation {
+  ALT_TEXT
+  BRAND
+  CHAT
+  CONNECTION_TEST
+  PAGE
+  RICHTEXT
+  SEO
+  SUMMARY
+  TRANSLATION
+}
+
+type AiUsagePoint {
+  calls: Int!
+  day: DateTime!
+  errors: Int!
+  inputTokens: Float!
+  outputTokens: Float!
+}
+
+"""
+Token and call usage of this workspace on its organization's AI provider keys over whole UTC days, aggregated from stored usage events.
+"""
+type AiUsageReport {
+  byModel: [AiUsageByModel!]!
+  byOperation: [AiUsageByOperation!]!
+  bySurface: [AiUsageBySurface!]!
+  byUser: [AiUsageByUser!]!
+
+  """Exclusive upper bound: the start of tomorrow UTC."""
+  periodEnd: DateTime!
+  periodStart: DateTime!
+  points: [AiUsagePoint!]!
+
+  """Days an event is kept before it expires; no range may exceed it."""
+  retentionDays: Int!
+  totals: AiUsageTotals!
+}
+
+enum AiUsageSurface {
+  EDITOR
+  SPOTLIGHT
+}
+
+"""
+Provider requests and tokens summed over a set of usage events. Token sums are Float because a busy workspace exceeds 32-bit Int within retention.
+"""
+type AiUsageTotals {
+  aborted: Int!
+  cacheReadTokens: Float!
+  cacheWriteTokens: Float!
+  calls: Int!
+  errors: Int!
+  inputTokens: Float!
+  outputTokens: Float!
+  reasoningTokens: Float!
+  totalTokens: Float!
+
+  """
+  Successful calls whose provider reported neither input nor output tokens; they count as calls and add nothing to the token sums. Failed and aborted calls are counted in errors and aborted instead.
+  """
+  unmeteredCalls: Int!
 }
 
 type Announcement {
@@ -420,6 +523,7 @@ enum AuditLogAction {
   TOKEN_REVOKED
   USER_ADDED
   USER_INVITED
+  USER_OAUTH_APP_CONNECTED
   USER_OAUTH_APP_DISCONNECTED
   USER_REMOVED
   USER_ROLE_CHANGED
@@ -1339,6 +1443,15 @@ input CreateModelRecordInput {
 
   """False keeps the record off the delivery API until it is published."""
   published: Boolean = true
+}
+
+input CreateOrgAiProviderInput {
+  allWorkspaces: Boolean
+  apiKey: String
+  defaultModel: String!
+  name: String!
+  provider: AiProviderType!
+  workspaceIds: [ID!]
 }
 
 input CreateOrganizationInput {
@@ -2940,9 +3053,17 @@ type NotificationQueries {
 type OAuthAppMutations {
   """Disconnects one of the caller's own connected apps."""
   revoke(grantId: ID!): ID!
+
+  """
+  Replaces the workspaces one of the caller's own connected apps can reach, while they still equal expectedWorkspaceIds.
+  """
+  setWorkspaces(expectedWorkspaceIds: [ID!]!, grantId: ID!, workspaceIds: [ID!]!): OAuthUserGrant!
 }
 
 type OAuthAppQueries {
+  """Every workspace the caller can add to one of their connected apps."""
+  connectableWorkspaces: [OAuthConnectableWorkspace!]!
+
   """
   The MCP URL a client such as Claude connects to, or null when connecting apps is not configured.
   """
@@ -3770,7 +3891,34 @@ type OrderTaxTreatment {
   shipToCountry: String
 }
 
+"""
+An AI provider config owned by the organization and granted to its workspaces. The API key is write-only.
+"""
+type OrgAiProvider {
+  allWorkspaces: Boolean!
+  defaultModel: String!
+  hasApiKey: Boolean!
+  id: ID!
+  maskedApiKey: String
+  name: String!
+  provider: AiProviderType!
+  workspaceIds: [ID!]!
+}
+
+input OrgAiProviderKeySourceInput {
+  apiKey: String
+
+  """A saved config; its stored key is used unless apiKey is given"""
+  configId: ID
+  model: String
+  provider: AiProviderType
+}
+
 enum OrgAuditLogAction {
+  AI_PROVIDER_CONNECTION_TESTED
+  AI_PROVIDER_CREATED
+  AI_PROVIDER_DELETED
+  AI_PROVIDER_UPDATED
   MEMBER_INVITATION_ACCEPTED
   MEMBER_INVITATION_CANCELLED
   MEMBER_INVITED
@@ -3794,6 +3942,7 @@ enum OrgAuditLogAction {
 }
 
 enum OrgAuditLogEntityType {
+  AI_PROVIDER
   MEMBER
   ORGANIZATION
   SSO_CONFIG
@@ -3845,6 +3994,26 @@ type OrganizationAddons {
 input OrganizationAddonsInput {
   seats: Int!
   workspaces: Int!
+}
+
+type OrganizationAiMutations {
+  createProvider(input: CreateOrgAiProviderInput!, organizationId: ID!): OrgAiProvider!
+  deleteProvider(id: ID!, organizationId: ID!): Boolean!
+
+  """
+  Models the provider serves to a saved config's stored key, or to a raw key before save
+  """
+  providerModels(input: OrgAiProviderKeySourceInput!, organizationId: ID!): [AiProviderModel!]!
+
+  """
+  Validate a key with a tiny probe: a saved config's stored key, or a raw key before save
+  """
+  testConnection(input: OrgAiProviderKeySourceInput!, organizationId: ID!): AiProviderTestResult!
+  updateProvider(id: ID!, input: UpdateOrgAiProviderInput!, organizationId: ID!): OrgAiProvider!
+}
+
+type OrganizationAiQueries {
+  providers(organizationId: ID!): [OrgAiProvider!]!
 }
 
 type OrganizationAuditLog {
@@ -3938,6 +4107,7 @@ type OrganizationMember {
 type OrganizationMutations {
   acceptInvitation(organizationId: ID!): Organization!
   acceptInvitationByToken(token: String!): AcceptOrganizationInvitationResult!
+  ai: OrganizationAiMutations!
 
   """
   Cancel a billing cycle change scheduled for the end of the paid period, releasing its Stripe subscription schedule. The pending change clears when Stripe's webhook confirms the release.
@@ -3986,6 +4156,7 @@ type OrganizationMutations {
 }
 
 type OrganizationQueries {
+  ai: OrganizationAiQueries!
   get(id: ID, slug: String): Organization
   invoices(limit: Int, organizationId: ID!): [Invoice!]!
   list: [Organization!]!
@@ -4782,6 +4953,10 @@ type ProductQueries {
     """The product model's id or slug"""
     modelId: ID!
     offset: Int
+
+    """
+    Sort order as "<fieldKey>_asc" or "<fieldKey>_desc", where the key is a field of the model or one of createdAt, updatedAt, status. Any other expression is rejected. When omitted, the model's default sort applies, else newest first.
+    """
     sort: String
   ): ProductCatalogList!
 }
@@ -5095,6 +5270,10 @@ type PublicModelQueries {
     Filter a product model to the records whose own SKU, or one of whose variants' SKUs, equals this. The record's own SKU is matched only when the delivery API serves its SKU field.
     """
     sku: String
+
+    """
+    Sort order as "<fieldKey>_asc" or "<fieldKey>_desc", where the key is a field of the model or one of createdAt, updatedAt, status. Any other expression is rejected. When omitted, the model's default sort applies, else newest first.
+    """
     sort: String
 
     """
@@ -5337,6 +5516,11 @@ type PublicPage {
   blocks: [PublicBlockData!]!
   customFields: [PageCustomField!]!
   description: String
+
+  """
+  True when a devPreview read was honoured: the caller is the workspace owner or holds site:preview_dev there. blocks is then the caller's dev overlay when one exists; without an overlay it is the published blocks, or the draft when the request also carried a valid previewSecret - a preview read keeps its draft. False when devPreview was not requested or the caller was not authorized - blocks is then the ordinary draft read, which an anonymous caller sees stripped.
+  """
+  devPreviewApplied: Boolean!
   displayName: JSON!
   id: String!
   inheritsLayout: Boolean!
@@ -5668,6 +5852,10 @@ type RecordQueries {
     modelId: ID!
     offset: Int
     populate: [String!]
+
+    """
+    Sort order as "<fieldKey>_asc" or "<fieldKey>_desc", where the key is a field of the model or one of createdAt, updatedAt, status. Any other expression is rejected. When omitted, the model's default sort applies, else newest first.
+    """
     sort: String
 
     """Only published or only unpublished records. All when omitted."""
@@ -6530,18 +6718,12 @@ type TrashedPage {
 }
 
 input UpdateAiProviderInput {
-  activeProvider: AiProviderType
-  anthropicApiKey: String
-  anthropicModel: String
+  """
+  A granted organization config to run AI on; null turns AI off for this workspace
+  """
+  activeConfigId: ID
   brandContextEnabled: Boolean
-  googleApiKey: String
-  googleModel: String
-  groqApiKey: String
-  groqModel: String
-  mistralApiKey: String
-  mistralModel: String
-  openaiApiKey: String
-  openaiModel: String
+  modelOverride: String
   openaiWebSearch: Boolean
 }
 
@@ -6686,6 +6868,16 @@ input UpdateOrderDetailsInput {
   Correct the delivery address. Omitted leaves it unchanged; null clears it.
   """
   shippingAddress: ShippingAddressInput
+}
+
+input UpdateOrgAiProviderInput {
+  allWorkspaces: Boolean
+
+  """A new key replaces the stored one; omit it to keep the stored key"""
+  apiKey: String
+  defaultModel: String
+  name: String
+  workspaceIds: [ID!]
 }
 
 input UpdateOrganizationInput {

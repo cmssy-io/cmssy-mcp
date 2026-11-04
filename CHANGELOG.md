@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## Unreleased
+
+- Vendored SDL synced with cmssy#3401 (CMS-2201): AI provider keys moved from
+  workspaces to organizations. Removes `ai.clearProviderKey`,
+  `ai.testProviderConnection`, `AiProvider.configuredProviders`, the
+  per-provider `*Model` fields and the key/model fields of
+  `UpdateAiProviderInput`; adds `organization.ai`,
+  `AiProvider.activeConfigId` / `modelOverride` / `availableConfigs` and
+  `AiStatus.activeConfigName`. No tool read the removed fields.
+
 ## 0.134.3
 
 - Page writes take a page's slug as well as its id, as `get_page` does:
