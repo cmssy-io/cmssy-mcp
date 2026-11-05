@@ -272,7 +272,6 @@ type AiStatus {
   activeConfigName: String
   activeProvider: AiProviderType
   brandContextEnabled: Boolean!
-  canUseAi: Boolean! @deprecated(reason: "Use isConfigured")
   isConfigured: Boolean!
 }
 

@@ -14,6 +14,9 @@
   `OrgAiProvider.activeWorkspaceIds`; `AiStatus.canUseAi` is deprecated in
   favour of `isConfigured`. No tool reads either field.
 
+- Vendored SDL synced with cmssy#3408: `AiStatus.canUseAi` removed (use
+  `isConfigured`). No tool read it.
+
 ## 0.134.3
 
 - Page writes take a page's slug as well as its id, as `get_page` does:
