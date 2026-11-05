@@ -10,6 +10,10 @@
   `AiProvider.activeConfigId` / `modelOverride` / `availableConfigs` and
   `AiStatus.activeConfigName`. No tool read the removed fields.
 
+- Vendored SDL synced with cmssy#3406 (CMS-2201 follow-up): adds
+  `OrgAiProvider.activeWorkspaceIds`; `AiStatus.canUseAi` is deprecated in
+  favour of `isConfigured`. No tool reads either field.
+
 ## 0.134.3
 
 - Page writes take a page's slug as well as its id, as `get_page` does:
