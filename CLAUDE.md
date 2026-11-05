@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MCP (Model Context Protocol) server for Cmssy CMS. Exposes CMS operations (pages, blocks, media, site config) as MCP tools over stdio transport, and as a library a host can serve over HTTP (`createHostedServer`). Communicates with the Cmssy backend via GraphQL.
 
+## Internal docs
+
+- **Internal docs**: prod cmssy workspace `cmssy/internal-docs` (model `doc`, read at wiki.cmssy.io), never a repo. Every change follows the [`internal-docs` skill](https://github.com/cmssy-io/cmssy/blob/develop/.claude/skills/internal-docs/SKILL.md): decide mechanically whether a doc must change; every PR carries exactly one `Docs:` line.
+
 ## Commands
 
 - `pnpm build` - compile TypeScript to `dist/`
