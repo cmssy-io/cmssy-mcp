@@ -272,7 +272,7 @@ type AiStatus {
   activeConfigName: String
   activeProvider: AiProviderType
   brandContextEnabled: Boolean!
-  canUseAi: Boolean!
+  canUseAi: Boolean! @deprecated(reason: "Use isConfigured")
   isConfigured: Boolean!
 }
 
@@ -3895,6 +3895,8 @@ type OrderTaxTreatment {
 An AI provider config owned by the organization and granted to its workspaces. The API key is write-only.
 """
 type OrgAiProvider {
+  """The organization's workspaces that currently run AI on this config"""
+  activeWorkspaceIds: [ID!]!
   allWorkspaces: Boolean!
   defaultModel: String!
   hasApiKey: Boolean!
