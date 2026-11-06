@@ -485,6 +485,11 @@ interface RawModelDefinition {
   updatedAt: string | null;
 }
 
+/** What list_models fetches: auth without its heavy email settings. */
+interface RawModelListItem extends Omit<RawModelDefinition, "auth"> {
+  auth: Omit<NonNullable<ModelDetail["auth"]>, "email"> | null;
+}
+
 interface RawCustomer {
   id: string;
   modelId: string;
@@ -732,7 +737,7 @@ export function toProposedFields(
   }));
 }
 
-function toModelSummary(m: RawModelDefinition): ModelSummary {
+function toModelSummary(m: RawModelListItem): ModelSummary {
   return {
     id: m.id,
     name: m.name,
@@ -780,7 +785,7 @@ export function createMcpWorkspaceOps(
     models: {
       list: async () => {
         const res = await client.query<{
-          model: { list: RawModelDefinition[] };
+          model: { list: RawModelListItem[] };
         }>(MODEL_DEFINITIONS_QUERY);
         return res.model.list.map(toModelSummary);
       },

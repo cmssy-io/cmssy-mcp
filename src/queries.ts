@@ -1034,11 +1034,6 @@ const MODEL_DEFINITION_FRAGMENT = `
     identityField
     companyField
     registration
-    email {
-      enabled
-      links { verification passwordReset loginChange }
-      templates { kind locale subject heading body ctaLabel }
-    }
     verification { required }
     lockout { enabled maxAttempts lockMinutes }
   }
@@ -1087,11 +1082,24 @@ export const MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY = `
   }
 `;
 
+// Only get_model reads the account email settings: their templates can run
+// to tens of kilobytes per model, and list_models never returns auth.
+const MODEL_AUTH_EMAIL_SELECTION = `
+  auth {
+    email {
+      enabled
+      links { verification passwordReset loginChange }
+      templates { kind locale subject heading body ctaLabel }
+    }
+  }
+`;
+
 export const MODEL_DEFINITION_BY_ID_QUERY = `
   query ModelDefinition($id: ID!) {
     model {
       get(id: $id) {
         ${MODEL_DEFINITION_FRAGMENT}
+        ${MODEL_AUTH_EMAIL_SELECTION}
       }
     }
   }

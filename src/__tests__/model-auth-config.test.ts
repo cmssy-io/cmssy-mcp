@@ -4,7 +4,7 @@ import { parse, visit, type FieldNode } from "graphql";
 
 import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import type { CmssyClient } from "../graphql-client.js";
-import { MODEL_DEFINITION_BY_ID_QUERY } from "../queries.js";
+import { MODEL_DEFINITION_BY_ID_QUERY, MODEL_DEFINITIONS_QUERY } from "../queries.js";
 
 function selectedUnder(document: string, parent: string): Set<string> {
   const names = new Set<string>();
@@ -143,6 +143,11 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
 
     const input = sent[1]!.variables.input as Record<string, unknown>;
     expect(input.auth).toEqual({ email });
+  });
+
+  it("list_models leaves auth.email out: its templates are heavy and the list never returns auth", () => {
+    expect(selectedUnder(MODEL_DEFINITIONS_QUERY, "auth").has("email")).toBe(false);
+    expect(selectedUnder(MODEL_DEFINITIONS_QUERY, "auth").has("registration")).toBe(true);
   });
 
   it("the model fragment asks for every auth.email field", () => {
