@@ -1,5 +1,12 @@
 # @cmssy/mcp-server
 
+## 0.135.1
+
+- `list_records` and `bulk_update_records` refuse regex syntax (`|`, `\`,
+  `[`, `.*`, `.+`, a leading `^`, a trailing `$`) in a `$regex` filter
+  (`@cmssy/ai-tools` 0.107.0). The backend matches `$regex` as a literal
+  substring, so such a filter used to return nothing without an error.
+
 ## 0.135.0
 
 - `update_model` and `create_model` take `auth.registration` (`"open"` |
