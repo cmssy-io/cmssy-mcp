@@ -1,5 +1,17 @@
 # @cmssy/mcp-server
 
+## 0.136.0
+
+- `get_model` returns `auth.email` (`enabled`, `links`, `templates`) and
+  `update_model` / `create_model` take it as a PATCH (`@cmssy/ai-tools`
+  0.108.0): cmssy sends verification, password reset and login change
+  emails itself through the workspace's email provider. `links` merges,
+  `templates` replaces the list, every link needs `{token}`.
+- `send_customer_password_reset` and `resend_customer_verification` return
+  `emailDelivery { status: SENT | FAILED | OFF, error }`.
+- Vendored SDL synced with cmssy#3427. Needs that backend live: older
+  backends refuse the new `auth.email` and `emailDelivery` selections.
+
 ## 0.135.1
 
 - `list_records` and `bulk_update_records` refuse regex syntax (`|`, `\`,
