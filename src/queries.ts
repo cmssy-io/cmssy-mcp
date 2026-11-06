@@ -1033,6 +1033,7 @@ const MODEL_DEFINITION_FRAGMENT = `
     strategy
     identityField
     companyField
+    registration
     verification { required }
     lockout { enabled maxAttempts lockMinutes }
   }
