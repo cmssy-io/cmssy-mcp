@@ -15,6 +15,77 @@ type AcceptOrganizationInvitationResult {
   success: Boolean!
 }
 
+type AccountEmailDelivery {
+  error: String
+  status: AccountEmailDeliveryStatus!
+}
+
+enum AccountEmailDeliveryStatus {
+  """Not sent - see error and the workspace email log (category account)."""
+  FAILED
+
+  """
+  The model does not have cmssy account emails on; only the webhook event went out.
+  """
+  OFF
+
+  """Handed to the email provider."""
+  SENT
+}
+
+type AccountEmailFailure {
+  at: String!
+  error: String!
+  event: String
+}
+
+"""
+An email cmssy can send a site member: verification (after sign-up or an admin resend), passwordReset (forgot password or an admin send), loginChange (to the new login, to confirm it).
+"""
+enum AccountEmailKind {
+  loginChange
+  passwordReset
+  verification
+}
+
+type AccountEmailPreview {
+  html: String!
+  link: String!
+  locale: String!
+  subject: String!
+}
+
+"""
+A draft to render with a sample token. Empty copy fields fall back to the built-in copy of the locale.
+"""
+input AccountEmailPreviewInput {
+  body: String
+  ctaLabel: String
+  heading: String
+  kind: AccountEmailKind!
+  link: String!
+  locale: String!
+  subject: String
+}
+
+"""
+What the Accounts tab warns about: no email provider, no site URL, a webhook that may send a second email, the latest failed account email (24h).
+"""
+type AccountEmailStatus {
+  emailConfigurationName: String
+
+  """An active default email configuration exists."""
+  emailConfigured: Boolean!
+  enabled: Boolean!
+  lastFailure: AccountEmailFailure
+  publicSiteUrl: String
+
+  """
+  An enabled webhook endpoint receives an account.* event. If that app mails the member too, the member gets two emails.
+  """
+  webhookSubscribed: Boolean!
+}
+
 """
 Whose orders account.orders lists: MINE - the member's own; COMPANY - every order placed for the member's company, which needs the orders.company.read company permission.
 """
@@ -1638,7 +1709,12 @@ type CustomerAccountRequestResult {
   customer: Customer!
 
   """
-  Whether an enabled webhook endpoint receives the account event. cmssy never emails a customer: the endpoint's app does. False means the token was issued but nothing will reach the customer.
+  cmssy's own email to the customer (the model's account emails). OFF when the model leaves emailing to the app's webhook.
+  """
+  emailDelivery: AccountEmailDelivery!
+
+  """
+  Whether an enabled webhook endpoint receives the account event. With emailDelivery OFF this is the only way the token reaches the customer: false then means nothing will.
   """
   endpointSubscribed: Boolean!
 }
@@ -1701,12 +1777,12 @@ type CustomerModel {
 
 type CustomerMutations {
   """
-  Issue a fresh verification token and send it to the workspace's app as account.verification_requested - the app emails the customer. Only for a customer who has not verified yet; the previous token stops working.
+  Issue a fresh verification token and send it as account.verification_requested to the workspace's webhooks; when the model has account emails on, cmssy also emails the customer (see emailDelivery). Only for a customer who has not verified yet; the previous token stops working.
   """
   resendVerification(id: ID!): CustomerAccountRequestResult!
 
   """
-  Issue a password reset token, the same one the forgot-password flow issues, and send it to the workspace's app as account.password_reset_requested - the app emails the customer. Refuses a suspended or unverified customer.
+  Issue a password reset token, the same one the forgot-password flow issues, and send it as account.password_reset_requested to the workspace's webhooks; when the model has account emails on, cmssy also emails the customer (see emailDelivery). Refuses a suspended or unverified customer.
   """
   sendPasswordReset(id: ID!): CustomerAccountRequestResult!
 
@@ -1972,10 +2048,17 @@ type EmailLogConnection {
 
 """Email log entry"""
 type EmailLogType {
+  """
+  What sent it: "account" for site-member account emails; null for forms and the rest.
+  """
+  category: String
   createdAt: String!
   emailConfigurationId: String
   emailConfigurationName: String
   error: String
+
+  """The account.* event an account email answered."""
+  event: String
   formData: JSON
   fromEmail: String
   fromName: String
@@ -2024,7 +2107,15 @@ type EmailQueries {
   log(id: ID!): EmailLogType
 
   """Get paginated list of email logs for the current workspace"""
-  logs(emailConfigurationId: ID, limit: Int = 50, search: String, skip: Int = 0, status: EmailStatusGQL): EmailLogConnection!
+  logs(
+    """"account" lists only site-member account emails."""
+    category: String
+    emailConfigurationId: ID
+    limit: Int = 50
+    search: String
+    skip: Int = 0
+    status: EmailStatusGQL
+  ): EmailLogConnection!
 
   """Get email statistics for the current workspace"""
   stats: EmailStats!
@@ -2627,6 +2718,7 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
+  allowRegistration: Boolean @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
@@ -2739,6 +2831,11 @@ type ModelAuthConfig {
   Relation field on this model that points at the customer's company (a record of another model).
   """
   companyField: String
+
+  """
+  Whether cmssy emails members itself (verification, password reset, login change), and with what links and copy.
+  """
+  email: ModelAuthEmailConfig!
   enabled: Boolean!
   identityField: String!
   lockout: ModelAuthLockout!
@@ -2751,6 +2848,9 @@ type ModelAuthConfig {
 
 input ModelAuthConfigInput {
   companyField: String
+
+  """Omitted keeps the stored value (off on a new model)."""
+  email: ModelAuthEmailConfigInput
   enabled: Boolean
   identityField: String
   lockout: ModelAuthLockoutInput
@@ -2759,6 +2859,64 @@ input ModelAuthConfigInput {
   registration: ModelAuthRegistration
   strategy: ModelAuthStrategy
   verification: ModelAuthVerificationInput
+}
+
+"""
+cmssy emails this model's members itself through the workspace's default email configuration. The account.* webhook events fire either way.
+"""
+type ModelAuthEmailConfig {
+  enabled: Boolean!
+  links: ModelAuthEmailLinks!
+
+  """
+  Overrides of the built-in copy, per kind and locale. A kind/locale without one uses the built-in copy.
+  """
+  templates: [ModelAuthEmailTemplate!]!
+}
+
+"""
+Omitted fields keep the stored value. `templates`, when given, replaces every stored override.
+"""
+input ModelAuthEmailConfigInput {
+  enabled: Boolean
+  links: ModelAuthEmailLinksInput
+  templates: [ModelAuthEmailTemplateInput!]
+}
+
+"""
+URL template per email. Placeholders: {siteUrl} (site config publicSiteUrl), {token} (required), {locale}.
+"""
+type ModelAuthEmailLinks {
+  loginChange: String!
+  passwordReset: String!
+  verification: String!
+}
+
+input ModelAuthEmailLinksInput {
+  loginChange: String
+  passwordReset: String
+  verification: String
+}
+
+"""
+Copy of one account email in one locale. Variables: {{siteName}}, {{login}}, {{expiresIn}}.
+"""
+type ModelAuthEmailTemplate {
+  body: String!
+  ctaLabel: String!
+  heading: String!
+  kind: AccountEmailKind!
+  locale: String!
+  subject: String!
+}
+
+input ModelAuthEmailTemplateInput {
+  body: String!
+  ctaLabel: String!
+  heading: String!
+  kind: AccountEmailKind!
+  locale: String!
+  subject: String!
 }
 
 type ModelAuthLockout {
@@ -2891,6 +3049,18 @@ input ModelProductConfigInput {
 }
 
 type ModelQueries {
+  """
+  The built-in copy of every account email in every locale cmssy ships (en, de, es, pl, fr).
+  """
+  accountEmailDefaultCopy: [ModelAuthEmailTemplate!]!
+
+  """
+  Render an account email draft with the workspace's branding and a sample token.
+  """
+  accountEmailPreview(input: AccountEmailPreviewInput!): AccountEmailPreview!
+
+  """Account email readiness and recent failures of one model."""
+  accountEmailStatus(modelId: ID!): AccountEmailStatus
   get(id: ID!): ModelDefinition
   list: [ModelDefinition!]!
 }
@@ -6496,7 +6666,15 @@ type SiteMemberMutations {
   Delete the signed-in member's account after re-entering the password. Orders keep their snapshot.
   """
   deleteAccount(currentPassword: String!): SiteMemberAuthResponse!
-  forgotPassword(identity: String!, modelSlug: String!): SiteMemberAuthResponse!
+  forgotPassword(
+    identity: String!
+
+    """
+    Language of the visitor's site (e.g. en, pl, de-AT). Used for the email cmssy sends when the account model has account emails on, and remembered on the account; unknown or missing falls back to the site's default language.
+    """
+    locale: String
+    modelSlug: String!
+  ): SiteMemberAuthResponse!
   login(input: SiteMemberLoginInput!): SiteMemberLoginResponse!
   logout(refreshToken: String!): SiteMemberAuthResponse!
   logoutEverywhere: SiteMemberAuthResponse!
@@ -6504,9 +6682,17 @@ type SiteMemberMutations {
   register(input: SiteMemberRegisterInput!): SiteMemberAuthResponse!
 
   """
-  Ask to change the login. cmssy sends a single-use token to the workspace's app as account.login_change_requested; the account keeps its login until confirmLoginChange runs with that token. Only when the account model opens its login field to members.
+  Ask to change the login. cmssy issues a single-use token as account.login_change_requested to the workspace's webhooks and, when the account model has account emails on, emails it to the new login itself; the account keeps its login until confirmLoginChange runs with that token. Only when the account model opens its login field to members.
   """
-  requestLoginChange(currentPassword: String!, newLogin: String!): SiteMemberAuthResponse!
+  requestLoginChange(
+    currentPassword: String!
+
+    """
+    Language of the visitor's site (e.g. en, pl, de-AT). Used for the email cmssy sends when the account model has account emails on, and remembered on the account; unknown or missing falls back to the site's default language.
+    """
+    locale: String
+    newLogin: String!
+  ): SiteMemberAuthResponse!
   resetPassword(newPassword: String!, token: String!): SiteMemberAuthResponse!
 
   """
@@ -6522,6 +6708,11 @@ input SiteMemberRegisterInput {
   """
   fields: JSON
   identity: String!
+
+  """
+  Language of the visitor's site (e.g. en, pl, de-AT). Used for the email cmssy sends when the account model has account emails on, and remembered on the account; unknown or missing falls back to the site's default language.
+  """
+  locale: String
   modelSlug: String!
   password: String!
 }

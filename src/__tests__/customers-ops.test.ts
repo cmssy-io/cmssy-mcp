@@ -312,8 +312,24 @@ describe("customers ops (CMS-1911)", () => {
 
   it("the account actions send the id to their own mutation and keep endpointSubscribed as the backend reported it (CMS-1921)", async () => {
     const { client, sent } = clientAnswering([
-      { customer: { sendPasswordReset: { endpointSubscribed: false, customer: raw } } },
-      { customer: { resendVerification: { endpointSubscribed: true, customer: { ...raw, status: "pending" } } } },
+      {
+        customer: {
+          sendPasswordReset: {
+            endpointSubscribed: false,
+            emailDelivery: { status: "FAILED", error: "Provider timed out" },
+            customer: raw,
+          },
+        },
+      },
+      {
+        customer: {
+          resendVerification: {
+            endpointSubscribed: true,
+            emailDelivery: { status: "OFF" },
+            customer: { ...raw, status: "pending" },
+          },
+        },
+      },
       { customer: { unlock: { ...raw, lockedUntil: undefined } } },
     ]);
     const ops = createMcpWorkspaceOps(client);
@@ -321,10 +337,12 @@ describe("customers ops (CMS-1911)", () => {
     expect(await ops.customers.sendPasswordReset("c-1")).toEqual({
       customer: summary,
       endpointSubscribed: false,
+      emailDelivery: { status: "FAILED", error: "Provider timed out" },
     });
     expect(await ops.customers.resendVerification("c-1")).toEqual({
       customer: { ...summary, status: "pending" },
       endpointSubscribed: true,
+      emailDelivery: { status: "OFF", error: null },
     });
     expect(await ops.customers.unlock("c-1")).toEqual(summary);
 
@@ -340,6 +358,8 @@ describe("customers ops (CMS-1911)", () => {
     ]) {
       const parent = document === SEND_CUSTOMER_PASSWORD_RESET_MUTATION ? "sendPasswordReset" : "resendVerification";
       expect(selectedUnder(document, parent).has("endpointSubscribed")).toBe(true);
+      expect(selectedUnder(document, parent).has("emailDelivery")).toBe(true);
+      expect([...selectedUnder(document, "emailDelivery")].sort()).toEqual(["error", "status"]);
     }
   });
 

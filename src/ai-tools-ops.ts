@@ -507,6 +507,7 @@ interface RawCustomer {
 
 interface RawAccountRequestResult {
   endpointSubscribed: boolean;
+  emailDelivery: CustomerAccountRequestResult["emailDelivery"];
   customer: RawCustomer;
 }
 
@@ -516,6 +517,10 @@ function toAccountRequestResult(
   return {
     customer: toCustomerSummary(raw.customer),
     endpointSubscribed: raw.endpointSubscribed,
+    emailDelivery: {
+      status: raw.emailDelivery.status,
+      error: raw.emailDelivery.error ?? null,
+    },
   };
 }
 

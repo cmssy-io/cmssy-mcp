@@ -1034,6 +1034,11 @@ const MODEL_DEFINITION_FRAGMENT = `
     identityField
     companyField
     registration
+    email {
+      enabled
+      links { verification passwordReset loginChange }
+      templates { kind locale subject heading body ctaLabel }
+    }
     verification { required }
     lockout { enabled maxAttempts lockMinutes }
   }
@@ -2074,7 +2079,7 @@ export const SET_CUSTOMER_PRICE_LIST_MUTATION = `
 export const SEND_CUSTOMER_PASSWORD_RESET_MUTATION = `
   mutation SendCustomerPasswordReset($id: ID!) {
     customer {
-      sendPasswordReset(id: $id) { endpointSubscribed customer { ${CUSTOMER_FRAGMENT} } }
+      sendPasswordReset(id: $id) { endpointSubscribed emailDelivery { status error } customer { ${CUSTOMER_FRAGMENT} } }
     }
   }
 `;
@@ -2082,7 +2087,7 @@ export const SEND_CUSTOMER_PASSWORD_RESET_MUTATION = `
 export const RESEND_CUSTOMER_VERIFICATION_MUTATION = `
   mutation ResendCustomerVerification($id: ID!) {
     customer {
-      resendVerification(id: $id) { endpointSubscribed customer { ${CUSTOMER_FRAGMENT} } }
+      resendVerification(id: $id) { endpointSubscribed emailDelivery { status error } customer { ${CUSTOMER_FRAGMENT} } }
     }
   }
 `;

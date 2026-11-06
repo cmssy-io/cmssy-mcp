@@ -118,10 +118,50 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
     expect(input.auth).toEqual({ registration: "closed" });
   });
 
+  it("update forwards auth.email as a PATCH: partial links, templates as given", async () => {
+    const { client, sent } = clientAnswering([
+      { model: { get: { id: MODEL_ID, name: "Account", slug: "account", fields: [] } } },
+      { model: { update: { id: MODEL_ID, name: "Account", slug: "account", fields: [] } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+    const email = {
+      enabled: true,
+      links: { passwordReset: "https://shop.test/reset?token={token}" },
+      templates: [
+        {
+          kind: "verification" as const,
+          locale: "pl",
+          subject: "Potwierdź",
+          heading: "Potwierdź email",
+          body: "Cześć {{login}}",
+          ctaLabel: "Potwierdź",
+        },
+      ],
+    };
+
+    await ops.models.update(MODEL_ID, { auth: { email } });
+
+    const input = sent[1]!.variables.input as Record<string, unknown>;
+    expect(input.auth).toEqual({ email });
+  });
+
+  it("the model fragment asks for every auth.email field", () => {
+    expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "email")].sort()).toEqual(
+      ["enabled", "links", "templates"],
+    );
+    expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "links")].sort()).toEqual(
+      ["loginChange", "passwordReset", "verification"],
+    );
+    expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "templates")].sort()).toEqual(
+      ["body", "ctaLabel", "heading", "kind", "locale", "subject"],
+    );
+  });
+
   it("the model fragment asks for the accounts config and the resolved product roles", () => {
     expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "auth")].sort()).toEqual(
       [
         "companyField",
+        "email",
         "enabled",
         "identityField",
         "lockout",
