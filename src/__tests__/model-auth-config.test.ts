@@ -46,6 +46,7 @@ const auth = {
   strategy: "local" as const,
   identityField: "email",
   companyField: "company",
+  registration: "closed" as const,
   verification: { required: false },
   lockout: { enabled: false, maxAttempts: 5, lockMinutes: 15 },
 };
@@ -104,6 +105,19 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
     expect(input.auth).toEqual({ companyField: null, identityField: "email" });
   });
 
+  it("update forwards auth.registration closed as a PATCH", async () => {
+    const { client, sent } = clientAnswering([
+      { model: { get: { id: MODEL_ID, name: "Account", slug: "account", fields: [] } } },
+      { model: { update: { id: MODEL_ID, name: "Account", slug: "account", fields: [] } } },
+    ]);
+    const ops = createMcpWorkspaceOps(client);
+
+    await ops.models.update(MODEL_ID, { auth: { registration: "closed" } });
+
+    const input = sent[1]!.variables.input as Record<string, unknown>;
+    expect(input.auth).toEqual({ registration: "closed" });
+  });
+
   it("the model fragment asks for the accounts config and the resolved product roles", () => {
     expect([...selectedUnder(MODEL_DEFINITION_BY_ID_QUERY, "auth")].sort()).toEqual(
       [
@@ -111,6 +125,7 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
         "enabled",
         "identityField",
         "lockout",
+        "registration",
         "strategy",
         "verification",
       ],

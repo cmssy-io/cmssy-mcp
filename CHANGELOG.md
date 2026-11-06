@@ -1,6 +1,12 @@
 # @cmssy/mcp-server
 
-## Unreleased
+## 0.135.0
+
+- `update_model` and `create_model` take `auth.registration` (`"open"` |
+  `"closed"`) and `get_model` returns it (`@cmssy/ai-tools` 0.106.0).
+  `"closed"` makes `siteMember.register` refuse new sign-ups; admins still
+  create accounts and existing pending accounts can still verify. Closing
+  sign-up used to need a raw admin GraphQL call.
 
 - Vendored SDL synced with cmssy#3401 (CMS-2201): AI provider keys moved from
   workspaces to organizations. Removes `ai.clearProviderKey`,
