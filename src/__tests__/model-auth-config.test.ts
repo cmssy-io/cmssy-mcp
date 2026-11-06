@@ -4,7 +4,11 @@ import { parse, visit, type FieldNode } from "graphql";
 
 import { createMcpWorkspaceOps } from "../ai-tools-ops.js";
 import type { CmssyClient } from "../graphql-client.js";
-import { MODEL_DEFINITION_BY_ID_QUERY, MODEL_DEFINITIONS_QUERY } from "../queries.js";
+import {
+  MODEL_DEFINITION_BY_ID_QUERY,
+  MODEL_DEFINITIONS_QUERY,
+  MODEL_LOOKUP_BY_ID_QUERY,
+} from "../queries.js";
 
 function selectedUnder(document: string, parent: string): Set<string> {
   const names = new Set<string>();
@@ -148,6 +152,25 @@ describe("models auth config (CMS-1912) and product roles (CMS-1913)", () => {
   it("list_models leaves auth.email out: its templates are heavy and the list never returns auth", () => {
     expect(selectedUnder(MODEL_DEFINITIONS_QUERY, "auth").has("email")).toBe(false);
     expect(selectedUnder(MODEL_DEFINITIONS_QUERY, "auth").has("registration")).toBe(true);
+  });
+
+  it("only get_model's detail fetch pulls auth.email; the id lookup before it stays lean", async () => {
+    expect([...selectedUnder(MODEL_LOOKUP_BY_ID_QUERY, "get")].sort()).toEqual([
+      "displayField",
+      "id",
+      "name",
+    ]);
+    const { client, sent } = clientAnswering([
+      { model: { get: { id: MODEL_ID, name: "Account", displayField: "email" } } },
+      { model: { get: { id: MODEL_ID, name: "Account", slug: "account", fields: [], auth } } },
+    ]);
+
+    await createMcpWorkspaceOps(client).models.get(MODEL_ID);
+
+    expect(sent.map((s) => s.document)).toEqual([
+      MODEL_LOOKUP_BY_ID_QUERY,
+      MODEL_DEFINITION_BY_ID_QUERY,
+    ]);
   });
 
   it("the model fragment asks for every auth.email field", () => {

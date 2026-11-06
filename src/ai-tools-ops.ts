@@ -54,6 +54,7 @@ import type {
 import {
   BLOCK_USAGE_QUERY,
   MODEL_DEFINITION_BY_ID_QUERY,
+  MODEL_LOOKUP_BY_ID_QUERY,
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
   MODEL_DEFINITIONS_QUERY,
   MODEL_RECORDS_QUERY,
@@ -417,7 +418,7 @@ async function fetchModelById(
         displayField?: string | null;
       } | null;
     };
-  }>(MODEL_DEFINITION_BY_ID_QUERY, { id });
+  }>(MODEL_LOOKUP_BY_ID_QUERY, { id });
   if (!data.model.get) return null;
   return {
     id: data.model.get.id,

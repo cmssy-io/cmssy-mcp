@@ -1082,6 +1082,20 @@ export const MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY = `
   }
 `;
 
+// What resolveModel needs before a record or model operation: the full model
+// fragment (fields, auth.email templates) is get_model's alone.
+export const MODEL_LOOKUP_BY_ID_QUERY = `
+  query ModelLookup($id: ID!) {
+    model {
+      get(id: $id) {
+        id
+        name
+        displayField
+      }
+    }
+  }
+`;
+
 // Only get_model reads the account email settings: their templates can run
 // to tens of kilobytes per model, and list_models never returns auth.
 const MODEL_AUTH_EMAIL_SELECTION = `
