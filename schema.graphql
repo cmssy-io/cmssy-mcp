@@ -1291,7 +1291,7 @@ type CatalogVariantStock {
 }
 
 """
-Who sees a channel's prices and may buy through it: PUBLIC - anyone; MEMBERS - signed-in customers (registration is open); COMPANY_MEMBERS - buyers of an approved company.
+Who sees a channel's prices and may buy through it: PUBLIC - anyone; MEMBERS - signed-in customers; COMPANY_MEMBERS - buyers of an approved company.
 """
 enum ChannelPriceAccess {
   COMPANY_MEMBERS
@@ -2612,7 +2612,7 @@ type MediaUsageResponse {
 type MemberAuthConfig {
   afterLoginUrl: String!
   afterLogoutUrl: String!
-  allowRegistration: Boolean!
+  allowRegistration: Boolean! @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean!
   loginButtonLabel: JSON!
   loginUrl: String!
@@ -2627,7 +2627,6 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
-  allowRegistration: Boolean
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
@@ -2743,6 +2742,9 @@ type ModelAuthConfig {
   enabled: Boolean!
   identityField: String!
   lockout: ModelAuthLockout!
+
+  """Whether visitors may sign themselves up."""
+  registration: ModelAuthRegistration!
   strategy: ModelAuthStrategy!
   verification: ModelAuthVerification!
 }
@@ -2752,6 +2754,9 @@ input ModelAuthConfigInput {
   enabled: Boolean
   identityField: String
   lockout: ModelAuthLockoutInput
+
+  """Omitted keeps the stored value (open on a new model)."""
+  registration: ModelAuthRegistration
   strategy: ModelAuthStrategy
   verification: ModelAuthVerificationInput
 }
@@ -2766,6 +2771,14 @@ input ModelAuthLockoutInput {
   enabled: Boolean
   lockMinutes: Int
   maxAttempts: Int
+}
+
+"""
+Who may sign up on an auth model. `open`: anyone, through siteMember.register. `closed`: siteMember.register refuses every new sign-up; admins still create accounts. Closing does not touch accounts already registered - a pending one can still verify its email, so suspend or delete those.
+"""
+enum ModelAuthRegistration {
+  closed
+  open
 }
 
 enum ModelAuthStrategy {
