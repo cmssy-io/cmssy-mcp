@@ -190,8 +190,8 @@ describe("the checker sees every call site it claims to grade", () => {
   });
 
   it("finds every CmssyApi.query call site in src", () => {
-    expect(SITES.length).toBe(166);
-    expect(TYPED.length).toBe(160);
+    expect(SITES.length).toBe(167);
+    expect(TYPED.length).toBe(161);
   });
 
   it("resolves the document text of every call site", () => {

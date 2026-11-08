@@ -155,6 +155,7 @@ import {
   DISCOUNT_BY_ID_QUERY,
   UPDATE_DISCOUNT_MUTATION,
   SET_DISCOUNT_ENABLED_MUTATION,
+  EMAIL_CONFIGURATIONS_QUERY,
   WEBHOOK_ENDPOINTS_QUERY,
   WEBHOOK_DELIVERIES_QUERY,
   WEBHOOK_EVENT_TYPES_QUERY,
@@ -2752,6 +2753,15 @@ export function createMcpWorkspaceOps(
           siteConfig: { clearCart: unknown };
         }>(CLEAR_CART_CONFIG_MUTATION, { force: options?.force ?? false });
         return res.siteConfig.clearCart;
+      },
+    },
+    emailConfigurations: {
+      list: async (includeInactive) => {
+        const res = await client.query<{ email: { configurations: unknown } }>(
+          EMAIL_CONFIGURATIONS_QUERY,
+          { includeInactive: includeInactive ?? false },
+        );
+        return res.email.configurations;
       },
     },
     webhooks: {

@@ -376,6 +376,14 @@ return the signing secret **once** - it cannot be retrieved again.
 Requires workspace permissions `WEBHOOKS_VIEW` (read) / `WEBHOOKS_MANAGE`
 (create, update, rotate, delete).
 
+### Email Tools
+
+| Tool                        | Description                                         |
+| --------------------------- | --------------------------------------------------- |
+| `list_email_configurations` | Email configurations; the `id` goes on a form's `emailConfigurationId`. No credentials or recipient addresses |
+
+Requires workspace permission `EMAIL_CONFIG_VIEW`.
+
 ## Resources
 
 | URI                 | Description                  |

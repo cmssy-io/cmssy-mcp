@@ -98,6 +98,7 @@ import {
   updateCartConfigTool,
   clearCartConfigTool,
   listWebhooksTool,
+  listEmailConfigurationsTool,
   listWebhookDeliveriesTool,
   listWebhookEventTypesTool,
   createWebhookTool,
@@ -322,6 +323,10 @@ export function toolCatalogue(client: CmssyApi, uploadTool: AiTool): AiTool[] {
     rotateWebhookSecretTool,
     redeliverWebhookDeliveryTool,
     deleteWebhookTool,
+
+    // ─── Email ───────────────────────────────────────────────────
+
+    listEmailConfigurationsTool,
   ];
 }
 

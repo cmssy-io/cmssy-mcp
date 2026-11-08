@@ -1,5 +1,13 @@
 # @cmssy/mcp-server
 
+## 0.137.0
+
+- `list_email_configurations` (`@cmssy/ai-tools` 0.109.0): id, name, slug,
+  description, provider, sender, default and active flags and recipient count
+  of each email configuration, so an agent can set a form's
+  `emailConfigurationId` itself. Active only unless `includeInactive` is set.
+  No credentials or recipient addresses. Needs `email:config:view`.
+
 ## 0.136.0
 
 - `get_model` returns `auth.email` (`enabled`, `links`, `templates`) and
