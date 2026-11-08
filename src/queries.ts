@@ -1082,11 +1082,38 @@ export const MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY = `
   }
 `;
 
+// What resolveModel needs before a record or model operation: the full model
+// fragment (fields, auth.email templates) is get_model's alone.
+export const MODEL_LOOKUP_BY_ID_QUERY = `
+  query ModelLookup($id: ID!) {
+    model {
+      get(id: $id) {
+        id
+        name
+        displayField
+      }
+    }
+  }
+`;
+
+// Only get_model reads the account email settings: their templates can run
+// to tens of kilobytes per model, and list_models never returns auth.
+const MODEL_AUTH_EMAIL_SELECTION = `
+  auth {
+    email {
+      enabled
+      links { verification passwordReset loginChange }
+      templates { kind locale subject heading body ctaLabel }
+    }
+  }
+`;
+
 export const MODEL_DEFINITION_BY_ID_QUERY = `
   query ModelDefinition($id: ID!) {
     model {
       get(id: $id) {
         ${MODEL_DEFINITION_FRAGMENT}
+        ${MODEL_AUTH_EMAIL_SELECTION}
       }
     }
   }
@@ -2074,7 +2101,7 @@ export const SET_CUSTOMER_PRICE_LIST_MUTATION = `
 export const SEND_CUSTOMER_PASSWORD_RESET_MUTATION = `
   mutation SendCustomerPasswordReset($id: ID!) {
     customer {
-      sendPasswordReset(id: $id) { endpointSubscribed customer { ${CUSTOMER_FRAGMENT} } }
+      sendPasswordReset(id: $id) { endpointSubscribed emailDelivery { status error } customer { ${CUSTOMER_FRAGMENT} } }
     }
   }
 `;
@@ -2082,7 +2109,7 @@ export const SEND_CUSTOMER_PASSWORD_RESET_MUTATION = `
 export const RESEND_CUSTOMER_VERIFICATION_MUTATION = `
   mutation ResendCustomerVerification($id: ID!) {
     customer {
-      resendVerification(id: $id) { endpointSubscribed customer { ${CUSTOMER_FRAGMENT} } }
+      resendVerification(id: $id) { endpointSubscribed emailDelivery { status error } customer { ${CUSTOMER_FRAGMENT} } }
     }
   }
 `;

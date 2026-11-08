@@ -54,6 +54,7 @@ import type {
 import {
   BLOCK_USAGE_QUERY,
   MODEL_DEFINITION_BY_ID_QUERY,
+  MODEL_LOOKUP_BY_ID_QUERY,
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
   MODEL_DEFINITIONS_QUERY,
   MODEL_RECORDS_QUERY,
@@ -417,7 +418,7 @@ async function fetchModelById(
         displayField?: string | null;
       } | null;
     };
-  }>(MODEL_DEFINITION_BY_ID_QUERY, { id });
+  }>(MODEL_LOOKUP_BY_ID_QUERY, { id });
   if (!data.model.get) return null;
   return {
     id: data.model.get.id,
@@ -485,6 +486,11 @@ interface RawModelDefinition {
   updatedAt: string | null;
 }
 
+/** What list_models fetches: auth without its heavy email settings. */
+interface RawModelListItem extends Omit<RawModelDefinition, "auth"> {
+  auth: Omit<NonNullable<ModelDetail["auth"]>, "email"> | null;
+}
+
 interface RawCustomer {
   id: string;
   modelId: string;
@@ -507,6 +513,7 @@ interface RawCustomer {
 
 interface RawAccountRequestResult {
   endpointSubscribed: boolean;
+  emailDelivery: CustomerAccountRequestResult["emailDelivery"];
   customer: RawCustomer;
 }
 
@@ -516,6 +523,10 @@ function toAccountRequestResult(
   return {
     customer: toCustomerSummary(raw.customer),
     endpointSubscribed: raw.endpointSubscribed,
+    emailDelivery: {
+      status: raw.emailDelivery.status,
+      error: raw.emailDelivery.error ?? null,
+    },
   };
 }
 
@@ -727,7 +738,7 @@ export function toProposedFields(
   }));
 }
 
-function toModelSummary(m: RawModelDefinition): ModelSummary {
+function toModelSummary(m: RawModelListItem): ModelSummary {
   return {
     id: m.id,
     name: m.name,
@@ -775,7 +786,7 @@ export function createMcpWorkspaceOps(
     models: {
       list: async () => {
         const res = await client.query<{
-          model: { list: RawModelDefinition[] };
+          model: { list: RawModelListItem[] };
         }>(MODEL_DEFINITIONS_QUERY);
         return res.model.list.map(toModelSummary);
       },
