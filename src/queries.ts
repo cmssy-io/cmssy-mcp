@@ -1779,6 +1779,29 @@ const WEBHOOK_ENDPOINT_FRAGMENT = `
   updatedAt
 `;
 
+export const EMAIL_CONFIGURATIONS_QUERY = `
+  query EmailConfigurations($includeInactive: Boolean) {
+    email {
+      configurations(includeInactive: $includeInactive) {
+        items {
+          id
+          name
+          slug
+          description
+          provider
+          fromEmail
+          fromName
+          replyTo
+          isDefault
+          isActive
+          recipientsCount
+        }
+        total
+      }
+    }
+  }
+`;
+
 export const WEBHOOK_ENDPOINTS_QUERY = `
   query WebhookEndpoints {
     webhook { list { ${WEBHOOK_ENDPOINT_FRAGMENT} } }
