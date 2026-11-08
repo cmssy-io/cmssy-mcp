@@ -2718,7 +2718,6 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
-  allowRegistration: Boolean @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
@@ -6670,7 +6669,7 @@ type SiteMemberMutations {
     identity: String!
 
     """
-    Language of the visitor's site (e.g. en, pl, de-AT). Used for the email cmssy sends when the account model has account emails on, and remembered on the account; unknown or missing falls back to the site's default language.
+    Language of the visitor's site (e.g. en, pl, de-AT) for the email cmssy sends when the account model has account emails on; unknown or missing falls back to the site's default language. register and requestLoginChange also remember it on the account, so admin resends use it.
     """
     locale: String
     modelSlug: String!
@@ -6688,7 +6687,7 @@ type SiteMemberMutations {
     currentPassword: String!
 
     """
-    Language of the visitor's site (e.g. en, pl, de-AT). Used for the email cmssy sends when the account model has account emails on, and remembered on the account; unknown or missing falls back to the site's default language.
+    Language of the visitor's site (e.g. en, pl, de-AT) for the email cmssy sends when the account model has account emails on; unknown or missing falls back to the site's default language. register and requestLoginChange also remember it on the account, so admin resends use it.
     """
     locale: String
     newLogin: String!
@@ -6710,7 +6709,7 @@ input SiteMemberRegisterInput {
   identity: String!
 
   """
-  Language of the visitor's site (e.g. en, pl, de-AT). Used for the email cmssy sends when the account model has account emails on, and remembered on the account; unknown or missing falls back to the site's default language.
+  Language of the visitor's site (e.g. en, pl, de-AT) for the email cmssy sends when the account model has account emails on; unknown or missing falls back to the site's default language. register and requestLoginChange also remember it on the account, so admin resends use it.
   """
   locale: String
   modelSlug: String!
