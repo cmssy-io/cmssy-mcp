@@ -2718,6 +2718,7 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
+  allowRegistration: Boolean @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
@@ -4097,6 +4098,44 @@ input OrgAiProviderKeySourceInput {
   provider: AiProviderType
 }
 
+"""
+One AI provider config's share of the organization's AI usage. A deleted config keeps the name it last ran under.
+"""
+type OrgAiUsageByConfig {
+  configId: ID!
+  deleted: Boolean!
+  name: String!
+  provider: AiProviderType!
+  totals: AiUsageTotals!
+}
+
+"""
+One workspace's share of the organization's AI usage. Workspaces no longer in the organization are merged into one row with a null id and name.
+"""
+type OrgAiUsageByWorkspace {
+  name: String
+  totals: AiUsageTotals!
+  workspaceId: ID
+}
+
+"""
+Token and call usage on the organization's AI provider keys over whole UTC days, across every workspace that ran on them.
+"""
+type OrgAiUsageReport {
+  byConfig: [OrgAiUsageByConfig!]!
+  byModel: [AiUsageByModel!]!
+  byWorkspace: [OrgAiUsageByWorkspace!]!
+
+  """Exclusive upper bound: the start of tomorrow UTC."""
+  periodEnd: DateTime!
+  periodStart: DateTime!
+  points: [AiUsagePoint!]!
+
+  """Days an event is kept before it expires; no range may exceed it."""
+  retentionDays: Int!
+  totals: AiUsageTotals!
+}
+
 enum OrgAuditLogAction {
   AI_PROVIDER_CONNECTION_TESTED
   AI_PROVIDER_CREATED
@@ -4197,6 +4236,11 @@ type OrganizationAiMutations {
 
 type OrganizationAiQueries {
   providers(organizationId: ID!): [OrgAiProvider!]!
+
+  """
+  Calls and tokens recorded on the organization's AI provider keys in the period, broken down by workspace, config and model. Usage of a deleted workspace is removed with it. Requires an organization owner or admin.
+  """
+  usage(organizationId: ID!, range: UsageHistoryRange = LAST_30_DAYS): OrgAiUsageReport!
 }
 
 type OrganizationAuditLog {
