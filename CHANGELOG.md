@@ -1,5 +1,13 @@
 # @cmssy/mcp-server
 
+## 0.138.0
+
+- `delete_media` (`@cmssy/ai-tools` 0.110.0): moves up to 100 assets to the
+  trash, restorable in the admin for 30 days. Needs confirmation and
+  `media:delete`. Assets still in use are refused unless `force` is set, which
+  needs `media:force-delete`. Returns `requested` and `deleted`, because ids
+  not found in the workspace are skipped without an error.
+
 ## 0.137.0
 
 - `list_email_configurations` (`@cmssy/ai-tools` 0.109.0): id, name, slug,

@@ -66,6 +66,7 @@ import {
   CREATE_MEDIA_FOLDER_MUTATION,
   UPDATE_MEDIA_FOLDER_MUTATION,
   DELETE_MEDIA_FOLDER_MUTATION,
+  DELETE_MEDIA_MUTATION,
   MEMBERS_QUERY,
   ROLES_QUERY,
   CUSTOMERS_QUERY,
@@ -2004,6 +2005,12 @@ export function createMcpWorkspaceOps(
           );
         }
         return { moved: ids.length, folderId };
+      },
+      delete: async (ids, force) => {
+        const res = await client.query<{
+          media: { delete: { deletedCount: number } };
+        }>(DELETE_MEDIA_MUTATION, { ids, force: force ?? false });
+        return { deleted: res.media.delete.deletedCount };
       },
     },
     forms: {

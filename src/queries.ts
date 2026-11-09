@@ -408,6 +408,16 @@ export const UPDATE_MEDIA_FOLDER_MUTATION = `
   }
 `;
 
+export const DELETE_MEDIA_MUTATION = `
+  mutation DeleteMedia($ids: [String!]!, $force: Boolean) {
+    media {
+      delete(ids: $ids, force: $force) {
+        deletedCount
+      }
+    }
+  }
+`;
+
 export const DELETE_MEDIA_FOLDER_MUTATION = `
   mutation DeleteMediaFolder($id: ID!, $deleteContents: Boolean, $force: Boolean) {
     media {
