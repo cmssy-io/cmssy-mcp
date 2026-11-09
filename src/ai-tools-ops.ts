@@ -25,6 +25,7 @@ import type {
   ProposedFieldOption,
   FieldText,
   WorkspaceOps,
+  MediaTrashListResult,
   CustomerSummary,
   CustomerAccountRequestResult,
   OrderShipment,
@@ -67,6 +68,8 @@ import {
   UPDATE_MEDIA_FOLDER_MUTATION,
   DELETE_MEDIA_FOLDER_MUTATION,
   DELETE_MEDIA_MUTATION,
+  MEDIA_TRASH_QUERY,
+  RESTORE_MEDIA_MUTATION,
   MEMBERS_QUERY,
   ROLES_QUERY,
   CUSTOMERS_QUERY,
@@ -2011,6 +2014,23 @@ export function createMcpWorkspaceOps(
           media: { delete: { deletedCount: number } };
         }>(DELETE_MEDIA_MUTATION, { ids, force: force ?? false });
         return { deleted: res.media.delete.deletedCount };
+      },
+      listTrash: async (limit, offset) => {
+        const res = await client.query<{
+          media: { trash: MediaTrashListResult };
+        }>(MEDIA_TRASH_QUERY, { limit, offset });
+        return res.media.trash;
+      },
+      restore: async (ids) => {
+        const res = await client.query<{
+          media: {
+            restore: { restoredCount: number; movedToRootCount: number };
+          };
+        }>(RESTORE_MEDIA_MUTATION, { ids });
+        return {
+          restored: res.media.restore.restoredCount,
+          movedToRoot: res.media.restore.movedToRootCount,
+        };
       },
     },
     forms: {

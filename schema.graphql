@@ -546,6 +546,8 @@ enum AuditLogAction {
   CART_BULK_DELETED
   FORM_DELETED
   FORM_SUBMISSION_DELETED
+  MEDIA_PURGED
+  MEDIA_RESTORED
   MODEL_CREATED
   MODEL_DELETED
   MODEL_UPDATED
@@ -618,6 +620,7 @@ enum AuditLogActorKind {
 
 enum AuditLogEntityType {
   FORM
+  MEDIA
   MODEL
   ORDER
   PAGE
@@ -2616,6 +2619,7 @@ type MediaDuplicateGroup {
 input MediaFilterInput {
   excludeMimeTypes: [String!]
   folderId: String
+  pathnames: [String!]
   search: String
   tags: [String!]
   types: [String!]
@@ -2651,6 +2655,8 @@ type MediaMutations {
   createFolder(input: CreateMediaFolderInput!): MediaFolder!
   delete(force: Boolean = false, ids: [String!]!): DeleteMediaResponse!
   deleteFolder(deleteContents: Boolean = false, force: Boolean = false, id: ID!): DeletionResult!
+  purge(ids: [String!]!): DeleteMediaResponse!
+  restore(ids: [String!]!): RestoreMediaResult!
   setVisibility(id: ID!, visibility: String!): MediaAsset!
   update(id: ID!, input: UpdateMediaInput!): MediaAsset!
   updateFolder(id: ID!, input: UpdateMediaFolderInput!): MediaFolder!
@@ -2682,6 +2688,7 @@ type MediaQueries {
   The upload names of the assets asked for by id, in one projected read. An id that names nothing in this workspace is left out.
   """
   names(ids: [ID!]!): [MediaAssetName!]!
+  trash(limit: Int = 50, offset: Int = 0): MediaTrashList!
   usages(assetIds: [ID!]!): MediaUsageResponse!
 }
 
@@ -2690,6 +2697,12 @@ type MediaRecordUsage {
   modelId: String
   modelName: String!
   recordId: String!
+}
+
+type MediaTrashList {
+  hasMore: Boolean!
+  items: [TrashedMediaAsset!]!
+  total: Int!
 }
 
 type MediaUsageResponse {
@@ -4185,6 +4198,7 @@ type Organization {
   settings: OrganizationSettings!
   slug: String!
   usage: PooledUsage!
+  usageNextSteps: [UsageNextStep!]!
   workspaceCount: Int!
   workspaces: [OrganizationWorkspace!]!
 }
@@ -4195,7 +4209,6 @@ type OrganizationAddonHeldItem {
 }
 
 type OrganizationAddonOffer {
-  maxQuantity: Int!
   prices: [OrganizationAddonPrice!]!
 }
 
@@ -4204,16 +4217,20 @@ type OrganizationAddonPrice {
   currency: String!
   held: [OrganizationAddonHeldItem!]!
   interval: String!
+  maxQuantity: Int!
   unitAmount: Int!
+  unitSize: Int!
 }
 
 type OrganizationAddons {
   seats: Int!
+  storage: Int!
   workspaces: Int!
 }
 
 input OrganizationAddonsInput {
   seats: Int!
+  storage: Int!
   workspaces: Int!
 }
 
@@ -6207,6 +6224,12 @@ type ResolvedLayoutBlock {
   type: String!
 }
 
+type RestoreMediaResult {
+  movedToRootCount: Int!
+  restoredCount: Int!
+  success: Boolean!
+}
+
 input ReturnActionInput {
   """Recorded in the return's history with the new status."""
   note: String
@@ -6953,6 +6976,22 @@ enum Tone {
   PROFESSIONAL
 }
 
+"""A media asset in the trash, restorable until it is purged"""
+type TrashedMediaAsset {
+  deletedAt: DateTime!
+  deletedById: String!
+  deletedByName: String
+  expiresAt: DateTime!
+  filename: String!
+  id: String!
+  isPurging: Boolean!
+  mimeType: String!
+  size: Int!
+  type: String!
+  url: String!
+  visibility: String!
+}
+
 type TrashedPage {
   deletedAt: DateTime!
   deletedById: ID!
@@ -7342,6 +7381,22 @@ type UsageHistoryTotals {
   storageBytes: Float!
 }
 
+"""
+What a viewer who manages the organization can do next about a usage metric, computed without calling Stripe.
+"""
+type UsageNextStep {
+  kind: UsageNextStepKind!
+  metric: String!
+}
+
+enum UsageNextStepKind {
+  ADDONS
+  CONTACT
+  ENTERPRISE
+  NONE
+  UPGRADE
+}
+
 type User {
   createdAt: DateTime!
   email: String!
@@ -7668,6 +7723,7 @@ type WorkspaceOrganization {
   plan: String!
   slug: String!
   usage: PooledUsage!
+  usageNextSteps: [UsageNextStep!]!
 }
 
 type WorkspaceQueries {

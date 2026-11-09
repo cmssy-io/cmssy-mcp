@@ -408,6 +408,41 @@ export const UPDATE_MEDIA_FOLDER_MUTATION = `
   }
 `;
 
+export const MEDIA_TRASH_QUERY = `
+  query MediaTrash($limit: Int, $offset: Int) {
+    media {
+      trash(limit: $limit, offset: $offset) {
+        items {
+          id
+          filename
+          type
+          mimeType
+          size
+          visibility
+          url
+          deletedAt
+          deletedByName
+          expiresAt
+          isPurging
+        }
+        total
+        hasMore
+      }
+    }
+  }
+`;
+
+export const RESTORE_MEDIA_MUTATION = `
+  mutation RestoreMedia($ids: [String!]!) {
+    media {
+      restore(ids: $ids) {
+        restoredCount
+        movedToRootCount
+      }
+    }
+  }
+`;
+
 export const DELETE_MEDIA_MUTATION = `
   mutation DeleteMedia($ids: [String!]!, $force: Boolean) {
     media {
