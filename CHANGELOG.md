@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.139.0
+
+- `list_trashed_media` and `restore_media` (`@cmssy/ai-tools` 0.111.0): an agent
+  can see the media trash and undo `delete_media`. A restored file returns to
+  its folder, or to the library root when that folder is gone (`movedToRoot`).
+  `list_trashed_media` needs `media:view` and `media:delete`, `restore_media`
+  needs `media:delete`. No tool deletes from the trash permanently.
+- Vendored SDL synced with production: the media trash operations.
+
 ## 0.138.0
 
 - `delete_media` (`@cmssy/ai-tools` 0.110.0): moves up to 100 assets to the
