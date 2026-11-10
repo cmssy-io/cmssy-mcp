@@ -35,7 +35,7 @@ function clientRecording(respond: (document: string) => unknown) {
 
 const MODEL_ID = "64b000000000000000000001";
 
-const storedFields = [
+const toolFields = [
   {
     key: "price",
     label: { en: "Price" },
@@ -52,7 +52,7 @@ const storedFields = [
     multiple: true,
     minItems: 1,
     maxItems: 6,
-    maxSize: 2.5,
+    maxSize: 3,
   },
   {
     key: "variants",
@@ -70,6 +70,14 @@ const storedFields = [
         required: false,
         maxDecimals: 3,
         validationMessage: "Weight in kg",
+      },
+      {
+        key: "qty",
+        label: { en: "Quantity" },
+        type: "number",
+        required: false,
+        minValue: 1,
+        maxValue: 99,
       },
     ],
   },
@@ -89,21 +97,74 @@ const storedFields = [
         maxSize: 10,
         validationMessage: "Up to three manuals",
       },
+      {
+        key: "code",
+        label: { en: "Code" },
+        type: "text",
+        required: true,
+        minLength: 2,
+        maxLength: 12,
+        pattern: "^[A-Z0-9]+$",
+      },
     ],
   },
 ];
 
-const nullRules = {
-  minItems: null,
-  maxItems: null,
-  maxDecimals: null,
-  maxSize: null,
-  validationMessage: null,
+const STORED_RULE_KEYS = {
+  minLength: "minLength",
+  maxLength: "maxLength",
+  minValue: "min",
+  maxValue: "max",
+  pattern: "pattern",
+  minItems: "minItems",
+  maxItems: "maxItems",
+  maxDecimals: "maxDecimals",
+  maxSize: "maxSize",
+  validationMessage: "message",
+} as const;
+
+type ToolField = Record<string, unknown> & {
+  fields?: ToolField[];
+  itemFields?: ToolField[];
 };
 
-const storedWithBackendNulls = storedFields.map((field) => ({
-  ...nullRules,
+function storedChild(field: ToolField): Record<string, unknown> {
+  const validation: Record<string, unknown> = {};
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(field)) {
+    if (key in STORED_RULE_KEYS) {
+      validation[STORED_RULE_KEYS[key as keyof typeof STORED_RULE_KEYS]] =
+        value;
+    } else {
+      rest[key] = value;
+    }
+  }
+  for (const storedKey of Object.values(STORED_RULE_KEYS)) {
+    validation[storedKey] ??= null;
+  }
+  return {
+    description: null,
+    defaultValue: null,
+    options: [],
+    fields: null,
+    itemType: null,
+    itemFields: null,
+    relationTo: null,
+    relationType: null,
+    schemaProperty: null,
+    localized: false,
+    ...rest,
+    validation,
+  };
+}
+
+const wireFields = (toolFields as ToolField[]).map((field) => ({
+  ...Object.fromEntries(Object.keys(STORED_RULE_KEYS).map((k) => [k, null])),
   ...field,
+  ...(field.fields ? { fields: field.fields.map(storedChild) } : {}),
+  ...(field.itemFields
+    ? { itemFields: field.itemFields.map(storedChild) }
+    : {}),
 }));
 
 const modelRow = {
@@ -117,7 +178,7 @@ const modelRow = {
   recordCount: 0,
   defaultSort: null,
   statusField: null,
-  fields: storedWithBackendNulls,
+  fields: wireFields,
 };
 
 function modelClient() {
@@ -160,7 +221,7 @@ describe("field validation rules survive get_model -> update_model (CMS-2219)", 
       fields: unknown;
     };
 
-    expect(model.fields).toStrictEqual(storedFields);
+    expect(model.fields).toStrictEqual(toolFields);
   });
 
   it("keeps every unlisted field's rules when update_model adds another field", async () => {
@@ -181,7 +242,7 @@ describe("field validation rules survive get_model -> update_model (CMS-2219)", 
       sentFields(sent),
       "update_model merges unlisted fields from get_model; a rule lost on read is a rule deleted on write.",
     ).toStrictEqual([
-      ...storedFields,
+      ...toolFields,
       { key: "sku", label: { en: "SKU" }, type: "text", required: false },
     ]);
   });
@@ -204,10 +265,10 @@ describe("field validation rules survive get_model -> update_model (CMS-2219)", 
     );
 
     expect(sentFields(sent)).toStrictEqual([
-      storedFields[0],
-      storedFields[1],
-      { ...storedFields[2], label: { en: "Options" } },
-      storedFields[3],
+      toolFields[0],
+      toolFields[1],
+      { ...toolFields[2], label: { en: "Options" } },
+      toolFields[3],
     ]);
   });
 
@@ -215,19 +276,19 @@ describe("field validation rules survive get_model -> update_model (CMS-2219)", 
     const written = { id: "pt1", name: "Post", slug: "post" };
     const { client, sent } = clientRecording((document) =>
       document === PAGE_TYPE_QUERY
-        ? { pageType: { get: { ...written, fields: storedWithBackendNulls } } }
+        ? { pageType: { get: { ...written, fields: wireFields } } }
         : { pageType: { update: written } },
     );
     const ops = createMcpWorkspaceOps(client);
 
     const detail = await ops.pages.getType("pt1");
-    expect(detail?.fields).toStrictEqual(storedFields);
+    expect(detail?.fields).toStrictEqual(toolFields);
 
     await ops.pages.updateType({ pageTypeId: "pt1", fields: detail!.fields });
 
     const update = sent.find((s) => s.document === UPDATE_PAGE_TYPE_MUTATION);
     expect(
       (update!.variables.input as { fields: unknown }).fields,
-    ).toStrictEqual(storedFields);
+    ).toStrictEqual(toolFields);
   });
 });
