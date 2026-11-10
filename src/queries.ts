@@ -1197,27 +1197,6 @@ export const MODEL_RECORDS_QUERY = `
   }
 `;
 
-export const SEARCH_RECORDS_QUERY = `
-  query SearchRecords(
-    $modelId: ID!
-    $query: String!
-    $locale: String
-    $limit: Int
-  ) {
-    record {
-      search(modelId: $modelId, query: $query, locale: $locale, limit: $limit) {
-        mode
-        indexing
-        items {
-          matchKind
-          record { id }
-          snippet { fieldKey locale text }
-        }
-      }
-    }
-  }
-`;
-
 const COMPANY_VAT_FRAGMENT = `
   vatId
   vatCountry

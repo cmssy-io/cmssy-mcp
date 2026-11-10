@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.143.0
+
+- Removed `search_records` (`@cmssy/ai-tools` 0.114.0): record search is
+  withdrawn from the backend, so the tool, its `models.searchRecords` op and
+  the `record.search` query are gone.
+
 ## 0.142.0
 
 - Nested field rules survive `get_model` / `get_page_type` -> `update_model` /

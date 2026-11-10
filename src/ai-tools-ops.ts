@@ -25,9 +25,6 @@ import type {
   ProposedFieldOption,
   FieldText,
   WorkspaceOps,
-  RecordSearchMatchKind,
-  RecordSearchMode,
-  RecordSearchSnippet,
   MediaTrashListResult,
   CustomerSummary,
   CustomerAccountRequestResult,
@@ -62,7 +59,6 @@ import {
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
   MODEL_DEFINITIONS_QUERY,
   MODEL_RECORDS_QUERY,
-  SEARCH_RECORDS_QUERY,
   MEDIA_ASSETS_QUERY,
   AUTHORIZE_MEDIA_UPLOAD_MUTATION,
   REGISTER_MEDIA_UPLOAD_MUTATION,
@@ -848,38 +844,6 @@ export function createMcpWorkspaceOps(
         }>(MODEL_DEFINITION_BY_ID_QUERY, { id: resolved.id });
         if (!res.model.get) return null;
         return toModelDetail(res.model.get);
-      },
-      searchRecords: async (modelIdOrSlug, options) => {
-        const model = await resolveModel(client, modelIdOrSlug);
-        if (!model) return null;
-        const res = await client.query<{
-          record: {
-            search: {
-              mode: RecordSearchMode;
-              indexing: boolean;
-              items: Array<{
-                matchKind: RecordSearchMatchKind;
-                record: { id: string };
-                snippet: RecordSearchSnippet | null;
-              }>;
-            };
-          };
-        }>(SEARCH_RECORDS_QUERY, {
-          modelId: model.id,
-          query: options.query,
-          locale: options.locale,
-          limit: options.limit,
-        });
-        return {
-          modelId: model.id,
-          mode: res.record.search.mode,
-          indexing: res.record.search.indexing,
-          items: res.record.search.items.map((hit) => ({
-            id: hit.record.id,
-            matchKind: hit.matchKind,
-            snippet: hit.snippet,
-          })),
-        };
       },
       listRecords: async (modelIdOrSlug, options) => {
         const model = await resolveModel(client, modelIdOrSlug);
