@@ -85,6 +85,10 @@ describe("tool annotations for the Claude directory", () => {
     });
     expect(byName.update_region_settings?.readOnlyHint).toBe(false);
     expect(
+      byName.list_trashed_media,
+      "media:delete only gates who sees the trash; listing it changes nothing",
+    ).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    expect(
       byName.create_webhook,
       "a new webhook streams workspace events to a URL the caller picks, so it prompts like a delete",
     ).toMatchObject({
