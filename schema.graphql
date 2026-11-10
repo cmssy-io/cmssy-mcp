@@ -3002,11 +3002,6 @@ type ModelDefinition {
   name: String!
   product: ModelProductConfig
   recordCount: Int!
-
-  """
-  Whether this model's text is embedded through OpenAI for semantic matching in `record.search`.
-  """
-  semanticSearch: Boolean!
   slug: String!
   statusField: StatusFieldConfig!
 
@@ -4344,11 +4339,6 @@ type OrganizationLimits {
 
   """Null is unlimited."""
   maxPages: Int
-
-  """
-  Embedded chunks semantic search may hold, pooled across the organization's workspaces.
-  """
-  maxSearchChunks: Int!
   maxStorageMb: Int!
 
   """The largest single file the organization may upload, in MB."""
@@ -4848,11 +4838,6 @@ type PooledUsage {
   """
   ordersCount: Int!
   pagesCount: Int!
-
-  """
-  Chunks holding a semantic search vector, pooled across the organization's workspaces.
-  """
-  searchChunksCount: Int!
   storageBytes: Float!
 }
 
@@ -6147,23 +6132,6 @@ type RecordQueries {
   Relation fields on other records of this workspace that hold this record's id, one entry per field occurrence.
   """
   referencedBy(id: ID!): [RecordRelationUsage!]!
-
-  """
-  Ranked full-text and semantic search over one model's records. Exact identifiers rank first.
-  """
-  search(
-    filter: JSON
-    limit: Int = 20
-
-    """
-    Match this language and non-localized text. All languages when omitted.
-    """
-    locale: String
-    modelId: ID!
-    populate: [String!]
-    query: String!
-    visibility: RecordVisibility
-  ): RecordSearchResult!
   usages(id: ID!): [RecordUsage!]!
 }
 
@@ -6177,35 +6145,6 @@ type RecordRelationUsage {
   modelSlug: String!
   recordId: String!
   recordLabel: String!
-}
-
-type RecordSearchHit {
-  matchKind: RecordSearchMatchKind!
-  record: ModelRecord!
-  snippet: RecordSearchSnippet
-}
-
-enum RecordSearchMatchKind {
-  EXACT
-  LEXICAL
-  SEMANTIC
-}
-
-enum RecordSearchMode {
-  HYBRID
-  LEXICAL
-}
-
-type RecordSearchResult {
-  indexing: Boolean!
-  items: [RecordSearchHit!]!
-  mode: RecordSearchMode!
-}
-
-type RecordSearchSnippet {
-  fieldKey: String!
-  locale: String
-  text: String!
 }
 
 """
@@ -7200,11 +7139,6 @@ input UpdateModelDefinitionInput {
   id: ID!
   name: String
   product: ModelProductConfigInput
-
-  """
-  Embed this model's text through OpenAI for semantic matching. Off by default.
-  """
-  semanticSearch: Boolean
   slug: String
   statusField: StatusFieldConfigInput
 
