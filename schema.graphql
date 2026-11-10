@@ -2598,12 +2598,17 @@ type MediaAsset {
 }
 
 """
-An asset's id, the name it was uploaded under and its alt map - what a field needs to label a value and to say what alt it falls back to, read without the rest of the document.
+An asset's id, the name it was uploaded under, its alt map, kind, visibility and an address the admin can load - what a field needs to label and show a value, read without the rest of the document.
 """
 type MediaAssetName {
   alt: JSON
   filename: String!
   id: ID!
+  type: String!
+
+  """Signed and short-lived when the asset is private."""
+  url: String!
+  visibility: String!
 }
 
 type MediaBrandingUsage {
@@ -2686,7 +2691,7 @@ type MediaQueries {
   list(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
 
   """
-  The upload names of the assets asked for by id, in one projected read. An id that names nothing in this workspace is left out.
+  The upload names, kinds, visibility and loadable urls of the assets asked for by id, in one projected read. An id that names nothing in this workspace is left out.
   """
   names(ids: [ID!]!): [MediaAssetName!]!
   trash(limit: Int = 50, offset: Int = 0): MediaTrashList!
@@ -2732,6 +2737,7 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
+  allowRegistration: Boolean @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
@@ -2996,6 +3002,11 @@ type ModelDefinition {
   name: String!
   product: ModelProductConfig
   recordCount: Int!
+
+  """
+  Whether this model's text is embedded through OpenAI for semantic matching in `record.search`.
+  """
+  semanticSearch: Boolean!
   slug: String!
   statusField: StatusFieldConfig!
 
@@ -4333,6 +4344,11 @@ type OrganizationLimits {
 
   """Null is unlimited."""
   maxPages: Int
+
+  """
+  Embedded chunks semantic search may hold, pooled across the organization's workspaces.
+  """
+  maxSearchChunks: Int!
   maxStorageMb: Int!
 
   """The largest single file the organization may upload, in MB."""
@@ -4830,6 +4846,11 @@ type PooledUsage {
   """
   ordersCount: Int!
   pagesCount: Int!
+
+  """
+  Chunks holding a semantic search vector, pooled across the organization's workspaces.
+  """
+  searchChunksCount: Int!
   storageBytes: Float!
 }
 
@@ -6110,6 +6131,23 @@ type RecordQueries {
   Relation fields on other records of this workspace that hold this record's id, one entry per field occurrence.
   """
   referencedBy(id: ID!): [RecordRelationUsage!]!
+
+  """
+  Ranked full-text and semantic search over one model's records. Exact identifiers rank first.
+  """
+  search(
+    filter: JSON
+    limit: Int = 20
+
+    """
+    Match this language and non-localized text. All languages when omitted.
+    """
+    locale: String
+    modelId: ID!
+    populate: [String!]
+    query: String!
+    visibility: RecordVisibility
+  ): RecordSearchResult!
   usages(id: ID!): [RecordUsage!]!
 }
 
@@ -6123,6 +6161,35 @@ type RecordRelationUsage {
   modelSlug: String!
   recordId: String!
   recordLabel: String!
+}
+
+type RecordSearchHit {
+  matchKind: RecordSearchMatchKind!
+  record: ModelRecord!
+  snippet: RecordSearchSnippet
+}
+
+enum RecordSearchMatchKind {
+  EXACT
+  LEXICAL
+  SEMANTIC
+}
+
+enum RecordSearchMode {
+  HYBRID
+  LEXICAL
+}
+
+type RecordSearchResult {
+  indexing: Boolean!
+  items: [RecordSearchHit!]!
+  mode: RecordSearchMode!
+}
+
+type RecordSearchSnippet {
+  fieldKey: String!
+  locale: String
+  text: String!
 }
 
 """
@@ -7117,6 +7184,11 @@ input UpdateModelDefinitionInput {
   id: ID!
   name: String
   product: ModelProductConfigInput
+
+  """
+  Embed this model's text through OpenAI for semantic matching. Off by default.
+  """
+  semanticSearch: Boolean
   slug: String
   statusField: StatusFieldConfigInput
 
