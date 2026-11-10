@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.139.1
+
+- `list_trashed_media` is annotated read-only (`readOnlyHint: true`,
+  `destructiveHint: false`). It still needs `media:delete`, which only gates
+  who sees the trash; listing it changes nothing.
+
 ## 0.139.0
 
 - `list_trashed_media` and `restore_media` (`@cmssy/ai-tools` 0.111.0): an agent

@@ -55,6 +55,9 @@ export function toolInputSchema(
 const READ_NAME = /^(get|list|search)_/;
 const ADDITIVE_NAME = /^(create|upload)_/;
 const SENDS_DATA_OUT = new Set(["create_webhook"]);
+// Reads gated behind a write permission: only who can delete sees the trash,
+// but listing it changes nothing.
+const READS_BEHIND_WRITE_PERMISSION = new Set(["list_trashed_media"]);
 
 export function toolTitle(name: string): string {
   const words = name.split("_");
@@ -71,9 +74,10 @@ export function toolAnnotations(
   const readOnly =
     tool.confirmGated !== true &&
     READ_NAME.test(tool.name) &&
-    tool.requiredPermissions.every((permission) =>
-      permission.endsWith(":view"),
-    );
+    (READS_BEHIND_WRITE_PERMISSION.has(tool.name) ||
+      tool.requiredPermissions.every((permission) =>
+        permission.endsWith(":view"),
+      ));
   if (readOnly) {
     return { title, readOnlyHint: true, destructiveHint: false };
   }
