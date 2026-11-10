@@ -1,5 +1,16 @@
 # @cmssy/mcp-server
 
+## 0.140.0
+
+- `search_records` (`@cmssy/ai-tools` 0.112.0): ranked search over one model's
+  records through `record.search`. Exact identifiers rank first, then
+  full-text, then semantic matches when the model has semantic search on.
+  Each hit returns the record id, the matching snippet and its `matchKind`;
+  the result says `mode` (`HYBRID` or `LEXICAL`) and `indexing`. Takes
+  `query` (2-200 characters), `locale` and `limit` (1-50, default 20). Needs
+  `models:view`; read-only.
+- Vendored SDL synced with production: record search.
+
 ## 0.139.1
 
 - `list_trashed_media` is annotated read-only (`readOnlyHint: true`,

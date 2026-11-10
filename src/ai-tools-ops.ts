@@ -25,6 +25,9 @@ import type {
   ProposedFieldOption,
   FieldText,
   WorkspaceOps,
+  RecordSearchMatchKind,
+  RecordSearchMode,
+  RecordSearchSnippet,
   MediaTrashListResult,
   CustomerSummary,
   CustomerAccountRequestResult,
@@ -59,6 +62,7 @@ import {
   MODEL_DEFINITIONS_BY_SLUG_INDEX_QUERY,
   MODEL_DEFINITIONS_QUERY,
   MODEL_RECORDS_QUERY,
+  SEARCH_RECORDS_QUERY,
   MEDIA_ASSETS_QUERY,
   AUTHORIZE_MEDIA_UPLOAD_MUTATION,
   REGISTER_MEDIA_UPLOAD_MUTATION,
@@ -237,7 +241,9 @@ function toCompanyVat(row: CompanyVatRow): Omit<CompanyVatProfile, "id"> {
   };
 }
 
-function toCompanyVatProfile(row: CompanyVatRow & { id: string }): CompanyVatProfile {
+function toCompanyVatProfile(
+  row: CompanyVatRow & { id: string },
+): CompanyVatProfile {
   return { id: row.id, ...toCompanyVat(row) };
 }
 
@@ -804,6 +810,38 @@ export function createMcpWorkspaceOps(
         if (!res.model.get) return null;
         return toModelDetail(res.model.get);
       },
+      searchRecords: async (modelIdOrSlug, options) => {
+        const model = await resolveModel(client, modelIdOrSlug);
+        if (!model) return null;
+        const res = await client.query<{
+          record: {
+            search: {
+              mode: RecordSearchMode;
+              indexing: boolean;
+              items: Array<{
+                matchKind: RecordSearchMatchKind;
+                record: { id: string };
+                snippet: RecordSearchSnippet | null;
+              }>;
+            };
+          };
+        }>(SEARCH_RECORDS_QUERY, {
+          modelId: model.id,
+          query: options.query,
+          locale: options.locale,
+          limit: options.limit,
+        });
+        return {
+          modelId: model.id,
+          mode: res.record.search.mode,
+          indexing: res.record.search.indexing,
+          items: res.record.search.items.map((hit) => ({
+            id: hit.record.id,
+            matchKind: hit.matchKind,
+            snippet: hit.snippet,
+          })),
+        };
+      },
       listRecords: async (modelIdOrSlug, options) => {
         const model = await resolveModel(client, modelIdOrSlug);
         if (!model) return null;
@@ -1038,18 +1076,20 @@ export function createMcpWorkspaceOps(
       getRecord: async (recordId) => {
         const res = await client.query<{
           record: {
-            get: (CompanyVatRow & {
-              id: string;
-              modelId: string;
-              status?: string | null;
-              published: boolean;
-              publicUrl?: string | null;
-              data?: Record<string, unknown> | null;
-              currencyPrices?: CurrencyPrice[] | null;
-              variantCurrencyPrices?: VariantCurrencyPrices[] | null;
-              createdAt?: string | null;
-              updatedAt?: string | null;
-            }) | null;
+            get:
+              | (CompanyVatRow & {
+                  id: string;
+                  modelId: string;
+                  status?: string | null;
+                  published: boolean;
+                  publicUrl?: string | null;
+                  data?: Record<string, unknown> | null;
+                  currencyPrices?: CurrencyPrice[] | null;
+                  variantCurrencyPrices?: VariantCurrencyPrices[] | null;
+                  createdAt?: string | null;
+                  updatedAt?: string | null;
+                })
+              | null;
           };
         }>(MODEL_RECORD_BY_ID_QUERY, { id: recordId });
         const r = res.record.get;
@@ -2350,7 +2390,13 @@ export function createMcpWorkspaceOps(
         const res = await client.query<{
           order: { create: { id: string; orderNumber?: number | null } };
         }>(CREATE_MANUAL_ORDER_MUTATION, {
-          input: { customerEmail, customerId, items, shippingAddress, currency },
+          input: {
+            customerEmail,
+            customerId,
+            items,
+            shippingAddress,
+            currency,
+          },
         });
         const o = res.order.create;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
@@ -2487,7 +2533,9 @@ export function createMcpWorkspaceOps(
       },
       completeReturn: async (orderId, returnId, note) => {
         const res = await client.query<{
-          order: { completeReturn: { id: string; orderNumber?: number | null } };
+          order: {
+            completeReturn: { id: string; orderNumber?: number | null };
+          };
         }>(COMPLETE_RETURN_MUTATION, { input: { orderId, returnId, note } });
         const o = res.order.completeReturn;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
@@ -2508,8 +2556,12 @@ export function createMcpWorkspaceOps(
       },
       updateReturnTracking: async (orderId, returnId, tracking) => {
         const res = await client.query<{
-          order: { updateReturnTracking: { id: string; orderNumber?: number | null } };
-        }>(UPDATE_RETURN_TRACKING_MUTATION, { input: { orderId, returnId, ...tracking } });
+          order: {
+            updateReturnTracking: { id: string; orderNumber?: number | null };
+          };
+        }>(UPDATE_RETURN_TRACKING_MUTATION, {
+          input: { orderId, returnId, ...tracking },
+        });
         const o = res.order.updateReturnTracking;
         return { id: o.id, orderNumber: o.orderNumber ?? null };
       },
@@ -3168,7 +3220,10 @@ export function createMcpWorkspaceOps(
       setRecordPriceDisplayMode: async (recordId, displayMode) => {
         const res = await client.query<{
           record: { setPriceDisplayMode: CompanyTaxPreferencesRow };
-        }>(SET_RECORD_PRICE_DISPLAY_MODE_MUTATION, { id: recordId, displayMode });
+        }>(SET_RECORD_PRICE_DISPLAY_MODE_MUTATION, {
+          id: recordId,
+          displayMode,
+        });
         return toCompanyTaxPreferences(res.record.setPriceDisplayMode);
       },
       setRecordTaxRoundingMethod: async (recordId, method) => {
