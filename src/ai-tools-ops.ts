@@ -706,6 +706,44 @@ interface RawPropertyField {
   maxDecimals?: number | null;
   maxSize?: number | null;
   validationMessage?: string | null;
+  validation?: StoredFieldValidation | null;
+}
+
+interface StoredFieldValidation {
+  minLength?: number | null;
+  maxLength?: number | null;
+  min?: number | null;
+  max?: number | null;
+  pattern?: string | null;
+  minItems?: number | null;
+  maxItems?: number | null;
+  maxDecimals?: number | null;
+  maxSize?: number | null;
+  message?: string | null;
+}
+
+const FIELD_RULES = [
+  ["minLength", "minLength"],
+  ["maxLength", "maxLength"],
+  ["minValue", "min"],
+  ["maxValue", "max"],
+  ["pattern", "pattern"],
+  ["minItems", "minItems"],
+  ["maxItems", "maxItems"],
+  ["maxDecimals", "maxDecimals"],
+  ["maxSize", "maxSize"],
+  ["validationMessage", "message"],
+] as const satisfies ReadonlyArray<
+  readonly [keyof RawPropertyField, keyof StoredFieldValidation]
+>;
+
+function fieldRules(f: RawPropertyField): Partial<ProposedField> {
+  const rules: Record<string, unknown> = {};
+  for (const [key, storedKey] of FIELD_RULES) {
+    const value = f[key] ?? f.validation?.[storedKey];
+    if (value != null) rules[key] = value;
+  }
+  return rules as Partial<ProposedField>;
 }
 
 const stripModelPrefix = (target: string) => target.replace(/^model:/, "");
@@ -740,18 +778,7 @@ export function toProposedFields(
     ...(f.multiple != null ? { multiple: f.multiple } : {}),
     ...(f.localized ? { localized: true } : {}),
     ...(f.schemaProperty != null ? { schemaProperty: f.schemaProperty } : {}),
-    ...(f.minLength != null ? { minLength: f.minLength } : {}),
-    ...(f.maxLength != null ? { maxLength: f.maxLength } : {}),
-    ...(f.minValue != null ? { minValue: f.minValue } : {}),
-    ...(f.maxValue != null ? { maxValue: f.maxValue } : {}),
-    ...(f.pattern != null ? { pattern: f.pattern } : {}),
-    ...(f.minItems != null ? { minItems: f.minItems } : {}),
-    ...(f.maxItems != null ? { maxItems: f.maxItems } : {}),
-    ...(f.maxDecimals != null ? { maxDecimals: f.maxDecimals } : {}),
-    ...(f.maxSize != null ? { maxSize: f.maxSize } : {}),
-    ...(f.validationMessage != null
-      ? { validationMessage: f.validationMessage }
-      : {}),
+    ...fieldRules(f),
     ...(Array.isArray(f.fields) && f.fields.length > 0
       ? { fields: toProposedFields(f.fields, relationTarget) }
       : {}),

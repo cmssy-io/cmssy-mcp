@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.142.0
+
+- Nested field rules survive `get_model` / `get_page_type` -> `update_model` /
+  `update_page_type`. A child in `fields` / `itemFields` arrives as stored
+  JSON with its rules under `validation` (`minLength`, `maxLength`, `min`,
+  `max`, `pattern`, `minItems`, `maxItems`, `maxDecimals`, `maxSize`,
+  `message`); they are now read into the tool's flat keys (`minValue`,
+  `maxValue`, `validationMessage`, ...) instead of being dropped, so the next
+  write no longer strips them.
+
 ## 0.141.0
 
 - Field validation rules round-trip (`@cmssy/ai-tools` 0.113.0): `get_model`
