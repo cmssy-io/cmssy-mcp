@@ -232,7 +232,6 @@ model on every write.
 | `update_model`        | Update any field of a model (fields change triggers schema migrate)           |
 | `delete_model`        | Delete a model — **cascades to all its records**                              |
 | `list_records`        | List records with filter (JSON), sort, pagination, optional populate          |
-| `search_records`      | Ranked full-text (and semantic, when on) search over one model's records; hits carry id, snippet, `matchKind`, plus `mode` |
 | `get_record`          | Get a record by id; a company record carries its VAT id, verification and exemption |
 | `create_record`       | Create a record; `data` keyed by model field keys                             |
 | `update_record`       | Update a record's data and/or transition its status                           |
