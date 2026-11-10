@@ -1,5 +1,16 @@
 # @cmssy/mcp-server
 
+## 0.141.0
+
+- Field validation rules round-trip (`@cmssy/ai-tools` 0.113.0): `get_model`
+  and `get_page_type` read `minItems`, `maxItems`,
+  `maxDecimals`, `maxSize` and `validationMessage` on every field, nested
+  `fields` and `itemFields` included, and `create_model`, `update_model`,
+  `create_page_type` and `update_page_type` accept them. `update_model` keeps
+  them on fields it does not list instead of sending those fields back
+  without their rules.
+- Vendored SDL synced with production: field validation rules.
+
 ## 0.140.0
 
 - `search_records` (`@cmssy/ai-tools` 0.112.0): ranked search over one model's

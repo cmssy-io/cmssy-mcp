@@ -4557,6 +4557,7 @@ enum PageBulkSkipReason {
   TARGET_NOT_FOUND
   TARGET_NO_CHILDREN
   TOO_DEEP
+  VALIDATION_FAILED
 }
 
 type PageBulkSkipped {
@@ -4669,6 +4670,7 @@ type PagePresenceState {
   lockHeldByMe: Boolean!
   lockHolderId: ID
   lockHolderName: String
+  version: Int!
 }
 
 type PagePresenceUser {
@@ -5289,13 +5291,19 @@ type PropertyField {
   """The field's label per language, e.g. { en: "Size" }."""
   label: JSON!
   localized: Boolean
+  maxDecimals: Int
+  maxItems: Int
   maxLength: Int
+
+  """Largest accepted media asset, in bytes."""
+  maxSize: Float
   maxValue: Float
 
   """
   On an account model: a signed-in member may change this field on their own account.
   """
   memberCanSet: Boolean
+  minItems: Int
   minLength: Int
   minValue: Float
   multiple: Boolean
@@ -5306,6 +5314,9 @@ type PropertyField {
   required: Boolean!
   schemaProperty: String
   type: PropertyFieldType!
+
+  """Shown instead of the default message for any rule violation."""
+  validationMessage: String
 }
 
 input PropertyFieldInput {
@@ -5321,9 +5332,13 @@ input PropertyFieldInput {
   """The label per language, e.g. { en: "Size" }."""
   label: JSON!
   localized: Boolean
+  maxDecimals: Int
+  maxItems: Int
   maxLength: Int
+  maxSize: Float
   maxValue: Float
   memberCanSet: Boolean
+  minItems: Int
   minLength: Int
   minValue: Float
   multiple: Boolean
@@ -5334,6 +5349,7 @@ input PropertyFieldInput {
   required: Boolean
   schemaProperty: String
   type: PropertyFieldType!
+  validationMessage: String
 }
 
 """
