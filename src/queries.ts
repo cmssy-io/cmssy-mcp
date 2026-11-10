@@ -653,6 +653,11 @@ const PROPERTY_FIELD_FRAGMENT = `
   minValue
   maxValue
   pattern
+  minItems
+  maxItems
+  maxDecimals
+  maxSize
+  validationMessage
 `;
 
 export const PAGE_TYPE_QUERY = `

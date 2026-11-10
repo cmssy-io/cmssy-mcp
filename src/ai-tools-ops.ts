@@ -701,6 +701,11 @@ interface RawPropertyField {
   minValue?: number | null;
   maxValue?: number | null;
   pattern?: string | null;
+  minItems?: number | null;
+  maxItems?: number | null;
+  maxDecimals?: number | null;
+  maxSize?: number | null;
+  validationMessage?: string | null;
 }
 
 const stripModelPrefix = (target: string) => target.replace(/^model:/, "");
@@ -740,6 +745,13 @@ export function toProposedFields(
     ...(f.minValue != null ? { minValue: f.minValue } : {}),
     ...(f.maxValue != null ? { maxValue: f.maxValue } : {}),
     ...(f.pattern != null ? { pattern: f.pattern } : {}),
+    ...(f.minItems != null ? { minItems: f.minItems } : {}),
+    ...(f.maxItems != null ? { maxItems: f.maxItems } : {}),
+    ...(f.maxDecimals != null ? { maxDecimals: f.maxDecimals } : {}),
+    ...(f.maxSize != null ? { maxSize: f.maxSize } : {}),
+    ...(f.validationMessage != null
+      ? { validationMessage: f.validationMessage }
+      : {}),
     ...(Array.isArray(f.fields) && f.fields.length > 0
       ? { fields: toProposedFields(f.fields, relationTarget) }
       : {}),
