@@ -2737,7 +2737,6 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
-  allowRegistration: Boolean @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
