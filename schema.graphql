@@ -706,6 +706,44 @@ type AuthorizeSupportScreenshotUploadPayload {
   validUntil: DateTime!
 }
 
+"""
+One structured block advisory. blockAdvisories[i] is the source of blockWarnings[i] on the same write result.
+"""
+type BlockAdvisory {
+  blockType: String
+  bucket: BlockAdvisoryBucket
+  code: BlockAdvisoryCode!
+  field: String
+  language: String
+  params: JSON
+}
+
+enum BlockAdvisoryBucket {
+  advanced
+  content
+  regionSettings
+  settings
+  shared
+  style
+}
+
+enum BlockAdvisoryCode {
+  FIELD_COPY_DROPPED
+  FIELD_IN_WRONG_BUCKET
+  FIELD_MOVED
+  PATTERN_NEVER_RUN
+  RESTORED_MEDIA_UNMATCHED
+  RULE_VIOLATION
+  SHARED_VALUE_OVERRULED
+  TABLE_BUCKET_OVERSIZE
+  TABLE_CELLS_MANY
+  TABLE_COLUMNS_OVER_DECLARED
+  TABLE_COLUMNS_WIDE
+  UNKNOWN_BLOCK_TYPE
+  UNKNOWN_FIELD
+  VALUE_SHAPE_MISMATCH
+}
+
 type BlockData {
   advanced: JSON
   blockVersion: String
@@ -4457,6 +4495,11 @@ type Page {
   accessControl: PageAccessControl
 
   """
+  The structured advisory behind each blockWarnings entry, same length and order. Null on reads and when the write is clean.
+  """
+  blockAdvisories: [BlockAdvisory!]
+
+  """
   Non-fatal block-content validation warnings against the workspace block manifest (CMS-1029). Populated only on write mutations; null on reads and when the write is clean.
   """
   blockWarnings: [String!]
@@ -4600,6 +4643,7 @@ input PageCustomFieldSortInput {
 }
 
 type PageDevDraft {
+  blockAdvisories: [BlockAdvisory!]
   blockWarnings: [String!]
   blocks: [BlockData!]!
   pageId: String!
