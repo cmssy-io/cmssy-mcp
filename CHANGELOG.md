@@ -1,5 +1,16 @@
 # @cmssy/mcp-server
 
+## 0.144.0
+
+- `promote_dev_draft` takes `force` (`@cmssy/ai-tools` 0.115.0). The backend
+  refuses a promote with `DEV_DRAFT_PROMOTE_REFUSED` when the dev draft
+  introduces block warnings or empties a language, the shared values or the
+  flat content a shared-draft block holds; `force: true` overrides it. The
+  mutation sends `force` only when it is true.
+- `update_page_blocks` with `target: "devDraft"` returns the backend's
+  `blockWarnings` (the save mutation selected only `pageId` and `updatedAt`, so
+  they were dropped), and so does `update_block_content` with `target: "devDraft"`.
+
 ## 0.143.0
 
 - Removed `search_records` (`@cmssy/ai-tools` 0.114.0): record search is

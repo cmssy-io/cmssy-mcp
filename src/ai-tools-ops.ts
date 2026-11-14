@@ -1684,12 +1684,17 @@ export function createMcpWorkspaceOps(
       saveDevDraft: async (pageId, blocks) => {
         const page = await loadPageVersion(client, pageId);
         if (!page) throw new Error("Page not found");
-        await client.query(SAVE_DEV_DRAFT_MUTATION, {
+        const res = await client.query<{
+          page: { saveDevDraft: WarnedWrite };
+        }>(SAVE_DEV_DRAFT_MUTATION, {
           input: { pageId: page.id, blocks },
         });
-        return { id: page.id };
+        return withBlockWarnings(
+          { id: page.id },
+          res.page.saveDevDraft.blockWarnings,
+        );
       },
-      promoteDevDraft: async (pageId) => {
+      promoteDevDraft: async (pageId, options) => {
         const page = await loadPageVersion(client, pageId);
         if (!page) throw new Error("Page not found");
         const res = await client.query<{
@@ -1700,6 +1705,7 @@ export function createMcpWorkspaceOps(
             ...(expectedVersionOf(page) !== undefined
               ? { expectedVersion: expectedVersionOf(page) }
               : {}),
+            ...(options?.force ? { force: true } : {}),
           },
         });
         if (!res.page.promoteDevDraft) {
@@ -1740,10 +1746,15 @@ export function createMcpWorkspaceOps(
             settings,
             mode,
           );
-          await client.query(SAVE_DEV_DRAFT_MUTATION, {
+          const saved = await client.query<{
+            page: { saveDevDraft: WarnedWrite };
+          }>(SAVE_DEV_DRAFT_MUTATION, {
             input: { pageId: page.id, blocks },
           });
-          return { pageId: page.id, blockId };
+          return withBlockWarnings(
+            { pageId: page.id, blockId },
+            saved.page.saveDevDraft.blockWarnings,
+          );
         }
         const ev = expectedVersionOf(page);
         const contentIdx = (page.blocks ?? []).findIndex(
