@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.144.1
+
+- `promote_dev_draft` description (`@cmssy/ai-tools` 0.115.1): the promote is
+  also refused when the dev draft leaves out a shared-draft block that holds
+  content; `emptiedBlocks` marks it `removed: true`.
+
 ## 0.144.0
 
 - `promote_dev_draft` takes `force` (`@cmssy/ai-tools` 0.115.0). The backend
