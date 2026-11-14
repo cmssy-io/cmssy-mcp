@@ -555,9 +555,7 @@ export const DEV_DRAFT_QUERY = `
 export const SAVE_DEV_DRAFT_MUTATION = `
   mutation SaveDevDraft($input: SaveDevDraftInput!) {
     page { saveDevDraft(input: $input) {
-      pageId
       blockWarnings
-      updatedAt
     } }
   }
 `;
