@@ -9,7 +9,7 @@
   mutation sends `force` only when it is true.
 - `update_page_blocks` with `target: "devDraft"` returns the backend's
   `blockWarnings` (the save mutation selected only `pageId` and `updatedAt`, so
-  they were dropped).
+  they were dropped), and so does `update_block_content` with `target: "devDraft"`.
 
 ## 0.143.0
 

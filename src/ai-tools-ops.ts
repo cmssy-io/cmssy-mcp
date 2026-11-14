@@ -1746,10 +1746,15 @@ export function createMcpWorkspaceOps(
             settings,
             mode,
           );
-          await client.query(SAVE_DEV_DRAFT_MUTATION, {
+          const saved = await client.query<{
+            page: { saveDevDraft: WarnedWrite };
+          }>(SAVE_DEV_DRAFT_MUTATION, {
             input: { pageId: page.id, blocks },
           });
-          return { pageId: page.id, blockId };
+          return withBlockWarnings(
+            { pageId: page.id, blockId },
+            saved.page.saveDevDraft.blockWarnings,
+          );
         }
         const ev = expectedVersionOf(page);
         const contentIdx = (page.blocks ?? []).findIndex(

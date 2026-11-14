@@ -28,7 +28,16 @@ function devDraftClient(blockWarnings: string[] | null) {
         page: { promoteDevDraft: { id: "p1", blockWarnings, updatedAt: null } },
       };
     }
-    return { page: { get: { id: "p1", version: 3 } } };
+    if (document.includes("query DevDraft")) {
+      return {
+        page: {
+          devDraft: {
+            blocks: [{ id: "b1", type: "hero", content: { en: {} } }],
+          },
+        },
+      };
+    }
+    return { page: { get: { id: "p1", version: 3, blocks: [] } } };
   });
   return { client: { query } as unknown as CmssyClient, sent };
 }
@@ -62,6 +71,29 @@ describe("dev draft ops (CMS-2261)", () => {
     const result = await ops.pages.saveDevDraft("p1", []);
 
     expect(result).toEqual({ id: "p1" });
+  });
+
+  it("returns blockWarnings from a dev-draft block update", async () => {
+    const { client, sent } = devDraftClient(["unknown field title"]);
+    const ops = createMcpWorkspaceOps(client);
+
+    const result = await ops.pages.updateBlock(
+      "p1",
+      "b1",
+      { en: { title: "Hi" } },
+      undefined,
+      "merge",
+      "devDraft",
+    );
+
+    expect(sent.some((entry) => entry.document.includes("saveDevDraft"))).toBe(
+      true,
+    );
+    expect(result).toEqual({
+      pageId: "p1",
+      blockId: "b1",
+      blockWarnings: ["unknown field title"],
+    });
   });
 
   it("sends force: true when the caller forces the promote", async () => {
