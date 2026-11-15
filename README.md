@@ -285,6 +285,9 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `list_products`            | Product catalog with stock + variant info (over a Data Model)      |
 | `bulk_update_products`     | Bulk set/adjust status, stock, or price on selected products       |
 | `bulk_delete_products`     | Bulk-delete selected product records                               |
+| `start_bulk_delete_products` | Background job: delete every product matching a filter (over 1000 matches) |
+| `start_bulk_update_products` | Background job: patch every product matching a filter (over 1000 matches) |
+| `get_product_bulk_job`     | Status and progress of a product bulk job, by id or the model's active job |
 | `set_product_tiers`        | Set a product's record-level volume price breaks                   |
 | `set_product_variants`     | Replace a product's whole variant set              |
 | `set_product_currency_prices` | Replace a product's prices and breaks in additional currencies, and variants' per-currency prices without touching stock |

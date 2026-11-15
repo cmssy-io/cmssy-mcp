@@ -171,7 +171,11 @@ const OBJECT_LEVEL_RULES: Record<string, { refused: unknown; accepted: unknown }
         expectedVatId: "DE123456789",
       },
     },
-    update_media_folder: {
+    get_product_bulk_job: {
+    refused: { jobId: "6abd61e1a51c17ea3525336e", modelId: "products" },
+    accepted: { jobId: "6abd61e1a51c17ea3525336e" },
+  },
+  update_media_folder: {
       refused: { id: "6abd61e1a51c17ea3525336a" },
       accepted: { id: "6abd61e1a51c17ea3525336a", name: "renamed" },
     },
@@ -244,7 +248,10 @@ describe("a rule the tool declares across its parameters is enforced through the
   }
 });
 
-const RULE_INSTEAD_OF_A_REQUIRED_FIELD = ["upload_media"];
+const RULE_INSTEAD_OF_A_REQUIRED_FIELD = [
+  "upload_media",
+  "get_product_bulk_job",
+];
 
 describe("every tool the live server binds advertises what it needs (CMS-1982)", () => {
   async function advertised() {
