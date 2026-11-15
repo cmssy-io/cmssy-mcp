@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.145.0
+
+- Cursor paging on the large lists (`@cmssy/ai-tools` 0.116.0, CMS-2249):
+  `list_records`, `list_products`, `list_orders`, `list_customers`,
+  `list_media` and `list_trashed_media` take `cursor` (sent as `after`) and
+  return `nextCursor`. Offset/skip is capped at 10000, as the backend refuses
+  more; page past it with the cursor.
+- Vendored `schema.graphql` synced with production.
+
 ## 0.144.1
 
 - `promote_dev_draft` description (`@cmssy/ai-tools` 0.115.1): the promote is

@@ -307,9 +307,9 @@ export const CURRENT_WORKSPACE_QUERY = `
 // ─── Media Queries ───────────────────────────────────────────
 
 export const MEDIA_ASSETS_QUERY = `
-  query MediaAssets($limit: Int, $offset: Int) {
+  query MediaAssets($limit: Int, $offset: Int, $after: String) {
     media {
-      list(limit: $limit, offset: $offset) {
+      list(limit: $limit, offset: $offset, after: $after) {
         items {
           id
           url
@@ -324,6 +324,7 @@ export const MEDIA_ASSETS_QUERY = `
         }
         total
         hasMore
+        nextCursor
       }
     }
   }
@@ -409,9 +410,9 @@ export const UPDATE_MEDIA_FOLDER_MUTATION = `
 `;
 
 export const MEDIA_TRASH_QUERY = `
-  query MediaTrash($limit: Int, $offset: Int) {
+  query MediaTrash($limit: Int, $offset: Int, $after: String) {
     media {
-      trash(limit: $limit, offset: $offset) {
+      trash(limit: $limit, offset: $offset, after: $after) {
         items {
           id
           filename
@@ -427,6 +428,7 @@ export const MEDIA_TRASH_QUERY = `
         }
         total
         hasMore
+        nextCursor
       }
     }
   }
@@ -1173,6 +1175,7 @@ export const MODEL_RECORDS_QUERY = `
     $modelId: ID!
     $filter: JSON
     $limit: Int
+    $after: String
     $offset: Int
     $sort: String
     $populate: [String!]
@@ -1183,6 +1186,7 @@ export const MODEL_RECORDS_QUERY = `
         modelId: $modelId
         filter: $filter
         limit: $limit
+        after: $after
         offset: $offset
         sort: $sort
         populate: $populate
@@ -1191,6 +1195,7 @@ export const MODEL_RECORDS_QUERY = `
         items { ${MODEL_RECORD_FRAGMENT} published publicUrl(locale: $locale) }
         total
         hasMore
+        nextCursor
       }
     }
   }
@@ -1536,6 +1541,7 @@ export const ORDERS_QUERY = `
     $dateTo: DateTime
     $skip: Int
     $limit: Int
+    $after: String
   ) {
     order {
       list(
@@ -1553,10 +1559,12 @@ export const ORDERS_QUERY = `
         dateTo: $dateTo
         skip: $skip
         limit: $limit
+        after: $after
       ) {
         items { ${ORDER_LIST_FRAGMENT} }
         total
         hasMore
+        nextCursor
       }
     }
   }
@@ -1947,6 +1955,7 @@ export const PRODUCT_CATALOG_QUERY = `
     $modelId: ID!
     $filter: ProductCatalogFilterInput
     $limit: Int
+    $after: String
     $offset: Int
     $sort: String
   ) {
@@ -1955,6 +1964,7 @@ export const PRODUCT_CATALOG_QUERY = `
         modelId: $modelId
         filter: $filter
         limit: $limit
+        after: $after
         offset: $offset
         sort: $sort
       ) {
@@ -1984,6 +1994,7 @@ export const PRODUCT_CATALOG_QUERY = `
         }
         total
         hasMore
+        nextCursor
         lowStockThreshold
       }
     }
@@ -2117,6 +2128,7 @@ export const CUSTOMERS_QUERY = `
     $companyId: ID
     $skip: Int
     $limit: Int
+    $after: String
   ) {
     customer {
       list(
@@ -2126,10 +2138,12 @@ export const CUSTOMERS_QUERY = `
         companyId: $companyId
         skip: $skip
         limit: $limit
+        after: $after
       ) {
         items { ${CUSTOMER_FRAGMENT} }
         total
         hasMore
+        nextCursor
       }
     }
   }
