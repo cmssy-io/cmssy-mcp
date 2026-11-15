@@ -3468,6 +3468,11 @@ type Order {
   fulfillmentStatus: String!
   id: String!
 
+  """
+  Paid lines whose stock could not be taken; empty for a caller without orders:view.
+  """
+  inventoryShortfalls: [OrderInventoryShortfall!]!
+
   """Number of the order's invoice (not of a correction)."""
   invoiceNumber: String
   invoiceProvider: String
@@ -3666,6 +3671,13 @@ enum OrderFieldType {
   select
   text
   url
+}
+
+type OrderInventoryShortfall {
+  at: DateTime!
+  qty: Int!
+  recordId: ID!
+  variantKey: String
 }
 
 """
@@ -5303,6 +5315,7 @@ type ProductVariantSelection {
 
 input PromoteDevDraftInput {
   expectedVersion: Int
+  force: Boolean
   pageId: String!
 }
 
