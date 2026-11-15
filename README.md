@@ -231,7 +231,7 @@ model on every write.
 | `create_model`        | Create a model (name, slug, fields, optional statusField)                     |
 | `update_model`        | Update any field of a model (fields change triggers schema migrate)           |
 | `delete_model`        | Delete a model — **cascades to all its records**                              |
-| `list_records`        | List records with filter (JSON), sort, pagination, optional populate          |
+| `list_records`        | List records with filter (JSON), sort, cursor pagination, optional populate   |
 | `get_record`          | Get a record by id; a company record carries its VAT id, verification and exemption |
 | `create_record`       | Create a record; `data` keyed by model field keys                             |
 | `update_record`       | Update a record's data and/or transition its status                           |
@@ -250,7 +250,7 @@ are integer minor units (cents).** Order/discount write tools accept the
 
 | Tool                       | Description                                                        |
 | -------------------------- | ------------------------------------------------------------------ |
-| `list_orders`              | List orders by payment/fulfillment/delivery/state, warehouse queue, customer, currency, dates; pages with `skip`/`limit` |
+| `list_orders`              | List orders by payment/fulfillment/delivery/state, warehouse queue, customer, currency, dates; pages with `cursor` (`nextCursor`), `skip` up to 10000 |
 | `get_order`                | Get an order with items, payments, parcels, invoices and corrections, tax summary and treatment, sales channel and the price lists that priced it |
 | `get_order_pipeline`       | Get the workspace's configurable order pipeline stages             |
 | `create_manual_order`      | Create an admin-entered order, with an optional shipping address   |
@@ -308,7 +308,7 @@ with accounts enabled - not the team that manages the workspace
 
 | Tool                           | Description                                                                               |
 | ------------------------------ | ----------------------------------------------------------------------------------------- |
-| `list_customers`               | List customers with status, verification, last login, company and order stats (paginated) |
+| `list_customers`               | List customers with status, verification, last login, company and order stats (cursor-paginated) |
 | `get_customer`                 | One customer's account summary plus the profile record's data                             |
 | `suspend_customer`             | Block sign-in and end every live session (orders and carts stay)                          |
 | `unsuspend_customer`           | Let a suspended customer sign in again                                                    |
