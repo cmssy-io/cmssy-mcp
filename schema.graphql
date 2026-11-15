@@ -126,7 +126,14 @@ type AccountQueries {
   """
   The signed-in member's orders, newest first. scope COMPANY lists every order placed for the member's company and is refused with FORBIDDEN (extensions.reason COMPANY_PERMISSION_REQUIRED, extensions.permission) unless the member's company role grants orders.company.read.
   """
-  orders(limit: Int, scope: AccountOrderScope = MINE, skip: Int, workspaceId: ID!): PublicOrderListResult!
+  orders(
+    limit: Int
+    scope: AccountOrderScope = MINE
+
+    """Rows to skip. A skip above 10,000 is refused."""
+    skip: Int
+    workspaceId: ID!
+  ): PublicOrderListResult!
 
   """
   The signed-in member's prices for up to 100 products, one row per item asked; an unknown or hidden product is left out. Read it after the cached, anonymous catalogue has rendered, and never cache the response for another visitor.
@@ -1806,6 +1813,7 @@ type CustomerEffectivePriceList {
 type CustomerList {
   hasMore: Boolean!
   items: [Customer!]!
+  nextCursor: String
   total: Int!
 }
 
@@ -1887,12 +1895,20 @@ type CustomerQueries {
   Customers of the workspace, newest first unless `sort` says otherwise. Sorting by `ordersCount` counts non-canceled orders and needs `orders:view`.
   """
   list(
+    """
+    Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero skip.
+    """
+    after: String
     companyId: ID
     limit: Int
 
     """Only customers of this accounts model, by id or slug"""
     modelId: ID
     search: String
+
+    """
+    Rows to skip. A skip above 10,000 is refused; page further with after and nextCursor.
+    """
     skip: Int
     sort: CustomerSortInput
     status: CustomerStatus
@@ -2686,6 +2702,7 @@ type MediaFolderListResponse {
 type MediaListResponse {
   hasMore: Boolean!
   items: [MediaAsset!]!
+  nextCursor: String
   total: Int!
 }
 
@@ -2726,13 +2743,36 @@ type MediaQueries {
   duplicates: [MediaDuplicateGroup!]!
   folders(parentId: ID): MediaFolderListResponse!
   get(id: ID!): MediaAsset
-  list(filter: MediaFilterInput, limit: Int = 50, offset: Int = 0): MediaListResponse!
+  list(
+    """
+    Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero offset.
+    """
+    after: String
+    filter: MediaFilterInput
+    limit: Int = 50
+
+    """
+    Rows to skip. An offset above 10,000 is refused; page further with after and nextCursor.
+    """
+    offset: Int = 0
+  ): MediaListResponse!
 
   """
   The upload names, kinds, visibility and loadable urls of the assets asked for by id, in one projected read. An id that names nothing in this workspace is left out.
   """
   names(ids: [ID!]!): [MediaAssetName!]!
-  trash(limit: Int = 50, offset: Int = 0): MediaTrashList!
+  trash(
+    """
+    Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero offset.
+    """
+    after: String
+    limit: Int = 50
+
+    """
+    Rows to skip. An offset above 10,000 is refused; page further with after and nextCursor.
+    """
+    offset: Int = 0
+  ): MediaTrashList!
   usages(assetIds: [ID!]!): MediaUsageResponse!
 }
 
@@ -2746,6 +2786,7 @@ type MediaRecordUsage {
 type MediaTrashList {
   hasMore: Boolean!
   items: [TrashedMediaAsset!]!
+  nextCursor: String
   total: Int!
 }
 
@@ -2775,6 +2816,7 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
+  allowRegistration: Boolean @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
@@ -3203,6 +3245,7 @@ type ModelRecord {
 type ModelRecordList {
   hasMore: Boolean!
   items: [ModelRecord!]!
+  nextCursor: String
   total: Int!
 }
 
@@ -3752,6 +3795,7 @@ type OrderItem {
 type OrderListResult {
   hasMore: Boolean!
   items: [Order!]!
+  nextCursor: String
   total: Int!
 }
 
@@ -3932,6 +3976,10 @@ type OrderQueries {
   editPreview(input: EditOrderInput!): OrderEditPreview!
   get(id: ID!): Order
   list(
+    """
+    Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero skip.
+    """
+    after: String
     companyId: ID
 
     """
@@ -3948,6 +3996,10 @@ type OrderQueries {
     pipelineStageId: String
     queue: OrderQueue
     search: String
+
+    """
+    Rows to skip. A skip above 10,000 is refused; page further with after and nextCursor.
+    """
     skip: Int
     state: OrderState
   ): OrderListResult!
@@ -4729,7 +4781,13 @@ type PageQueries {
   bySlugs(slugs: [String!]!): [PageSelectorItem!]!
   devDraft(pageId: String!): PageDevDraft
   devPreviewMode: Boolean!
-  forSelector(filter: PageSelectorFilterInput, limit: Int = 20, offset: Int = 0): PageSelectorResponse!
+  forSelector(
+    filter: PageSelectorFilterInput
+    limit: Int = 20
+
+    """Rows to skip. An offset above 10,000 is refused."""
+    offset: Int = 0
+  ): PageSelectorResponse!
   get(pageId: ID!): Page
   history(limit: Int, pageId: ID!): [PageHistoryEntry!]!
   list(search: String): [Page!]!
@@ -5171,6 +5229,52 @@ enum ProductBulkDeleteSkipReason {
   page
 }
 
+"""
+A bulk delete or update over every product matching a filter, run in batches in the background (CMS-2253). Poll `product.bulkJob` until `status` is completed or failed.
+"""
+type ProductBulkJob {
+  createdAt: DateTime!
+  deleted: Int!
+  error: String
+  failureReason: ProductBulkJobFailureReason
+  finishedAt: DateTime
+  id: ID!
+  kind: ProductBulkJobKind!
+  processed: Int!
+
+  """The first skipped products, at most 20."""
+  skipped: [ProductBulkDeleteSkip!]!
+  skippedCount: Int!
+  status: ProductBulkJobStatus!
+
+  """Products matching the filter when the job started."""
+  total: Int!
+  updated: Int!
+}
+
+"""
+Why a bulk job stopped: `stalled` made no progress for too long, `modelUnavailable` lost its product model, `invalidPatch` no longer fits the model, `enqueueFailed` never got its first step queued, `unexpected` failed on an error the admin cannot act on.
+"""
+enum ProductBulkJobFailureReason {
+  enqueueFailed
+  invalidPatch
+  modelUnavailable
+  stalled
+  unexpected
+}
+
+enum ProductBulkJobKind {
+  delete
+  update
+}
+
+enum ProductBulkJobStatus {
+  completed
+  failed
+  queued
+  running
+}
+
 input ProductBulkPatchInput {
   """
   Major units of the default currency; prices per currency are left as they are.
@@ -5215,6 +5319,7 @@ type ProductCatalogList {
   hasMore: Boolean!
   items: [CatalogItem!]!
   lowStockThreshold: Int!
+  nextCursor: String
   total: Int!
 }
 
@@ -5230,11 +5335,18 @@ type ProductFieldRoles {
 }
 
 type ProductMutations {
+  """
+  Delete the selected products, keeping those an open order or a page still uses. With allMatching the call is refused when more than 1000 products match: narrow the filter.
+  """
   bulkDelete(
     """The product model's id or slug"""
     modelId: ID!
     selection: ProductBulkSelectionInput!
   ): ProductBulkDeleteResult!
+
+  """
+  Apply the patch to the selected products and return how many changed. With allMatching the call is refused when more than 1000 products match: narrow the filter.
+  """
   bulkUpdate(
     """The product model's id or slug"""
     modelId: ID!
@@ -5250,15 +5362,52 @@ type ProductMutations {
   """Replace a product's record-level volume price breaks (CMS-910)."""
   setTiers(input: SetProductTiersInput!): ModelRecord!
   setVariants(input: SetProductVariantsInput!): ModelRecord!
+
+  """
+  Delete every product matching the filter in a background job. Products in an open order or on a page are skipped, as in bulkDelete.
+  """
+  startBulkDelete(
+    filter: ProductCatalogFilterInput
+
+    """The product model's id or slug"""
+    modelId: ID!
+  ): ProductBulkJob!
+
+  """
+  Apply the patch to every product matching the filter in a background job.
+  """
+  startBulkUpdate(
+    filter: ProductCatalogFilterInput
+
+    """The product model's id or slug"""
+    modelId: ID!
+    patch: ProductBulkPatchInput!
+  ): ProductBulkJob!
 }
 
 type ProductQueries {
+  """
+  The bulk job still queued or running for this product model, if any, so a screen opened later can follow it.
+  """
+  activeBulkJob(
+    """The product model's id or slug"""
+    modelId: ID!
+  ): ProductBulkJob
+  bulkJob(id: ID!): ProductBulkJob
   list(
+    """
+    Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero offset.
+    """
+    after: String
     filter: ProductCatalogFilterInput
     limit: Int
 
     """The product model's id or slug"""
     modelId: ID!
+
+    """
+    Rows to skip. An offset above 10,000 is refused; page further with after and nextCursor.
+    """
     offset: Int
 
     """
@@ -5572,6 +5721,10 @@ type PublicModelQueries {
   """
   definitions(limit: Int = 25, offset: Int = 0, workspaceId: String!): [PublicModelDefinition!]!
   records(
+    """
+    Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero offset.
+    """
+    after: String
     filter: JSON
     limit: Int = 20
 
@@ -5580,6 +5733,10 @@ type PublicModelQueries {
     """
     locale: String
     modelSlug: String!
+
+    """
+    Rows to skip. An offset above 10,000 is refused; page further with after and nextCursor.
+    """
     offset: Int = 0
     populate: [String!]
 
@@ -5677,6 +5834,7 @@ type PublicModelRecord {
 type PublicModelRecordList {
   hasMore: Boolean!
   items: [PublicModelRecord!]!
+  nextCursor: String
   total: Int!
 }
 
@@ -5898,7 +6056,21 @@ type PublicPageItem {
 }
 
 type PublicPageQueries {
-  byType(customFieldFilters: [PageCustomFieldFilterInput!], customFieldSort: PageCustomFieldSortInput, includeDrafts: Boolean = false, limit: Int = 9, offset: Int = 0, pageType: String, parentSlug: String, previewSecret: String, search: String, sortBy: PageSortBy = publishedAt_desc, workspaceId: String!): PublicPagesListResult!
+  byType(
+    customFieldFilters: [PageCustomFieldFilterInput!]
+    customFieldSort: PageCustomFieldSortInput
+    includeDrafts: Boolean = false
+    limit: Int = 9
+
+    """Rows to skip. An offset above 10,000 is refused."""
+    offset: Int = 0
+    pageType: String
+    parentSlug: String
+    previewSecret: String
+    search: String
+    sortBy: PageSortBy = publishedAt_desc
+    workspaceId: String!
+  ): PublicPagesListResult!
   get(devPreview: Boolean, previewSecret: String, slug: String!, workspaceSlug: String!): PublicPage
   getById(pageId: ID!, workspaceSlug: String!): PublicPage
   layouts(pageSlug: String!, previewSecret: String, workspaceSlug: String!): [PublicResolvedLayout!]!
@@ -6164,6 +6336,10 @@ input RecordOrderPaymentInput {
 type RecordQueries {
   get(id: ID!): ModelRecord
   list(
+    """
+    Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero offset.
+    """
+    after: String
     filter: JSON
     limit: Int
 
@@ -6172,6 +6348,10 @@ type RecordQueries {
     """
     locale: String
     modelId: ID!
+
+    """
+    Rows to skip. An offset above 10,000 is refused; page further with after and nextCursor.
+    """
     offset: Int
     populate: [String!]
 
