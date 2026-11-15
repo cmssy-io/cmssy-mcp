@@ -19,6 +19,7 @@ import type {
   RecordBulkUpdateResult,
   ModelSummary,
   ProductBulkDeleteResult,
+  ProductBulkJob,
   PageRestored,
   TrashedPageSummary,
   ProposedField,
@@ -172,6 +173,10 @@ import {
   PRODUCT_CATALOG_QUERY,
   BULK_UPDATE_PRODUCT_RECORDS_MUTATION,
   BULK_DELETE_PRODUCT_RECORDS_MUTATION,
+  START_PRODUCT_BULK_DELETE_MUTATION,
+  START_PRODUCT_BULK_UPDATE_MUTATION,
+  PRODUCT_BULK_JOB_QUERY,
+  ACTIVE_PRODUCT_BULK_JOB_QUERY,
   SET_PRODUCT_TIERS_MUTATION,
   SET_PRODUCT_CURRENCY_PRICES_MUTATION,
   SET_PRODUCT_VARIANTS_MUTATION,
@@ -2988,6 +2993,30 @@ export function createMcpWorkspaceOps(
           product: { bulkDelete: ProductBulkDeleteResult };
         }>(BULK_DELETE_PRODUCT_RECORDS_MUTATION, { modelId, selection });
         return res.product.bulkDelete;
+      },
+      startBulkDelete: async (modelId, filter) => {
+        const res = await client.query<{
+          product: { startBulkDelete: ProductBulkJob };
+        }>(START_PRODUCT_BULK_DELETE_MUTATION, { modelId, filter });
+        return res.product.startBulkDelete;
+      },
+      startBulkUpdate: async (modelId, filter, patch) => {
+        const res = await client.query<{
+          product: { startBulkUpdate: ProductBulkJob };
+        }>(START_PRODUCT_BULK_UPDATE_MUTATION, { modelId, filter, patch });
+        return res.product.startBulkUpdate;
+      },
+      bulkJob: async (id) => {
+        const res = await client.query<{
+          product: { bulkJob: ProductBulkJob | null };
+        }>(PRODUCT_BULK_JOB_QUERY, { id });
+        return res.product.bulkJob;
+      },
+      activeBulkJob: async (modelId) => {
+        const res = await client.query<{
+          product: { activeBulkJob: ProductBulkJob | null };
+        }>(ACTIVE_PRODUCT_BULK_JOB_QUERY, { modelId });
+        return res.product.activeBulkJob;
       },
       setTiers: async (recordId, tiers, increment) => {
         const res = await client.query<{ product: { setTiers: unknown } }>(

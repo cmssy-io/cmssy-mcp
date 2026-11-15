@@ -7,6 +7,10 @@ import {
   PRODUCT_CATALOG_QUERY,
   SET_PRODUCT_TIERS_MUTATION,
   SET_PRODUCT_VARIANTS_MUTATION,
+  START_PRODUCT_BULK_DELETE_MUTATION,
+  START_PRODUCT_BULK_UPDATE_MUTATION,
+  PRODUCT_BULK_JOB_QUERY,
+  ACTIVE_PRODUCT_BULK_JOB_QUERY,
 } from "../queries.js";
 
 function selectedUnder(document: string, parent: string): Set<string> {
@@ -87,5 +91,85 @@ describe("products ops (CMS-2089)", () => {
     expect(
       selectedUnder(PRODUCT_CATALOG_QUERY, "items").has("quantityIncrement"),
     ).toBe(true);
+  });
+});
+
+describe("product bulk job ops (CMS-2263)", () => {
+  const job = { id: "j1", kind: "delete", status: "queued", total: 4200 };
+
+  it("starts a bulk delete with the filter and returns the job", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValue({ product: { startBulkDelete: job } });
+    const ops = createMcpWorkspaceOps({ query } as unknown as CmssyClient);
+
+    const result = await ops.products.startBulkDelete("m1", {
+      status: "draft",
+    });
+
+    expect(query).toHaveBeenCalledWith(START_PRODUCT_BULK_DELETE_MUTATION, {
+      modelId: "m1",
+      filter: { status: "draft" },
+    });
+    expect(result).toBe(job);
+  });
+
+  it("starts a bulk update with filter and patch and returns the job", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValue({ product: { startBulkUpdate: job } });
+    const ops = createMcpWorkspaceOps({ query } as unknown as CmssyClient);
+
+    const result = await ops.products.startBulkUpdate(
+      "m1",
+      { stockState: "out" },
+      { setStock: 5 },
+    );
+
+    expect(query).toHaveBeenCalledWith(START_PRODUCT_BULK_UPDATE_MUTATION, {
+      modelId: "m1",
+      filter: { stockState: "out" },
+      patch: { setStock: 5 },
+    });
+    expect(result).toBe(job);
+  });
+
+  it("reads a job by id and the model's active job", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ product: { bulkJob: job } })
+      .mockResolvedValueOnce({ product: { activeBulkJob: null } });
+    const ops = createMcpWorkspaceOps({ query } as unknown as CmssyClient);
+
+    expect(await ops.products.bulkJob("j1")).toBe(job);
+    expect(await ops.products.activeBulkJob("m1")).toBeNull();
+    expect(query.mock.calls).toEqual([
+      [PRODUCT_BULK_JOB_QUERY, { id: "j1" }],
+      [ACTIVE_PRODUCT_BULK_JOB_QUERY, { modelId: "m1" }],
+    ]);
+  });
+
+  it("selects progress, skips and failure reason on every job document", () => {
+    for (const [doc, parent] of [
+      [START_PRODUCT_BULK_DELETE_MUTATION, "startBulkDelete"],
+      [START_PRODUCT_BULK_UPDATE_MUTATION, "startBulkUpdate"],
+      [PRODUCT_BULK_JOB_QUERY, "bulkJob"],
+      [ACTIVE_PRODUCT_BULK_JOB_QUERY, "activeBulkJob"],
+    ] as const) {
+      const fields = selectedUnder(doc, parent);
+      for (const f of [
+        "id",
+        "status",
+        "total",
+        "processed",
+        "deleted",
+        "updated",
+        "skippedCount",
+        "skipped",
+        "failureReason",
+      ]) {
+        expect(fields, `${parent}.${f}`).toContain(f);
+      }
+    }
   });
 });

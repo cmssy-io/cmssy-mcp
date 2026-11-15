@@ -2076,6 +2076,70 @@ export const BULK_DELETE_PRODUCT_RECORDS_MUTATION = `
   }
 `;
 
+const PRODUCT_BULK_JOB_FIELDS = `
+  id
+  kind
+  status
+  total
+  processed
+  deleted
+  updated
+  skippedCount
+  skipped {
+    id
+    name
+    reason
+  }
+  failureReason
+  error
+  createdAt
+  finishedAt
+`;
+
+export const START_PRODUCT_BULK_DELETE_MUTATION = `
+  mutation StartProductBulkDelete($modelId: ID!, $filter: ProductCatalogFilterInput) {
+    product {
+      startBulkDelete(modelId: $modelId, filter: $filter) {
+        ${PRODUCT_BULK_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const START_PRODUCT_BULK_UPDATE_MUTATION = `
+  mutation StartProductBulkUpdate(
+    $modelId: ID!
+    $filter: ProductCatalogFilterInput
+    $patch: ProductBulkPatchInput!
+  ) {
+    product {
+      startBulkUpdate(modelId: $modelId, filter: $filter, patch: $patch) {
+        ${PRODUCT_BULK_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const PRODUCT_BULK_JOB_QUERY = `
+  query ProductBulkJob($id: ID!) {
+    product {
+      bulkJob(id: $id) {
+        ${PRODUCT_BULK_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const ACTIVE_PRODUCT_BULK_JOB_QUERY = `
+  query ActiveProductBulkJob($modelId: ID!) {
+    product {
+      activeBulkJob(modelId: $modelId) {
+        ${PRODUCT_BULK_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
 export const MEMBERS_QUERY = `
   query Members {
     user {

@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.146.0
+
+- Product bulk job tools (`@cmssy/ai-tools` 0.117.0, CMS-2263):
+  `start_bulk_delete_products` and `start_bulk_update_products` start a
+  background job over every product matching a filter, `get_product_bulk_job`
+  reads its status and progress by id or the model's active job. Use them when
+  more than 1000 products match - the sync `bulk_*_products` tools are refused
+  above that.
+
 ## 0.145.0
 
 - Cursor paging on the large lists (`@cmssy/ai-tools` 0.116.0, CMS-2249):
