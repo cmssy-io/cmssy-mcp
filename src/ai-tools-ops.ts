@@ -863,6 +863,7 @@ export function createMcpWorkspaceOps(
               }>;
               total: number;
               hasMore: boolean;
+              nextCursor?: string | null;
             };
           };
         }>(MODEL_RECORDS_QUERY, {
@@ -871,6 +872,7 @@ export function createMcpWorkspaceOps(
           sort: options?.sort,
           limit: options?.limit,
           offset: options?.offset,
+          after: options?.after,
           populate: options?.populate,
           locale: options?.locale,
         });
@@ -888,6 +890,7 @@ export function createMcpWorkspaceOps(
           })),
           total: res.record.list.total,
           hasMore: res.record.list.hasMore,
+          nextCursor: res.record.list.nextCursor ?? null,
         };
       },
       create: async (input) => {
@@ -1887,7 +1890,7 @@ export function createMcpWorkspaceOps(
       },
     },
     media: {
-      list: async (limit, offset) => {
+      list: async (limit, offset, after) => {
         const res = await client.query<{
           media: {
             list: {
@@ -1901,9 +1904,10 @@ export function createMcpWorkspaceOps(
               }>;
               total: number;
               hasMore: boolean;
+              nextCursor?: string | null;
             };
           };
-        }>(MEDIA_ASSETS_QUERY, { limit, offset });
+        }>(MEDIA_ASSETS_QUERY, { limit, offset, after });
         return {
           items: res.media.list.items.map((m) => ({
             id: m.id,
@@ -1915,6 +1919,7 @@ export function createMcpWorkspaceOps(
           })),
           total: res.media.list.total,
           hasMore: res.media.list.hasMore,
+          nextCursor: res.media.list.nextCursor ?? null,
         };
       },
       upload: async (input) => {
@@ -2069,11 +2074,14 @@ export function createMcpWorkspaceOps(
         }>(DELETE_MEDIA_MUTATION, { ids, force: force ?? false });
         return { deleted: res.media.delete.deletedCount };
       },
-      listTrash: async (limit, offset) => {
+      listTrash: async (limit, offset, after) => {
         const res = await client.query<{
           media: { trash: MediaTrashListResult };
-        }>(MEDIA_TRASH_QUERY, { limit, offset });
-        return res.media.trash;
+        }>(MEDIA_TRASH_QUERY, { limit, offset, after });
+        return {
+          ...res.media.trash,
+          nextCursor: res.media.trash.nextCursor ?? null,
+        };
       },
       restore: async (ids) => {
         const res = await client.query<{
@@ -2239,6 +2247,7 @@ export function createMcpWorkspaceOps(
               }>;
               total: number;
               hasMore: boolean;
+              nextCursor?: string | null;
             };
           };
         }>(ORDERS_QUERY, {
@@ -2256,6 +2265,7 @@ export function createMcpWorkspaceOps(
           dateTo: options?.dateTo,
           skip: options?.skip,
           limit: options?.limit,
+          after: options?.after,
         });
         return {
           items: res.order.list.items.map((o) => ({
@@ -2276,6 +2286,7 @@ export function createMcpWorkspaceOps(
           })),
           total: res.order.list.total,
           hasMore: res.order.list.hasMore,
+          nextCursor: res.order.list.nextCursor ?? null,
         };
       },
       get: async (id) => {
@@ -2939,7 +2950,7 @@ export function createMcpWorkspaceOps(
       },
     },
     products: {
-      list: async (modelId, filter, limit, offset, sort) => {
+      list: async (modelId, filter, limit, offset, sort, after) => {
         const res = await client.query<{
           product: {
             list: Record<string, unknown> & {
@@ -2948,7 +2959,14 @@ export function createMcpWorkspaceOps(
               >;
             };
           };
-        }>(PRODUCT_CATALOG_QUERY, { modelId, filter, limit, offset, sort });
+        }>(PRODUCT_CATALOG_QUERY, {
+          modelId,
+          filter,
+          limit,
+          offset,
+          sort,
+          after,
+        });
         const list = res.product.list;
         return {
           ...list,
@@ -3080,7 +3098,12 @@ export function createMcpWorkspaceOps(
         }
         const res = await client.query<{
           customer: {
-            list: { items: RawCustomer[]; total: number; hasMore: boolean };
+            list: {
+              items: RawCustomer[];
+              total: number;
+              hasMore: boolean;
+              nextCursor?: string | null;
+            };
           };
         }>(CUSTOMERS_QUERY, {
           modelId,
@@ -3089,11 +3112,13 @@ export function createMcpWorkspaceOps(
           companyId: options?.companyId,
           skip: options?.skip,
           limit: options?.limit,
+          after: options?.after,
         });
         return {
           items: res.customer.list.items.map(toCustomerSummary),
           total: res.customer.list.total,
           hasMore: res.customer.list.hasMore,
+          nextCursor: res.customer.list.nextCursor ?? null,
         };
       },
       get: async (id) => {

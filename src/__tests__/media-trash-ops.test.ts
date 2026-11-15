@@ -22,9 +22,11 @@ describe("the media trash from an agent (CMS-2215)", () => {
 
     const result = await createMcpWorkspaceOps(client).media.listTrash(10, 20);
 
-    expect(sent[0].document).toContain("trash(limit: $limit, offset: $offset)");
+    expect(sent[0].document).toContain(
+      "trash(limit: $limit, offset: $offset, after: $after)",
+    );
     expect(sent[0].variables).toEqual({ limit: 10, offset: 20 });
-    expect(result).toEqual(page);
+    expect(result).toEqual({ ...page, nextCursor: null });
   });
 
   it("restores the ids and reports the server's counts", async () => {

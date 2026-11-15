@@ -158,7 +158,7 @@ describe("customers ops (CMS-1911)", () => {
       skip: 20,
       limit: 10,
     });
-    expect(result).toEqual({ items: [summary], total: 3, hasMore: true });
+    expect(result).toEqual({ items: [summary], total: 3, hasMore: true, nextCursor: null });
   });
 
   it("list resolves a model slug to its id before asking the backend", async () => {
