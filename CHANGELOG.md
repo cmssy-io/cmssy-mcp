@@ -1,5 +1,11 @@
 # @cmssy/mcp-server
 
+## 0.146.1
+
+- `get_product_bulk_job` (`@cmssy/ai-tools` 0.117.2, CMS-2263): a blank
+  `jobId` or `modelId` counts as absent and `jobId` wins when both are given,
+  instead of refusing the call.
+
 ## 0.146.0
 
 - Product bulk job tools (`@cmssy/ai-tools` 0.117.0, CMS-2263):

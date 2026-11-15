@@ -172,8 +172,8 @@ const OBJECT_LEVEL_RULES: Record<string, { refused: unknown; accepted: unknown }
       },
     },
     get_product_bulk_job: {
-    refused: { jobId: "6abd61e1a51c17ea3525336e", modelId: "products" },
-    accepted: { jobId: "6abd61e1a51c17ea3525336e" },
+    refused: { jobId: " ", modelId: "" },
+    accepted: { jobId: "6abd61e1a51c17ea3525336e", modelId: " " },
   },
   update_media_folder: {
       refused: { id: "6abd61e1a51c17ea3525336a" },
