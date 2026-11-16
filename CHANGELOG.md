@@ -1,5 +1,10 @@
 # @cmssy/mcp-server
 
+## 0.146.2
+
+- Bulk product tools (`@cmssy/ai-tools` 0.117.3, CMS-2264): the refusal over
+  1000 matching products now points the agent at `start_bulk_*_products`.
+
 ## 0.146.1
 
 - `get_product_bulk_job` (`@cmssy/ai-tools` 0.117.2, CMS-2263): a blank
