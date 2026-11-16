@@ -2738,7 +2738,7 @@ type MediaPageUsage {
 
 type MediaQueries {
   """
-  Groups of assets sharing a content hash. Assets uploaded before hashing was recorded carry none and never appear here.
+  Groups of assets sharing a content hash, at most 100 groups (most copies first) with at most 50 assets each (oldest first). Assets uploaded before hashing was recorded carry none and never appear here.
   """
   duplicates: [MediaDuplicateGroup!]!
   folders(parentId: ID): MediaFolderListResponse!
@@ -2816,7 +2816,6 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
-  allowRegistration: Boolean @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
@@ -6365,9 +6364,18 @@ type RecordQueries {
   ): ModelRecordList!
 
   """
-  Relation fields on other records of this workspace that hold this record's id, one entry per field occurrence.
+  Relation fields on other records of this workspace that hold this record's id, one entry per field occurrence, on at most 200 records. usageSummary says whether more exist.
   """
   referencedBy(id: ID!): [RecordRelationUsage!]!
+
+  """
+  Pages and records that still use this record, with truncation flags. The admin delete dialog reads it before a forced delete.
+  """
+  usageSummary(id: ID!): RecordUsageSummary!
+
+  """
+  Block usages of this record on pages, at most 200. usageSummary says whether more exist.
+  """
   usages(id: ID!): [RecordUsage!]!
 }
 
@@ -6395,6 +6403,23 @@ type RecordUsage {
   pageSlug: String!
   position: String!
   version: String!
+}
+
+"""
+Everything that still uses a record, as the delete guard sees it. Both lists are capped; a truncated flag says the real count is higher.
+"""
+type RecordUsageSummary {
+  """Relation fields on at most 200 other records."""
+  referencedBy: [RecordRelationUsage!]!
+
+  """True when more than 200 records reference this one."""
+  referencesTruncated: Boolean!
+
+  """Block usages on pages, at most 200."""
+  usages: [RecordUsage!]!
+
+  """True when more than 200 block usages exist."""
+  usagesTruncated: Boolean!
 }
 
 """
