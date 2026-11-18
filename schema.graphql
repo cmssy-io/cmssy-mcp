@@ -2761,6 +2761,11 @@ type MediaQueries {
   The upload names, kinds, visibility and loadable urls of the assets asked for by id, in one projected read. An id that names nothing in this workspace is left out.
   """
   names(ids: [ID!]!): [MediaAssetName!]!
+
+  """
+  How much storage this workspace uses and how much it may reach, checked by the same rule that refuses an upload.
+  """
+  storage: WorkspaceStorage!
   trash(
     """
     Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero offset.
@@ -4280,6 +4285,7 @@ enum OrgAuditLogAction {
   SSO_ENFORCEMENT_CHANGED
   WORKSPACE_DELETED
   WORKSPACE_MOVED
+  WORKSPACE_STORAGE_CAP_CHANGED
 }
 
 enum OrgAuditLogEntityType {
@@ -4479,6 +4485,11 @@ type OrganizationMutations {
   Set the Pro add-on quantities on the organization's Stripe subscription, charging the prorated difference now. The stored quantities change only when Stripe confirms the subscription through its webhook.
   """
   setAddons(input: OrganizationAddonsInput!, organizationId: ID!): Organization!
+
+  """
+  Set or clear (null) a workspace's storage cap in MB. Only an organization owner or admin can, and the cap is at most the organization's storage pool.
+  """
+  setWorkspaceStorageCap(maxStorageMb: Int, organizationId: ID!, workspaceId: ID!): OrganizationWorkspace!
   sso: OrganizationSsoMutations!
 
   """
@@ -4537,6 +4548,11 @@ type OrganizationWorkspace {
   id: ID!
   name: String!
   slug: String!
+
+  """
+  The storage cap in MB the organization set for this workspace, or null when it draws from the pool alone.
+  """
+  storageCapMb: Int
   usage: OrganizationWorkspaceUsage!
 }
 
@@ -7146,6 +7162,11 @@ enum StockState {
   out
 }
 
+enum StorageLimitSource {
+  ORGANIZATION_POOL
+  WORKSPACE_CAP
+}
+
 input SubmitFormInput {
   data: JSON!
   website: String
@@ -8071,6 +8092,19 @@ type WorkspaceSettings {
   editorialWorkflow: EditorialWorkflow!
   enabledLanguages: [String!]!
   i18n: I18nSettings!
+}
+
+type WorkspaceStorage {
+  """
+  Bytes this workspace may reach: the smaller of its cap and its usage plus the room left in the organization's pool.
+  """
+  limitBytes: Float!
+
+  """Which limit sets limitBytes. The pool wins a tie."""
+  limitedBy: StorageLimitSource!
+
+  """Bytes this workspace stores, its media plus its trash."""
+  usedBytes: Float!
 }
 
 type WorkspaceUsage {
