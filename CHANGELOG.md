@@ -1,5 +1,12 @@
 # @cmssy/mcp-server
 
+## 0.147.0
+
+- `create_manual_order` / `create_return` (`@cmssy/ai-tools` 0.118.0,
+  CMS-2269): optional `idempotencyKey`, sent in the GraphQL input. An agent
+  retrying after a timeout passes the same key and gets back what the first
+  call created instead of a duplicate order or return.
+
 ## 0.146.2
 
 - Bulk product tools (`@cmssy/ai-tools` 0.117.3, CMS-2264): the refusal over

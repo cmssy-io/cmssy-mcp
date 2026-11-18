@@ -1517,6 +1517,11 @@ input CreateManualOrderInput {
   currency: String
   customerEmail: String!
   customerId: ID
+
+  """
+  At most one order per workspace carries a given key. While that order exists, a repeat with the same key creates nothing and returns it as the first call created it; the repeat's own input is ignored.
+  """
+  idempotencyKey: String
   items: [ManualOrderItemInput!]!
 
   """
@@ -1608,6 +1613,11 @@ input CreatePriceListInput {
 
 input CreateReturnInput {
   carrier: String
+
+  """
+  At most one return per order carries a given key. A repeat with the same key opens nothing and returns the order with the return the first call opened, whatever its status since; the repeat's own input is ignored.
+  """
+  idempotencyKey: String
   lines: [ReturnLineInput!]!
   note: String
   orderId: ID!
@@ -6088,7 +6098,17 @@ type PublicPageQueries {
   ): PublicPagesListResult!
   get(devPreview: Boolean, previewSecret: String, slug: String!, workspaceSlug: String!): PublicPage
   getById(pageId: ID!, workspaceSlug: String!): PublicPage
+
+  """
+  An opaque key naming the nearest page on the chain from the root to this page that carries layout data, and this page's relation to it, so pages that only inherit from the same page share one key. Null when the workspace is unknown or the page is missing or unpublished.
+  """
+  layoutKey(pageSlug: String!, workspaceSlug: String!): String
   layouts(pageSlug: String!, previewSecret: String, workspaceSlug: String!): [PublicResolvedLayout!]!
+
+  """
+  The layouts, as they are now, of the page a key from layoutKey names. They equal layouts(pageSlug) for the page that minted the key until that page's tree or layout changes, so mint the key on every render, the same way you would read layouts. Empty when no published page inherits it any more or the source page is gone.
+  """
+  layoutsByKey(layoutKey: String!, workspaceSlug: String!): [PublicResolvedLayout!]!
   list(workspaceSlug: String!): [PublicPage!]!
 }
 
