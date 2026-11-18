@@ -2416,6 +2416,7 @@ export function createMcpWorkspaceOps(
         customerId,
         shippingAddress,
         currency,
+        idempotencyKey,
       ) => {
         const res = await client.query<{
           order: { create: { id: string; orderNumber?: number | null } };
@@ -2426,6 +2427,7 @@ export function createMcpWorkspaceOps(
             items,
             shippingAddress,
             currency,
+            idempotencyKey,
           },
         });
         const o = res.order.create;
