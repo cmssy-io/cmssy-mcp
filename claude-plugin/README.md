@@ -8,7 +8,7 @@ Nothing on your machine. The plugin adds the hosted Cmssy MCP server at `https:/
 
 ## Setup
 
-1. Have a Cmssy account at <https://www.cmssy.io> - the free plan works; cart and checkout need Pro.
+1. Have a Cmssy account at <https://www.cmssy.io> - the free Hobby plan works, including cart and checkout for up to 20 orders a month; Pro removes the order cap.
 2. Install the plugin. The first time Claude uses Cmssy, sign in to Cmssy in your browser (in Claude Code: run `/mcp` and choose `cmssy`).
 3. Tick the workspaces Claude may use and choose read only or read and write.
 
