@@ -17,7 +17,7 @@ A token scoped to one workspace reaches only that workspace; an unscoped token r
 
 ### Prerequisites
 
-1. A Cmssy workspace - the free plan works; cart and checkout need Pro
+1. A Cmssy workspace - the free Hobby plan works, including cart and checkout for up to 20 orders a month; Pro removes the order cap
 2. An API token (Dashboard > API Tokens, starts with `cs_`)
 3. Your workspace ID (Workspace Settings > General)
 
