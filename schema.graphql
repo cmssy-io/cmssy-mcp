@@ -2831,6 +2831,7 @@ type MemberAuthConfig {
 input MemberAuthConfigInput {
   afterLoginUrl: String
   afterLogoutUrl: String
+  allowRegistration: Boolean @deprecated(reason: "Never enforced: siteMember.register ignores it. Close sign-up on the accounts model instead - ModelAuthConfig.registration = closed.")
   enabled: Boolean
   loginButtonLabel: JSON
   loginUrl: String
@@ -3298,6 +3299,7 @@ type Mutation {
   product: ProductMutations!
   public: PublicMutations!
   record: RecordMutations!
+  recordImport: RecordImportMutations!
   role: RoleMutations!
   salesChannel: SalesChannelMutations!
   siteConfig: SiteConfigMutations!
@@ -5255,7 +5257,7 @@ enum ProductBulkDeleteSkipReason {
 }
 
 """
-A bulk delete or update over every product matching a filter, run in batches in the background (CMS-2253). Poll `product.bulkJob` until `status` is completed or failed.
+A bulk delete or update over every product matching a filter, run in batches in the background (CMS-2253). Poll `product.bulkJob` until `status` is completed or failed. `product.cancelBulkJob` stops a running job, `product.resumeBulkJob` continues a failed one.
 """
 type ProductBulkJob {
   createdAt: DateTime!
@@ -5266,6 +5268,11 @@ type ProductBulkJob {
   id: ID!
   kind: ProductBulkJobKind!
   processed: Int!
+
+  """
+  True when `product.resumeBulkJob` can continue this job from the batch it stopped at.
+  """
+  resumable: Boolean!
 
   """The first skipped products, at most 20."""
   skipped: [ProductBulkDeleteSkip!]!
@@ -5278,9 +5285,10 @@ type ProductBulkJob {
 }
 
 """
-Why a bulk job stopped: `stalled` made no progress for too long, `modelUnavailable` lost its product model, `invalidPatch` no longer fits the model, `enqueueFailed` never got its first step queued, `unexpected` failed on an error the admin cannot act on.
+Why a bulk job stopped: `stalled` made no progress for too long, `modelUnavailable` lost its product model, `invalidPatch` no longer fits the model, `enqueueFailed` could not queue a step - its first, or the one `product.resumeBulkJob` asked for, `unexpected` failed on an error the admin cannot act on, `cancelled` was stopped by `product.cancelBulkJob`. A job that stopped on `stalled`, `enqueueFailed` or `unexpected` can be resumed.
 """
 enum ProductBulkJobFailureReason {
+  cancelled
   enqueueFailed
   invalidPatch
   modelUnavailable
@@ -5380,6 +5388,16 @@ type ProductMutations {
   ): Int!
 
   """
+  Stop a queued or running bulk job. Batches already applied stay applied; no further batch is. Needs the permission that starts a job of that kind.
+  """
+  cancelBulkJob(id: ID!): ProductBulkJob!
+
+  """
+  Continue a failed bulk job whose `resumable` is true from the batch it stopped at. Needs the permission that starts a job of that kind. Answers CONFLICT with the running job's id when another job holds the model.
+  """
+  resumeBulkJob(id: ID!): ProductBulkJob!
+
+  """
   Replace a product's prices in additional currencies - the record's and, optionally, its variants' - in one write (CMS-2140, CMS-2142).
   """
   setCurrencyPrices(input: SetProductCurrencyPricesInput!): ModelRecord!
@@ -5419,6 +5437,14 @@ type ProductQueries {
     modelId: ID!
   ): ProductBulkJob
   bulkJob(id: ID!): ProductBulkJob
+
+  """
+  The most recently started bulk job of this product model in any status, so a screen opened after a job stopped can offer to resume it.
+  """
+  latestBulkJob(
+    """The product model's id or slug"""
+    modelId: ID!
+  ): ProductBulkJob
   list(
     """
     Cursor from the previous page's nextCursor. The page starts after the row it names, in the same sort; it cannot be combined with a non-zero offset.
@@ -6290,6 +6316,7 @@ type Query {
   property: PropertyQueries!
   public: PublicQueries!
   record: RecordQueries!
+  recordImport: RecordImportQueries!
   role: RoleQueries!
   salesChannel: SalesChannelQueries!
   siteConfig: SiteConfigQueries!
@@ -6309,6 +6336,198 @@ input ReceiveReturnInput {
   note: String
   orderId: ID!
   returnId: ID!
+}
+
+"""
+Why an import failed: `stalled` made no progress for too long, `enqueueFailed` could not queue its next step, `unexpected` hit an error the admin cannot act on - these three can be resumed. `modelUnavailable` lost its model and `invalidUpsertKey` names a key the model no longer allows; these cannot.
+"""
+enum RecordImportFailureReason {
+  enqueueFailed
+  invalidUpsertKey
+  modelUnavailable
+  stalled
+  unexpected
+}
+
+"""
+An import of up to 100 000 rows into one model, validated and written in background steps. Poll `recordImport.job` until `status` is `awaitingConfirmation`, `completed`, `failed` or `cancelled`.
+"""
+type RecordImportJob {
+  created: Int!
+  createdAt: DateTime!
+  error: String
+
+  """Rows that validated and were refused when written."""
+  failedCount: Int!
+  failureReason: RecordImportFailureReason
+  finishedAt: DateTime
+  id: ID!
+
+  """Rows validation refused."""
+  invalidCount: Int!
+  modelId: ID!
+  phase: RecordImportPhase
+
+  """Valid rows the write phase has gone through."""
+  processed: Int!
+
+  """
+  True when `recordImport.resume` can continue this import from the step it stopped at.
+  """
+  resumable: Boolean!
+
+  """
+  The first invalid or failed rows, at most 20, without their payload. Page `recordImport.rows` for all of them.
+  """
+  sample: [RecordImportRow!]!
+  startedAt: DateTime
+  status: RecordImportJobStatus!
+
+  """Rows uploaded."""
+  total: Int!
+  unchanged: Int!
+  updated: Int!
+  validated: Int!
+}
+
+"""
+`uploading` takes rows, `queued` and `running` work through them, `awaitingConfirmation` waits for `recordImport.confirm` because some rows are invalid, `completed`, `failed` and `cancelled` are final.
+"""
+enum RecordImportJobStatus {
+  awaitingConfirmation
+  cancelled
+  completed
+  failed
+  queued
+  running
+  uploading
+}
+
+type RecordImportMutations {
+  """
+  Add rows to an import that has not been started. The rows are numbered `offset + 1` onwards; a number that is already stored is left as it is, so a call can be repeated. At most 500 rows and 4 MB per call, 64 KB per row, 100 000 rows per import.
+  """
+  appendRows(
+    jobId: ID!
+
+    """How many rows come before the first one of this call."""
+    offset: Int!
+
+    """
+    Each entry is `{ "data": { ...fields }, "fileRow": 12 }`. `fileRow` is the row's line in the uploaded file and is optional. An entry may carry `"refusal": "why the sender turned the row away"` (at most 500 characters): the row is staged and counted in `total`, is never written, and ends `invalid` with that message. `data` is optional on such an entry.
+    """
+    rows: [JSON!]!
+  ): RecordImportJob!
+
+  """
+  Stop an import that has not finished. Records already written stay; no further row is written.
+  """
+  cancel(jobId: ID!): RecordImportJob!
+
+  """
+  Write the valid rows of an import that is `awaitingConfirmation`. An import left there for 24 hours is cancelled.
+  """
+  confirm(jobId: ID!): RecordImportJob!
+
+  """
+  Open an import for a model. Add rows with `appendRows`, then `start` it. A workspace holds at most 5 imports that have not been started.
+  """
+  create(
+    modelId: ID!
+
+    """Defaults to `STOP`."""
+    onInvalid: RecordImportOnInvalid
+
+    """
+    A field in the model's `uniqueFields`, or its product SKU field. A row whose value matches an existing record updates it; any other row is created. Refused on a model with member accounts.
+    """
+    upsertKey: String
+  ): RecordImportJob!
+
+  """
+  Continue a failed import whose `resumable` is true from the step it stopped at. Rows that already have a result are not processed again.
+  """
+  resume(jobId: ID!): RecordImportJob!
+
+  """
+  Start validating an import that holds exactly rows 1 to `expectedRows`. Answers CONFLICT with the running import's id in `extensions.jobId` when the model already has one.
+  """
+  start(expectedRows: Int!, jobId: ID!): RecordImportJob!
+}
+
+"""
+`STOP` waits for `recordImport.confirm` when validation refuses a row; `CONTINUE` writes the valid rows without asking.
+"""
+enum RecordImportOnInvalid {
+  CONTINUE
+  STOP
+}
+
+"""
+`validate` checks every row and writes no record; `write` creates and updates records from the valid rows.
+"""
+enum RecordImportPhase {
+  validate
+  write
+}
+
+type RecordImportQueries {
+  """
+  The import still validating, writing or awaiting confirmation on this model, if any.
+  """
+  active(modelId: ID!): RecordImportJob
+  job(id: ID!): RecordImportJob
+
+  """The model's most recently started import in any status."""
+  latest(modelId: ID!): RecordImportJob
+
+  """The import's rows of one status in row order."""
+  rows(
+    """Return rows numbered above this one."""
+    after: Int
+    jobId: ID!
+
+    """At most 200, which is also the default."""
+    limit: Int
+    status: RecordImportRowStatus!
+  ): RecordImportRowPage!
+}
+
+type RecordImportRow {
+  """
+  The uploaded row. Dropped once the row has been written, kept for invalid and failed rows.
+  """
+  data: JSON
+
+  """
+  The row's line in the uploaded file; equals `row` when the upload did not send one.
+  """
+  fileRow: Int!
+  message: String
+  recordId: ID
+
+  """The row's number in the upload, starting at 1."""
+  row: Int!
+  status: RecordImportRowStatus!
+}
+
+type RecordImportRowPage {
+  """Pass as `after` for the next page; null on the last one."""
+  nextAfter: Int
+  rows: [RecordImportRow!]!
+}
+
+"""
+`pending` is not validated yet, `valid` waits to be written, `invalid` was refused by validation, `created`, `updated` and `unchanged` say what the write did, `failed` was refused when it was written.
+"""
+enum RecordImportRowStatus {
+  created
+  failed
+  invalid
+  pending
+  unchanged
+  updated
+  valid
 }
 
 type RecordMutations {

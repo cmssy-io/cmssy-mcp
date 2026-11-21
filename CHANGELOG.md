@@ -1,5 +1,22 @@
 # @cmssy/mcp-server
 
+## 0.148.0
+
+- Record import job tools (`@cmssy/ai-tools` 0.119.0, CMS-2282):
+  `start_record_import` imports up to 100 000 rows as a background job - it
+  uploads them in calls of at most 500 rows, validates every row before any is
+  written and, with `onInvalid: "STOP"` (the default), waits for
+  `confirm_record_import` when some are invalid. `get_record_import` reads the
+  job by id or the model's active or latest import,
+  `list_record_import_rows` pages the rows of one status,
+  `cancel_record_import` and `resume_record_import` stop and continue it.
+  `import_records` stays synchronous at 1000 rows and points larger imports to
+  the job.
+- Product bulk jobs: `cancel_product_bulk_job` and `resume_product_bulk_job`.
+  `get_product_bulk_job` returns `resumable`, knows the `cancelled` failure
+  reason and, by `modelId`, falls back to the model's latest job when none is
+  active.
+
 ## 0.147.0
 
 - `create_manual_order` / `create_return` (`@cmssy/ai-tools` 0.118.0,

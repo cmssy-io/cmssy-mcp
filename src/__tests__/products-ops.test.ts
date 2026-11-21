@@ -11,6 +11,9 @@ import {
   START_PRODUCT_BULK_UPDATE_MUTATION,
   PRODUCT_BULK_JOB_QUERY,
   ACTIVE_PRODUCT_BULK_JOB_QUERY,
+  LATEST_PRODUCT_BULK_JOB_QUERY,
+  CANCEL_PRODUCT_BULK_JOB_MUTATION,
+  RESUME_PRODUCT_BULK_JOB_MUTATION,
 } from "../queries.js";
 
 function selectedUnder(document: string, parent: string): Set<string> {
@@ -149,12 +152,34 @@ describe("product bulk job ops (CMS-2263)", () => {
     ]);
   });
 
+  it("reads the model's latest job and cancels and resumes a job by id (CMS-2282)", async () => {
+    const failed = { ...job, status: "failed", failureReason: "cancelled" };
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ product: { latestBulkJob: null } })
+      .mockResolvedValueOnce({ product: { cancelBulkJob: failed } })
+      .mockResolvedValueOnce({ product: { resumeBulkJob: job } });
+    const ops = createMcpWorkspaceOps({ query } as unknown as CmssyClient);
+
+    expect(await ops.products.latestBulkJob("m1")).toBeNull();
+    expect(await ops.products.cancelBulkJob("j1")).toBe(failed);
+    expect(await ops.products.resumeBulkJob("j2")).toBe(job);
+    expect(query.mock.calls).toEqual([
+      [LATEST_PRODUCT_BULK_JOB_QUERY, { modelId: "m1" }],
+      [CANCEL_PRODUCT_BULK_JOB_MUTATION, { id: "j1" }],
+      [RESUME_PRODUCT_BULK_JOB_MUTATION, { id: "j2" }],
+    ]);
+  });
+
   it("selects progress, skips and failure reason on every job document", () => {
     for (const [doc, parent] of [
       [START_PRODUCT_BULK_DELETE_MUTATION, "startBulkDelete"],
       [START_PRODUCT_BULK_UPDATE_MUTATION, "startBulkUpdate"],
       [PRODUCT_BULK_JOB_QUERY, "bulkJob"],
       [ACTIVE_PRODUCT_BULK_JOB_QUERY, "activeBulkJob"],
+      [LATEST_PRODUCT_BULK_JOB_QUERY, "latestBulkJob"],
+      [CANCEL_PRODUCT_BULK_JOB_MUTATION, "cancelBulkJob"],
+      [RESUME_PRODUCT_BULK_JOB_MUTATION, "resumeBulkJob"],
     ] as const) {
       const fields = selectedUnder(doc, parent);
       for (const f of [
@@ -167,6 +192,7 @@ describe("product bulk job ops (CMS-2263)", () => {
         "skippedCount",
         "skipped",
         "failureReason",
+        "resumable",
       ]) {
         expect(fields, `${parent}.${f}`).toContain(f);
       }

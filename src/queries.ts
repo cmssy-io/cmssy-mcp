@@ -2092,6 +2092,7 @@ const PRODUCT_BULK_JOB_FIELDS = `
   }
   failureReason
   error
+  resumable
   createdAt
   finishedAt
 `;
@@ -2135,6 +2136,172 @@ export const ACTIVE_PRODUCT_BULK_JOB_QUERY = `
     product {
       activeBulkJob(modelId: $modelId) {
         ${PRODUCT_BULK_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const LATEST_PRODUCT_BULK_JOB_QUERY = `
+  query LatestProductBulkJob($modelId: ID!) {
+    product {
+      latestBulkJob(modelId: $modelId) {
+        ${PRODUCT_BULK_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const CANCEL_PRODUCT_BULK_JOB_MUTATION = `
+  mutation CancelProductBulkJob($id: ID!) {
+    product {
+      cancelBulkJob(id: $id) {
+        ${PRODUCT_BULK_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const RESUME_PRODUCT_BULK_JOB_MUTATION = `
+  mutation ResumeProductBulkJob($id: ID!) {
+    product {
+      resumeBulkJob(id: $id) {
+        ${PRODUCT_BULK_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+const RECORD_IMPORT_ROW_FIELDS = `
+  row
+  fileRow
+  status
+  message
+  data
+  recordId
+`;
+
+const RECORD_IMPORT_JOB_FIELDS = `
+  id
+  modelId
+  status
+  phase
+  total
+  validated
+  processed
+  created
+  updated
+  unchanged
+  invalidCount
+  failedCount
+  failureReason
+  error
+  resumable
+  sample {
+    ${RECORD_IMPORT_ROW_FIELDS}
+  }
+  createdAt
+  startedAt
+  finishedAt
+`;
+
+export const CREATE_RECORD_IMPORT_MUTATION = `
+  mutation CreateRecordImport($modelId: ID!, $upsertKey: String, $onInvalid: RecordImportOnInvalid) {
+    recordImport {
+      create(modelId: $modelId, upsertKey: $upsertKey, onInvalid: $onInvalid) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const APPEND_RECORD_IMPORT_ROWS_MUTATION = `
+  mutation AppendRecordImportRows($jobId: ID!, $offset: Int!, $rows: [JSON!]!) {
+    recordImport {
+      appendRows(jobId: $jobId, offset: $offset, rows: $rows) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const START_RECORD_IMPORT_MUTATION = `
+  mutation StartRecordImport($jobId: ID!, $expectedRows: Int!) {
+    recordImport {
+      start(jobId: $jobId, expectedRows: $expectedRows) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const CONFIRM_RECORD_IMPORT_MUTATION = `
+  mutation ConfirmRecordImport($jobId: ID!) {
+    recordImport {
+      confirm(jobId: $jobId) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const CANCEL_RECORD_IMPORT_MUTATION = `
+  mutation CancelRecordImport($jobId: ID!) {
+    recordImport {
+      cancel(jobId: $jobId) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const RESUME_RECORD_IMPORT_MUTATION = `
+  mutation ResumeRecordImport($jobId: ID!) {
+    recordImport {
+      resume(jobId: $jobId) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const RECORD_IMPORT_JOB_QUERY = `
+  query RecordImportJob($id: ID!) {
+    recordImport {
+      job(id: $id) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const ACTIVE_RECORD_IMPORT_QUERY = `
+  query ActiveRecordImport($modelId: ID!) {
+    recordImport {
+      active(modelId: $modelId) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const LATEST_RECORD_IMPORT_QUERY = `
+  query LatestRecordImport($modelId: ID!) {
+    recordImport {
+      latest(modelId: $modelId) {
+        ${RECORD_IMPORT_JOB_FIELDS}
+      }
+    }
+  }
+`;
+
+export const RECORD_IMPORT_ROWS_QUERY = `
+  query RecordImportRows($jobId: ID!, $status: RecordImportRowStatus!, $after: Int, $limit: Int) {
+    recordImport {
+      rows(jobId: $jobId, status: $status, after: $after, limit: $limit) {
+        rows {
+          ${RECORD_IMPORT_ROW_FIELDS}
+        }
+        nextAfter
       }
     }
   }

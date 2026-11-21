@@ -20,6 +20,8 @@ import type {
   ModelSummary,
   ProductBulkDeleteResult,
   ProductBulkJob,
+  RecordImportJob,
+  RecordImportRowPage,
   PageRestored,
   TrashedPageSummary,
   ProposedField,
@@ -177,6 +179,19 @@ import {
   START_PRODUCT_BULK_UPDATE_MUTATION,
   PRODUCT_BULK_JOB_QUERY,
   ACTIVE_PRODUCT_BULK_JOB_QUERY,
+  LATEST_PRODUCT_BULK_JOB_QUERY,
+  CANCEL_PRODUCT_BULK_JOB_MUTATION,
+  RESUME_PRODUCT_BULK_JOB_MUTATION,
+  CREATE_RECORD_IMPORT_MUTATION,
+  APPEND_RECORD_IMPORT_ROWS_MUTATION,
+  START_RECORD_IMPORT_MUTATION,
+  CONFIRM_RECORD_IMPORT_MUTATION,
+  CANCEL_RECORD_IMPORT_MUTATION,
+  RESUME_RECORD_IMPORT_MUTATION,
+  RECORD_IMPORT_JOB_QUERY,
+  ACTIVE_RECORD_IMPORT_QUERY,
+  LATEST_RECORD_IMPORT_QUERY,
+  RECORD_IMPORT_ROWS_QUERY,
   SET_PRODUCT_TIERS_MUTATION,
   SET_PRODUCT_CURRENCY_PRICES_MUTATION,
   SET_PRODUCT_VARIANTS_MUTATION,
@@ -1170,6 +1185,81 @@ export function createMcpWorkspaceOps(
           },
         });
         return res.record.bulkUpdate;
+      },
+    },
+    recordImports: {
+      create: async (modelId, options) => {
+        const res = await client.query<{
+          recordImport: { create: RecordImportJob };
+        }>(CREATE_RECORD_IMPORT_MUTATION, {
+          modelId,
+          ...(options?.upsertKey != null
+            ? { upsertKey: options.upsertKey }
+            : {}),
+          ...(options?.onInvalid != null
+            ? { onInvalid: options.onInvalid }
+            : {}),
+        });
+        return res.recordImport.create;
+      },
+      appendRows: async (jobId, offset, rows) => {
+        const res = await client.query<{
+          recordImport: { appendRows: RecordImportJob };
+        }>(APPEND_RECORD_IMPORT_ROWS_MUTATION, { jobId, offset, rows });
+        return res.recordImport.appendRows;
+      },
+      start: async (jobId, expectedRows) => {
+        const res = await client.query<{
+          recordImport: { start: RecordImportJob };
+        }>(START_RECORD_IMPORT_MUTATION, { jobId, expectedRows });
+        return res.recordImport.start;
+      },
+      confirm: async (jobId) => {
+        const res = await client.query<{
+          recordImport: { confirm: RecordImportJob };
+        }>(CONFIRM_RECORD_IMPORT_MUTATION, { jobId });
+        return res.recordImport.confirm;
+      },
+      cancel: async (jobId) => {
+        const res = await client.query<{
+          recordImport: { cancel: RecordImportJob };
+        }>(CANCEL_RECORD_IMPORT_MUTATION, { jobId });
+        return res.recordImport.cancel;
+      },
+      resume: async (jobId) => {
+        const res = await client.query<{
+          recordImport: { resume: RecordImportJob };
+        }>(RESUME_RECORD_IMPORT_MUTATION, { jobId });
+        return res.recordImport.resume;
+      },
+      job: async (id) => {
+        const res = await client.query<{
+          recordImport: { job: RecordImportJob | null };
+        }>(RECORD_IMPORT_JOB_QUERY, { id });
+        return res.recordImport.job;
+      },
+      active: async (modelId) => {
+        const res = await client.query<{
+          recordImport: { active: RecordImportJob | null };
+        }>(ACTIVE_RECORD_IMPORT_QUERY, { modelId });
+        return res.recordImport.active;
+      },
+      latest: async (modelId) => {
+        const res = await client.query<{
+          recordImport: { latest: RecordImportJob | null };
+        }>(LATEST_RECORD_IMPORT_QUERY, { modelId });
+        return res.recordImport.latest;
+      },
+      rows: async (jobId, status, options) => {
+        const res = await client.query<{
+          recordImport: { rows: RecordImportRowPage };
+        }>(RECORD_IMPORT_ROWS_QUERY, {
+          jobId,
+          status,
+          ...(options?.after !== undefined ? { after: options.after } : {}),
+          ...(options?.limit !== undefined ? { limit: options.limit } : {}),
+        });
+        return res.recordImport.rows;
       },
     },
     pages: {
@@ -3019,6 +3109,24 @@ export function createMcpWorkspaceOps(
           product: { activeBulkJob: ProductBulkJob | null };
         }>(ACTIVE_PRODUCT_BULK_JOB_QUERY, { modelId });
         return res.product.activeBulkJob;
+      },
+      latestBulkJob: async (modelId) => {
+        const res = await client.query<{
+          product: { latestBulkJob: ProductBulkJob | null };
+        }>(LATEST_PRODUCT_BULK_JOB_QUERY, { modelId });
+        return res.product.latestBulkJob;
+      },
+      cancelBulkJob: async (id) => {
+        const res = await client.query<{
+          product: { cancelBulkJob: ProductBulkJob };
+        }>(CANCEL_PRODUCT_BULK_JOB_MUTATION, { id });
+        return res.product.cancelBulkJob;
+      },
+      resumeBulkJob: async (id) => {
+        const res = await client.query<{
+          product: { resumeBulkJob: ProductBulkJob };
+        }>(RESUME_PRODUCT_BULK_JOB_MUTATION, { id });
+        return res.product.resumeBulkJob;
       },
       setTiers: async (recordId, tiers, increment) => {
         const res = await client.query<{ product: { setTiers: unknown } }>(
