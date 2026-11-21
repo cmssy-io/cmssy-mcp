@@ -175,6 +175,10 @@ const OBJECT_LEVEL_RULES: Record<string, { refused: unknown; accepted: unknown }
     refused: { jobId: " ", modelId: "" },
     accepted: { jobId: "6abd61e1a51c17ea3525336e", modelId: " " },
   },
+  get_record_import: {
+    refused: { jobId: " ", modelIdOrSlug: "" },
+    accepted: { jobId: "6abd61e1a51c17ea3525336f", modelIdOrSlug: " " },
+  },
   update_media_folder: {
       refused: { id: "6abd61e1a51c17ea3525336a" },
       accepted: { id: "6abd61e1a51c17ea3525336a", name: "renamed" },
@@ -250,6 +254,7 @@ describe("a rule the tool declares across its parameters is enforced through the
 
 const RULE_INSTEAD_OF_A_REQUIRED_FIELD = [
   "upload_media",
+  "get_record_import",
   "get_product_bulk_job",
 ];
 

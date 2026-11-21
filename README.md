@@ -237,6 +237,12 @@ model on every write.
 | `update_record`       | Update a record's data and/or transition its status                           |
 | `delete_record`       | Delete a record                                                               |
 | `import_records`      | Bulk import up to 1000 records; returns `{ importedCount, errors }`           |
+| `start_record_import` | Background job: import up to 100 000 rows; uploads in batches, validates, then writes |
+| `get_record_import`   | Status and progress of a record import, by id or the model's active or latest import |
+| `list_record_import_rows` | Rows of an import by status (`invalid`, `failed`, `created`, ...), paged      |
+| `confirm_record_import` | Write the valid rows of an import waiting on invalid rows                   |
+| `cancel_record_import` | Stop an import that has not finished; written records stay                    |
+| `resume_record_import` | Continue a failed import whose `resumable` is true                            |
 | `bulk_update_records` | Set data and/or status on up to 200 ids or every filter match |
 
 Requires workspace permissions `MODELS_VIEW` (read) / `MODELS_CREATE` /
@@ -287,7 +293,9 @@ are integer minor units (cents).** Order/discount write tools accept the
 | `bulk_delete_products`     | Bulk-delete selected product records                               |
 | `start_bulk_delete_products` | Background job: delete every product matching a filter (over 1000 matches) |
 | `start_bulk_update_products` | Background job: patch every product matching a filter (over 1000 matches) |
-| `get_product_bulk_job`     | Status and progress of a product bulk job, by id or the model's active job |
+| `get_product_bulk_job`     | Status and progress of a product bulk job, by id or the model's active or latest job |
+| `cancel_product_bulk_job`  | Stop a queued or running product bulk job; applied batches stay    |
+| `resume_product_bulk_job`  | Continue a failed product bulk job whose `resumable` is true       |
 | `set_product_tiers`        | Set a product's record-level volume price breaks                   |
 | `set_product_variants`     | Replace a product's whole variant set              |
 | `set_product_currency_prices` | Replace a product's prices and breaks in additional currencies, and variants' per-currency prices without touching stock |
