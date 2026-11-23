@@ -714,6 +714,74 @@ type AuthorizeSupportScreenshotUploadPayload {
 }
 
 """
+One background job of the workspace, in a shape shared by product bulk jobs and record imports.
+"""
+type BackgroundJob {
+  finishedAt: DateTime
+  id: ID!
+  kind: BackgroundJobKind!
+
+  """True when the signed-in user started the job."""
+  mine: Boolean!
+
+  """False once the job's model was deleted; the row keeps the stored name."""
+  modelExists: Boolean!
+  modelId: ID!
+
+  """The model's name as stored on the job; it survives the model."""
+  modelName: String!
+
+  """Set for a record import, null for a product bulk job."""
+  phase: BackgroundJobPhase
+
+  """
+  Rows or products worked through; for an import that is validating, the rows validated so far.
+  """
+  processed: Int!
+  source: BackgroundJobSource!
+  startedAt: DateTime!
+  state: BackgroundJobState!
+  total: Int!
+}
+
+"""
+What the job does: `productDelete` deletes products, `productUpdate` updates them, `recordImport` imports records into a model.
+"""
+enum BackgroundJobKind {
+  productDelete
+  productUpdate
+  recordImport
+}
+
+"""
+The phase of a record import: `validate` checks every row and writes no record, `write` creates and updates records.
+"""
+enum BackgroundJobPhase {
+  validate
+  write
+}
+
+"""
+Which job collection a background job comes from: `productBulk` is a product bulk delete or update, `recordImport` is a record import.
+"""
+enum BackgroundJobSource {
+  productBulk
+  recordImport
+}
+
+"""
+`running` is queued or working, `awaitingConfirmation` is an import waiting for a decision, `stopped` failed and is the job its model offers to resume, `completed`, `failed` and `cancelled` are final.
+"""
+enum BackgroundJobState {
+  awaitingConfirmation
+  cancelled
+  completed
+  failed
+  running
+  stopped
+}
+
+"""
 One structured block advisory. blockAdvisories[i] is the source of blockWarnings[i] on the same write result.
 """
 type BlockAdvisory {
@@ -8275,6 +8343,10 @@ type WorkspaceOrganization {
 }
 
 type WorkspaceQueries {
+  """
+  The workspace's background jobs: every running, awaiting and stopped job, and the 10 most recently finished of the last 24 hours. Reading it ends a job that stalled and a live job whose model was deleted.
+  """
+  backgroundJobs: [BackgroundJob!]!
   canAccess(id: ID!): Boolean!
   current: Workspace
   draftSecret: String!
