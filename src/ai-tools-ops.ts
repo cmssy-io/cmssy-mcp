@@ -2097,7 +2097,7 @@ export function createMcpWorkspaceOps(
               total: number;
             };
           };
-        }>(MEDIA_FOLDERS_QUERY, { parentId: parentId ?? null });
+        }>(MEDIA_FOLDERS_QUERY, { parentId: parentId ?? "" });
         return {
           items: res.media.folders.items.map((f) => ({
             id: f.id,

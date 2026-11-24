@@ -100,7 +100,9 @@ export function createGetSiteSetupTool(
   return {
     name: "get_site_setup",
     description:
-      "Everything needed to build a website or app on this cmssy workspace: the exact files to write (catch-all page, editor route, proxy, config, block registry, header/footer layout regions), the npm packages, the env vars filled in for this workspace (CMSSY_DRAFT_SECRET included - server-only), and the steps in order. Call it first whenever you build or wire a site, instead of reconstructing the setup from documentation.",
+      "Everything needed to build a website or app on this cmssy workspace, as data: `files` (path and content of the catch-all page, editor route, proxy, config, block registry and header/footer layout regions), `dependencies` (the npm packages with their version), `env` (the variables filled in for this workspace, CMSSY_DRAFT_SECRET included - server-only), the current `previewUrl`, and `steps` in order. " +
+      "Read-only: it writes nothing to the workspace or to disk - the caller writes the files. Call it first whenever you build or wire a site, instead of reconstructing the setup from documentation. " +
+      "The steps then use set_preview_url, create_webhook, list_block_types, create_page, add_block_to_page and publish_page.",
     inputSchema: getSiteSetupInputSchema,
     requiredPermissions: ["pages:edit"],
     execute: (input) => getSiteSetup(client, input),
