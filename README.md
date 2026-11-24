@@ -1,5 +1,7 @@
 # @cmssy/mcp-server
 
+[![cmssy-io/cmssy-mcp MCP server](https://glama.ai/mcp/servers/cmssy-io/cmssy-mcp/badges/score.svg)](https://glama.ai/mcp/servers/cmssy-io/cmssy-mcp)
+
 MCP server for [Cmssy](https://cmssy.com), a hosted headless CMS with built-in commerce. Lets an AI agent work with pages, records, media, forms, products, orders, refunds and discounts in a Cmssy workspace.
 
 ## Hosted server (no install)
