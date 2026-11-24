@@ -34,6 +34,15 @@ export const PAGE_VERSION_QUERY = `
   }
 `;
 
+export const PAGE_PUBLISHED_QUERY = `
+  query PagePublished($pageId: ID!) {
+    page { get(pageId: $pageId) {
+      id
+      published
+    } }
+  }
+`;
+
 export const PAGE_BY_ID_QUERY = `
   query PageById($pageId: ID!) {
     page { get(pageId: $pageId) {
