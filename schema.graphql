@@ -717,8 +717,29 @@ type AuthorizeSupportScreenshotUploadPayload {
 One background job of the workspace, in a shape shared by product bulk jobs and record imports.
 """
 type BackgroundJob {
+  """
+  The Spotlight conversation that started the job, returned only to the user who started it; null for any other start and for every other reader.
+  """
+  conversationId: ID
+
+  """Records created; null for a product bulk job."""
+  created: Int
+
+  """Products deleted; null for a record import."""
+  deleted: Int
+
+  """Rows that could not be written; null for a product bulk job."""
+  failed: Int
+
+  """
+  Set only while the state is `stopped` or `failed`; a cancelled job has none.
+  """
+  failureReason: BackgroundJobFailureReason
   finishedAt: DateTime
   id: ID!
+
+  """Rows that failed validation; null for a product bulk job."""
+  invalid: Int
   kind: BackgroundJobKind!
 
   """True when the signed-in user started the job."""
@@ -738,10 +759,41 @@ type BackgroundJob {
   Rows or products worked through; for an import that is validating, the rows validated so far.
   """
   processed: Int!
+
+  """
+  The Spotlight conversation of the job's last resume, returned only to the user who made that resume; null when it was never resumed, was last resumed elsewhere, or for every other reader.
+  """
+  resumedConversationId: ID
+
+  """Products a delete left in place; null for a record import."""
+  skipped: Int
   source: BackgroundJobSource!
   startedAt: DateTime!
   state: BackgroundJobState!
   total: Int!
+
+  """
+  Rows that matched a record as it already was; null for a product bulk job.
+  """
+  unchanged: Int
+
+  """Products or records updated."""
+  updated: Int
+
+  """Null for a job started in the admin."""
+  via: BackgroundJobVia
+}
+
+"""
+Why a job stopped or failed: `stalled` went silent, `enqueueFailed` could not queue its next step, `unexpected` hit an error - these three can be resumed while the job is `stopped`. `modelUnavailable` lost its model, `invalidPatch` is a product update whose changes no longer apply, `invalidUpsertKey` is an import whose match field no longer fits the model.
+"""
+enum BackgroundJobFailureReason {
+  enqueueFailed
+  invalidPatch
+  invalidUpsertKey
+  modelUnavailable
+  stalled
+  unexpected
 }
 
 """
@@ -779,6 +831,14 @@ enum BackgroundJobState {
   failed
   running
   stopped
+}
+
+"""
+The channel a job was started through when it was not the admin: `spotlight` is a Spotlight conversation, `mcp` is the API or MCP.
+"""
+enum BackgroundJobVia {
+  mcp
+  spotlight
 }
 
 """
@@ -2576,6 +2636,18 @@ type Invoice {
 }
 
 scalar JSON
+
+"""
+Background jobs of one kind that ended in the period, across the organization: how many ended and how many rows they carried.
+"""
+type JobUsageTotals {
+  failed: Int!
+  invalid: Int!
+  jobs: Int!
+  kind: BackgroundJobKind!
+  processed: Int!
+  submitted: Int!
+}
 
 type LayoutBlock {
   advanced: JSON
@@ -4507,6 +4579,15 @@ type OrganizationBilling {
   trialEndsAt: DateTime
 }
 
+"""
+Record imports and product bulk jobs that ended in the current UTC calendar month. Plain counts: no limit applies to them.
+"""
+type OrganizationJobUsage {
+  periodStart: DateTime!
+  totals: [JobUsageTotals!]!
+  workspaces: [WorkspaceJobUsage!]!
+}
+
 type OrganizationLimits {
   canUseSso: Boolean!
   maxApiRequestsMonth: Int!
@@ -4599,6 +4680,11 @@ type OrganizationQueries {
   ai: OrganizationAiQueries!
   get(id: ID, slug: String): Organization
   invoices(limit: Int, organizationId: ID!): [Invoice!]!
+
+  """
+  This month's background jobs of an organization, per kind and per workspace. A member who does not manage the organization gets the rows of the workspaces they can see. Null for a caller who is not a member.
+  """
+  jobUsage(id: ID, slug: String): OrganizationJobUsage
   list: [Organization!]!
   sso: OrganizationSsoQueries!
   usageHistory(id: ID, range: UsageHistoryRange!, slug: String): UsageHistory
@@ -8288,6 +8374,19 @@ type WorkspaceCurrencies {
   defaultCurrency: String!
 }
 
+"""
+Background jobs of one kind that ended in the period in one workspace. The workspace may no longer belong to the organization.
+"""
+type WorkspaceJobUsage {
+  failed: Int!
+  invalid: Int!
+  jobs: Int!
+  kind: BackgroundJobKind!
+  processed: Int!
+  submitted: Int!
+  workspaceId: ID!
+}
+
 type WorkspaceMemberType {
   email: String
   joinedAt: DateTime
@@ -8344,9 +8443,12 @@ type WorkspaceOrganization {
 
 type WorkspaceQueries {
   """
-  The workspace's background jobs: every running, awaiting and stopped job, and the 10 most recently finished of the last 24 hours. Reading it ends a job that stalled and a live job whose model was deleted.
+  The workspace's background jobs: every running, awaiting and stopped job, and the 10 most recently finished of the last 24 hours. Reading it ends a job that stalled and a live job whose model was deleted. `ids` adds the workspace's jobs with those ids whatever their state or age, each once and in its final state; an id that names no job of the workspace, or an import that never started, is skipped.
   """
-  backgroundJobs: [BackgroundJob!]!
+  backgroundJobs(
+    """Job ids to return in addition to the default list, at most 50."""
+    ids: [ID!]
+  ): [BackgroundJob!]!
   canAccess(id: ID!): Boolean!
   current: Workspace
   draftSecret: String!
