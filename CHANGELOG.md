@@ -1,5 +1,14 @@
 # @cmssy/mcp-server
 
+## 0.148.2
+
+- `list_media_folders` without `parentId` lists the top-level folders, as its
+  description says and Spotlight does. It sent `parentId: null`, which the API
+  answers with every folder in the workspace.
+- Tool descriptions from `@cmssy/ai-tools` 0.119.2: the 37 tools still under
+  4.0 on Glama's TDQS now state effect, refusals, siblings and return shape;
+  `get_site_setup` says what it returns and that it writes nothing.
+
 ## 0.148.1
 
 - `unpublish_page` no longer publishes a page that is not published. It went
