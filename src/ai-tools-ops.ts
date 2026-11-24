@@ -102,6 +102,7 @@ import {
   BULK_UPDATE_MODEL_RECORDS_MUTATION,
   PAGES_QUERY,
   PAGE_BY_ID_QUERY,
+  PAGE_PUBLISHED_QUERY,
   PAGE_RESOLVED_LAYOUTS_QUERY,
   PAGE_VERSION_QUERY,
   PAGE_TYPES_QUERY,
@@ -1579,6 +1580,11 @@ export function createMcpWorkspaceOps(
         return { id: res.page.publishLayout.id };
       },
       unpublish: async (pageId) => {
+        const current = await client.query<{
+          page: { get: { id: string; published: boolean } | null };
+        }>(PAGE_PUBLISHED_QUERY, { pageId });
+        if (!current.page.get) throw new Error("Page not found");
+        if (!current.page.get.published) return { id: current.page.get.id };
         const res = await client.query<{
           page: { togglePublish: { id: string } | null };
         }>(TOGGLE_PUBLISH_MUTATION, { id: pageId });

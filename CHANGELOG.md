@@ -1,5 +1,15 @@
 # @cmssy/mcp-server
 
+## 0.148.1
+
+- `unpublish_page` no longer publishes a page that is not published. It went
+  through `togglePublish`, which flips the state, so calling it on a draft put
+  the draft live; it now reads `published` first and leaves an unpublished page
+  as it is.
+- Tool descriptions from `@cmssy/ai-tools` 0.119.1: the 30 weakest now state
+  the precondition, the effect, the refusals, the sibling tool and the real
+  return shape; the four block-editing tools point at each other.
+
 ## 0.148.0
 
 - Record import job tools (`@cmssy/ai-tools` 0.119.0, CMS-2282):
