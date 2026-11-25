@@ -4448,6 +4448,30 @@ enum OrgAuditLogEntityType {
   WORKSPACE
 }
 
+"""
+The organization's daily token budget for the assistant (Spotlight), pooled across its workspaces and counted per UTC day.
+"""
+type OrgSpotlightBudget {
+  """The budget in force; null when the budget is off."""
+  dailyTokens: Float
+  defaultDailyTokens: Float!
+  mode: OrgSpotlightBudgetMode!
+
+  """The next 00:00 UTC."""
+  resetsAt: DateTime!
+
+  """
+  Input plus output tokens the assistant used since 00:00 UTC. Editor AI is not counted. Null when the usage could not be read in time.
+  """
+  usedToday: Float
+}
+
+enum OrgSpotlightBudgetMode {
+  CUSTOM
+  DEFAULT
+  OFF
+}
+
 type Organization {
   billing: OrganizationBilling!
   id: ID!
@@ -4512,10 +4536,16 @@ type OrganizationAiMutations {
   """
   testConnection(input: OrgAiProviderKeySourceInput!, organizationId: ID!): AiProviderTestResult!
   updateProvider(id: ID!, input: UpdateOrgAiProviderInput!, organizationId: ID!): OrgAiProvider!
+  updateSpotlightBudget(input: UpdateOrgSpotlightBudgetInput!, organizationId: ID!): OrgSpotlightBudget!
 }
 
 type OrganizationAiQueries {
   providers(organizationId: ID!): [OrgAiProvider!]!
+
+  """
+  The assistant's daily token budget and what is used of it today. Requires an organization owner or admin.
+  """
+  spotlightBudget(organizationId: ID!): OrgSpotlightBudget!
 
   """
   Calls and tokens recorded on the organization's AI provider keys in the period, broken down by workspace, config and model. Usage of a deleted workspace is removed with it. Requires an organization owner or admin.
@@ -7866,6 +7896,14 @@ input UpdateOrgAiProviderInput {
   defaultModel: String
   name: String
   workspaceIds: [ID!]
+}
+
+input UpdateOrgSpotlightBudgetInput {
+  """
+  Required with CUSTOM and refused otherwise: a whole number from 100000 to 10000000000.
+  """
+  dailyTokens: Float
+  mode: OrgSpotlightBudgetMode!
 }
 
 input UpdateOrganizationInput {
