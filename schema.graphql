@@ -242,6 +242,10 @@ type AdminDiscountListResult {
 An organization AI provider config granted to this workspace; carries no key data
 """
 type AiAvailableConfig {
+  """
+  Models this workspace may switch to besides the default; empty means the default only
+  """
+  allowedModels: [String!]!
   defaultModel: String!
   id: ID!
   name: String!
@@ -1699,6 +1703,7 @@ input CreateModelRecordInput {
 
 input CreateOrgAiProviderInput {
   allWorkspaces: Boolean
+  allowedModels: [String!]
   apiKey: String
   defaultModel: String!
   name: String!
@@ -4355,6 +4360,11 @@ type OrgAiProvider {
   """The organization's workspaces that currently run AI on this config"""
   activeWorkspaceIds: [ID!]!
   allWorkspaces: Boolean!
+
+  """
+  Models a granted workspace may switch to besides the default; empty means the default only
+  """
+  allowedModels: [String!]!
   defaultModel: String!
   hasApiKey: Boolean!
   id: ID!
@@ -7890,6 +7900,9 @@ input UpdateOrderDetailsInput {
 
 input UpdateOrgAiProviderInput {
   allWorkspaces: Boolean
+
+  """Replaces the stored list; omit it to keep the list"""
+  allowedModels: [String!]
 
   """A new key replaces the stored one; omit it to keep the stored key"""
   apiKey: String
